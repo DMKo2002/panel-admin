@@ -41,7 +41,11 @@ export default async function ProductosPage() {
             const wholesalePrice = product.variants?.[0]?.price_rules?.find((p: any) => p.type === 'wholesale' && p.active)?.price
 
             return (
-              <div key={product.id} className="bg-white rounded-xl border border-zinc-200 overflow-hidden hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group">
+              <Link
+                key={product.id}
+                href={`/dashboard/productos/${product.id}`}
+                className="bg-white rounded-xl border border-zinc-200 overflow-hidden hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group"
+              >
                 {/* Imagen */}
                 <div className="h-40 bg-zinc-50 flex items-center justify-center relative overflow-hidden">
                   {cover ? (
@@ -86,7 +90,7 @@ export default async function ProductosPage() {
                     }
                   </div>
                 </div>
-              </div>
+              </Link>
             )
           })}
 
