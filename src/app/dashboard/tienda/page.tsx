@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Toggle from '@/components/Toggle'
 import type { StoreConfig } from '@/lib/types'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 export default function TiendaPage() {
   const supabase = createClient()
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [mpToken, setMpToken] = useState('')
+  const [savingMp, setSavingMp] = useState(false)
+  const [savedMp, setSavedMp] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -19,6 +23,7 @@ export default function TiendaPage() {
       if (!userRow) return
       const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
       setConfig(data)
+      if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token)
     }
     load()
   }, [])
@@ -45,6 +50,19 @@ export default function TiendaPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  async function handleSaveMpToken() {
+    if (!config) return
+    setSavingMp(true)
+    await supabase.from('store_config').update({
+      mp_access_token: mpToken.trim() || null,
+    }).eq('id', config.id)
+    setSavingMp(false)
+    setSavedMp(true)
+    setTimeout(() => setSavedMp(false), 2000)
+  }
+
+  const hasMpToken = Boolean((config as any)?.mp_access_token || mpToken)
+
   return (
     <div>
       <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
@@ -62,7 +80,6 @@ export default function TiendaPage() {
         {/* Apariencia */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Apariencia</h2>
-
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Logo</label>
             <label className="flex items-center gap-3 px-3 py-2 border border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 transition-colors">
@@ -73,7 +90,6 @@ export default function TiendaPage() {
               <input type="file" accept="image/*" className="hidden" />
             </label>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Color principal</label>
@@ -95,33 +111,86 @@ export default function TiendaPage() {
           </div>
         </div>
 
-        {/* Métodos de pago */}
+        {/* MercadoPago */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-700">MercadoPago</h2>
+            {hasMpToken
+              ? <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium"><CheckCircle size={13} />Conectado</span>
+              : <span className="flex items-center gap-1.5 text-xs text-zinc-400"><XCircle size={13} />No conectado</span>
+            }
+          </div>
+
+          <div className="flex items-center justify-between py-2 border-b border-zinc-50">
+            <div>
+              <p className="text-sm text-zinc-800">Habilitar MercadoPago</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Los clientes podrán pagar con tarjeta, débito y QR</p>
+            </div>
+            <Toggle checked={Boolean(config?.mp_enabled)} onChange={v => update('mp_enabled', v)} />
+          </div>
+
+          {config?.mp_enabled && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                  Access Token de tu cuenta MP
+                </label>
+                <input
+                  className="input font-mono text-xs"
+                  type="password"
+                  value={mpToken}
+                  onChange={e => setMpToken(e.target.value)}
+                  placeholder="APP_USR-... o TEST-..."
+                />
+                <p className="text-xs text-zinc-400 mt-1.5">
+                  Lo encontrás en{' '}
+                  <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">
+                    mercadopago.com.ar/developers
+                  </a>
+                  {' '}→ tu aplicación → Credenciales de producción
+                </p>
+              </div>
+              <button
+                onClick={handleSaveMpToken}
+                disabled={savingMp}
+                className="btn-secondary text-sm disabled:opacity-60"
+              >
+                {savedMp ? '✓ Token guardado' : savingMp ? 'Guardando...' : 'Guardar token MP'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Transferencia bancaria */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <h2 className="text-sm font-semibold text-zinc-700 mb-4">Métodos de pago</h2>
+          <h2 className="text-sm font-semibold text-zinc-700 mb-4">Transferencia bancaria</h2>
           <div className="space-y-1">
             <ToggleRow
-              label="MercadoPago"
-              desc="Tarjeta, débito, QR, cuotas"
-              checked={Boolean(config?.mp_enabled)}
-              onChange={v => update('mp_enabled', v)}
-            />
-            <ToggleRow
-              label="Transferencia bancaria"
-              desc="Confirmación manual desde el panel"
+              label="Habilitar transferencia"
+              desc="El cliente transfiere y vos confirmás el pago manualmente"
               checked={Boolean(config?.transfer_enabled)}
               onChange={v => update('transfer_enabled', v)}
             />
           </div>
-
           {config?.transfer_enabled && (
             <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-zinc-100">
               <div>
                 <label className="block text-xs text-zinc-500 mb-1">CBU</label>
-                <input className="input text-sm" value={config.transfer_cbu ?? ''} onChange={e => update('transfer_cbu', e.target.value)} placeholder="0000000000000000000000" />
+                <input
+                  className="input text-sm"
+                  value={config.transfer_cbu ?? ''}
+                  onChange={e => update('transfer_cbu', e.target.value)}
+                  placeholder="0000000000000000000000"
+                />
               </div>
               <div>
                 <label className="block text-xs text-zinc-500 mb-1">Alias</label>
-                <input className="input text-sm" value={config.transfer_alias ?? ''} onChange={e => update('transfer_alias', e.target.value)} placeholder="mi.alias.mp" />
+                <input
+                  className="input text-sm"
+                  value={config.transfer_alias ?? ''}
+                  onChange={e => update('transfer_alias', e.target.value)}
+                  placeholder="mi.alias.mp"
+                />
               </div>
             </div>
           )}
@@ -131,24 +200,9 @@ export default function TiendaPage() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
           <h2 className="text-sm font-semibold text-zinc-700 mb-4">Métodos de envío</h2>
           <div className="space-y-1">
-            <ToggleRow
-              label="OCA"
-              desc="Cálculo automático de flete por código postal"
-              checked={Boolean(config?.oca_enabled)}
-              onChange={v => update('oca_enabled', v)}
-            />
-            <ToggleRow
-              label="Andreani"
-              desc="Requiere credenciales de cuenta empresas"
-              checked={Boolean(config?.andreani_enabled)}
-              onChange={v => update('andreani_enabled', v)}
-            />
-            <ToggleRow
-              label="Retiro en local"
-              desc="El cliente retira sin costo de envío"
-              checked={Boolean(config?.pickup_enabled)}
-              onChange={v => update('pickup_enabled', v)}
-            />
+            <ToggleRow label="OCA" desc="Cálculo automático de flete por código postal" checked={Boolean(config?.oca_enabled)} onChange={v => update('oca_enabled', v)} />
+            <ToggleRow label="Andreani" desc="Requiere credenciales de cuenta empresas" checked={Boolean(config?.andreani_enabled)} onChange={v => update('andreani_enabled', v)} />
+            <ToggleRow label="Retiro en local" desc="El cliente retira sin costo de envío" checked={Boolean(config?.pickup_enabled)} onChange={v => update('pickup_enabled', v)} />
           </div>
         </div>
 
