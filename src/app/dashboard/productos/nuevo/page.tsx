@@ -1,15 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Upload, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
+interface VariantAttribute {
+  key: string
+  label: string
+  type: 'text' | 'select'
+  options?: string[]
+}
+
 interface Variant {
-  size: string
-  color: string
-  sku: string
+  [key: string]: any
   stock: number
   retailPrice: number
   wholesalePrice: number
@@ -22,35 +27,62 @@ export default function NuevoProductoPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [variantAttributes, setVariantAttributes] = useState<VariantAttribute[]>([])
 
-  // Datos del producto
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
 
-  // Variantes
+  const defaultVariant = () => {
+    const base: Variant = { stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }
+    variantAttributes.forEach(attr => { base[attr.key] = '' })
+    return base
+  }
+
   const [variants, setVariants] = useState<Variant[]>([
-    { size: '', color: '', sku: '', stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }
+    { stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }
   ])
 
+  useEffect(() => {
+    async function loadAttributes() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+      if (!userRow?.tenant_id) return
+      const { data: config } = await supabase
+        .from('store_config')
+        .select('variant_attributes')
+        .eq('tenant_id', userRow.tenant_id)
+        .single()
+
+      if (config?.variant_attributes) {
+        setVariantAttributes(config.variant_attributes)
+        // Inicializar variante con los atributos del tenant
+        const base: Variant = { stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }
+        config.variant_attributes.forEach((attr: VariantAttribute) => { base[attr.key] = '' })
+        setVariants([base])
+      }
+    }
+    loadAttributes()
+  }, [])
+
   function addVariant() {
-    setVariants(v => [...v, { size: '', color: '', sku: '', stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }])
+    setVariants(v => [...v, defaultVariant()])
   }
 
   function removeVariant(i: number) {
     setVariants(v => v.filter((_, idx) => idx !== i))
   }
 
-  function updateVariant(i: number, field: keyof Variant, value: string | number) {
+  function updateVariant(i: number, field: string, value: any) {
     setVariants(v => v.map((variant, idx) => idx === i ? { ...variant, [field]: value } : variant))
   }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     setImageFiles(prev => [...prev, ...files])
-    const previews = files.map(f => URL.createObjectURL(f))
-    setImagePreviews(prev => [...prev, ...previews])
+    setImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
   }
 
   function slugify(text: string) {
@@ -66,15 +98,13 @@ export default function NuevoProductoPage() {
     setError(null)
 
     try {
-      // 1. Obtener tenant_id del usuario
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No autenticado')
-
       const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
       const tenantId = userRow?.tenant_id
       if (!tenantId) throw new Error('Tenant no encontrado')
 
-      // 2. Crear producto
+      // Crear producto
       const slug = slugify(name) + '-' + Date.now()
       const { data: product, error: productError } = await supabase
         .from('products')
@@ -84,36 +114,33 @@ export default function NuevoProductoPage() {
 
       if (productError) throw productError
 
-      // 3. Subir imágenes a Supabase Storage
+      // Subir imágenes
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i]
         const ext = file.name.split('.').pop()
         const path = `${tenantId}/${product.id}/${Date.now()}-${i}.${ext}`
-
-        const { data: uploadData } = await supabase.storage
-          .from('product-images')
-          .upload(path, file, { upsert: true })
-
+        const { data: uploadData } = await supabase.storage.from('product-images').upload(path, file, { upsert: true })
         if (uploadData) {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
           await supabase.from('product_images').insert({
-            product_id: product.id,
-            url: publicUrl,
-            sort_order: i,
-            is_cover: i === 0,
+            product_id: product.id, url: publicUrl, sort_order: i, is_cover: i === 0,
           })
         }
       }
 
-      // 4. Crear variantes y price_rules
+      // Crear variantes con atributos dinámicos
       for (const v of variants) {
+        const attributes: Record<string, any> = {}
+        variantAttributes.forEach(attr => { attributes[attr.key] = v[attr.key] || '' })
+
         const { data: variant } = await supabase
           .from('variants')
           .insert({
             product_id: product.id,
-            size: v.size || null,
-            color: v.color || null,
-            sku: v.sku || null,
+            // Mantener size/color para compatibilidad
+            size: attributes['talle'] || attributes['numero'] || null,
+            color: attributes['color'] || null,
+            attributes,
             stock: v.stock,
           })
           .select()
@@ -121,15 +148,9 @@ export default function NuevoProductoPage() {
 
         if (variant) {
           const rules = []
-          if (v.retailPrice > 0) {
-            rules.push({ variant_id: variant.id, type: 'retail', min_qty: 1, price: v.retailPrice })
-          }
-          if (v.wholesalePrice > 0) {
-            rules.push({ variant_id: variant.id, type: 'wholesale', min_qty: v.wholesaleMinQty, price: v.wholesalePrice })
-          }
-          if (rules.length > 0) {
-            await supabase.from('price_rules').insert(rules)
-          }
+          if (v.retailPrice > 0) rules.push({ variant_id: variant.id, type: 'retail', min_qty: 1, price: v.retailPrice })
+          if (v.wholesalePrice > 0) rules.push({ variant_id: variant.id, type: 'wholesale', min_qty: v.wholesaleMinQty, price: v.wholesalePrice })
+          if (rules.length > 0) await supabase.from('price_rules').insert(rules)
         }
       }
 
@@ -157,12 +178,10 @@ export default function NuevoProductoPage() {
         {/* Datos básicos */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Información básica</h2>
-
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
             <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Campera de cuero negra" required />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
             <textarea className="input resize-none" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Descripción del producto..." />
@@ -172,14 +191,12 @@ export default function NuevoProductoPage() {
         {/* Imágenes */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
-
           <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 hover:bg-violet-50 transition-colors">
             <Upload size={20} className="text-zinc-400 mb-1" />
             <span className="text-sm text-zinc-500">Subir fotos del producto</span>
             <span className="text-xs text-zinc-400 mt-0.5">JPG, PNG, WebP</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
-
           {imagePreviews.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {imagePreviews.map((src, i) => (
@@ -192,7 +209,7 @@ export default function NuevoProductoPage() {
           )}
         </div>
 
-        {/* Variantes */}
+        {/* Variantes dinámicas */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-700">Variantes y precios</h2>
@@ -212,22 +229,56 @@ export default function NuevoProductoPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs text-zinc-500 mb-1">Talle</label>
-                  <input className="input text-sm" value={v.size} onChange={e => updateVariant(i, 'size', e.target.value)} placeholder="S, M, L, 38..." />
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-500 mb-1">Color</label>
-                  <input className="input text-sm" value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Negro, Azul..." />
-                </div>
+              {/* Atributos dinámicos del tenant */}
+              <div className={`grid gap-3 ${variantAttributes.length > 0 ? `grid-cols-${Math.min(variantAttributes.length, 3)}` : 'grid-cols-2'}`}>
+                {variantAttributes.length > 0 ? (
+                  variantAttributes.map(attr => (
+                    <div key={attr.key}>
+                      <label className="block text-xs text-zinc-500 mb-1">{attr.label}</label>
+                      {attr.type === 'select' && attr.options ? (
+                        <select
+                          className="input text-sm"
+                          value={v[attr.key] ?? ''}
+                          onChange={e => updateVariant(i, attr.key, e.target.value)}
+                        >
+                          <option value="">Elegir {attr.label.toLowerCase()}...</option>
+                          {attr.options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="input text-sm"
+                          value={v[attr.key] ?? ''}
+                          onChange={e => updateVariant(i, attr.key, e.target.value)}
+                          placeholder={attr.label}
+                        />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // Fallback si no hay atributos configurados
+                  <>
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Talle</label>
+                      <input className="input text-sm" value={v.talle ?? ''} onChange={e => updateVariant(i, 'talle', e.target.value)} placeholder="S, M, L, 38..." />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Color</label>
+                      <input className="input text-sm" value={v.color ?? ''} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Negro, Azul..." />
+                    </div>
+                  </>
+                )}
+
+                {/* Stock siempre presente */}
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Stock</label>
                   <input className="input text-sm" type="number" min="0" value={v.stock} onChange={e => updateVariant(i, 'stock', parseInt(e.target.value) || 0)} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              {/* Precios */}
+              <div className="grid grid-cols-3 gap-3 pt-2 border-t border-zinc-50">
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Precio minorista $</label>
                   <input className="input text-sm" type="number" min="0" value={v.retailPrice || ''} onChange={e => updateVariant(i, 'retailPrice', parseFloat(e.target.value) || 0)} placeholder="0" />
