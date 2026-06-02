@@ -20,18 +20,25 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
-
+  
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // Sin sesión → login
-  if (!user && path.startsWith('/dashboard')) {
+  // 1. Sin sesión → solo puede ir al login
+  if (!user && path !== '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Con sesión → verificar si tiene tenant
+  // 2. Con sesión en login → ir al dashboard
+  if (user && path === '/login') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // 3. Con sesión → verificar si tiene tenant
   if (user && path.startsWith('/dashboard')) {
     const { data: userRow } = await supabase
       .from('users')
@@ -39,7 +46,6 @@ export async function proxy(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    // Si no tiene tenant_id → onboarding
     if (!userRow?.tenant_id) {
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding'
@@ -47,8 +53,8 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Ya logueado → no mostrar login ni onboarding
-  if (user && (path === '/login' || path === '/onboarding')) {
+  // 4. Con sesión y con tenant → no volver al onboarding
+  if (user && path === '/onboarding') {
     const { data: userRow } = await supabase
       .from('users')
       .select('tenant_id')
