@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
-import { Download } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -36,7 +36,7 @@ export default async function PedidosPage({
   const { data: orders } = await query
 
   const statusOptions = [
-    { value: '', label: 'Todos los estados' },
+    { value: '', label: 'Todos' },
     { value: 'pending', label: 'Pendiente' },
     { value: 'confirmed', label: 'Confirmado' },
     { value: 'shipped', label: 'Enviado' },
@@ -87,6 +87,7 @@ export default async function PedidosPage({
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado pago</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Fecha</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Recibo</th>
               </tr>
             </thead>
             <tbody>
@@ -103,10 +104,21 @@ export default async function PedidosPage({
                   <td className="px-4 py-3"><PaymentStatusBadge status={order.payment_status} /></td>
                   <td className="px-4 py-3"><OrderStatusBadge status={order.status} /></td>
                   <td className="px-4 py-3 text-zinc-400 text-xs">{formatDate(order.created_at)}</td>
+                  <td className="px-4 py-3">
+                    <a
+                      href={`/api/pdf?order_id=${order.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+                    >
+                      <FileText size={13} />
+                      PDF
+                    </a>
+                  </td>
                 </tr>
               ))}
               {(!orders || orders.length === 0) && (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
+                <tr><td colSpan={9} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
               )}
             </tbody>
           </table>
