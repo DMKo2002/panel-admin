@@ -20,16 +20,22 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // 1. Sin sesión → solo puede ir al login
-  if (!user && path !== '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+// 1. Sin sesión → solo puede ir al login
+if (!user && path.startsWith('/dashboard')) {
+  const url = request.nextUrl.clone()
+  url.pathname = '/login'
+  return NextResponse.redirect(url)
+}
+
+if (!user && path === '/onboarding') {
+  const url = request.nextUrl.clone()
+  url.pathname = '/login'
+  return NextResponse.redirect(url)
+}
 
   // 2. Con sesión en login → ir al dashboard
   if (user && path === '/login') {
@@ -72,5 +78,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/onboarding'],
+  matcher: [
+    '/dashboard/:path*',
+    '/onboarding',
+    '/login',
+  ],
 }
