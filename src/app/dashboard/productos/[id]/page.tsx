@@ -13,6 +13,7 @@ interface Variant {
   sku: string
   stock: number
   retailPrice: number
+  retailCompareAt: number   // precio anterior (tachado), 0 = sin descuento
   wholesalePrice: number
   wholesaleMinQty: number
   _delete?: boolean
@@ -63,12 +64,13 @@ export default function EditarProductoPage() {
           sku: v.sku ?? '',
           stock: v.stock,
           retailPrice: retail?.price ?? 0,
+          retailCompareAt: retail?.compare_at_price ?? 0,
           wholesalePrice: wholesale?.price ?? 0,
           wholesaleMinQty: wholesale?.min_qty ?? 6,
         }
       })
       setVariants(mappedVariants.length > 0 ? mappedVariants : [
-        { size: '', color: '', sku: '', stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }
+        { size: '', color: '', sku: '', stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleMinQty: 6 }
       ])
       setLoading(false)
     }
@@ -80,7 +82,7 @@ export default function EditarProductoPage() {
   }
 
   function addVariant() {
-    setVariants(v => [...v, { size: '', color: '', sku: '', stock: 0, retailPrice: 0, wholesalePrice: 0, wholesaleMinQty: 6 }])
+    setVariants(v => [...v, { size: '', color: '', sku: '', stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleMinQty: 6 }])
   }
 
   function removeVariant(i: number) {
@@ -159,7 +161,10 @@ export default function EditarProductoPage() {
           // Borrar price_rules viejos y recrear
           await supabase.from('price_rules').delete().eq('variant_id', v.id)
           const rules = []
-          if (v.retailPrice > 0) rules.push({ variant_id: v.id, type: 'retail', min_qty: 1, price: v.retailPrice })
+          if (v.retailPrice > 0) rules.push({
+            variant_id: v.id, type: 'retail', min_qty: 1, price: v.retailPrice,
+            compare_at_price: v.retailCompareAt > 0 ? v.retailCompareAt : null,
+          })
           if (v.wholesalePrice > 0) rules.push({ variant_id: v.id, type: 'wholesale', min_qty: v.wholesaleMinQty, price: v.wholesalePrice })
           if (rules.length > 0) await supabase.from('price_rules').insert(rules)
         } else {
@@ -174,7 +179,10 @@ export default function EditarProductoPage() {
 
           if (newVariant) {
             const rules = []
-            if (v.retailPrice > 0) rules.push({ variant_id: newVariant.id, type: 'retail', min_qty: 1, price: v.retailPrice })
+            if (v.retailPrice > 0) rules.push({
+              variant_id: newVariant.id, type: 'retail', min_qty: 1, price: v.retailPrice,
+              compare_at_price: v.retailCompareAt > 0 ? v.retailCompareAt : null,
+            })
             if (v.wholesalePrice > 0) rules.push({ variant_id: newVariant.id, type: 'wholesale', min_qty: v.wholesaleMinQty, price: v.wholesalePrice })
             if (rules.length > 0) await supabase.from('price_rules').insert(rules)
           }
@@ -358,11 +366,26 @@ export default function EditarProductoPage() {
                     <input className="input text-sm" type="number" min="0" value={v.stock} onChange={e => updateVariant(realIdx, 'stock', parseInt(e.target.value) || 0)} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Precio minorista $</label>
                     <input className="input text-sm" type="number" min="0" value={v.retailPrice || ''} onChange={e => updateVariant(realIdx, 'retailPrice', parseFloat(e.target.value) || 0)} placeholder="0" />
                   </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">
+                      Precio anterior $ <span className="text-zinc-400 font-normal">(tachado · opcional)</span>
+                    </label>
+                    <input
+                      className="input text-sm"
+                      type="number"
+                      min="0"
+                      value={v.retailCompareAt || ''}
+                      onChange={e => updateVariant(realIdx, 'retailCompareAt', parseFloat(e.target.value) || 0)}
+                      placeholder="Ej: 8000 → muestra tachado"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Precio mayorista $</label>
                     <input className="input text-sm" type="number" min="0" value={v.wholesalePrice || ''} onChange={e => updateVariant(realIdx, 'wholesalePrice', parseFloat(e.target.value) || 0)} placeholder="0" />

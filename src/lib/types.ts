@@ -116,6 +116,7 @@ export interface PriceRule {
   type: PriceType
   min_qty: number
   price: number
+  compare_at_price: number | null
   active: boolean
 }
 
