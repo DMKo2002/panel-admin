@@ -39,6 +39,15 @@ export interface StoreConfig {
   notify_wa_low_stock: boolean
   notify_wa_pending_transfer: boolean
   updated_at: string
+  // Andreani API
+  andreani_usuario: string | null
+  andreani_password: string | null
+  andreani_codigo_cliente: string | null
+  andreani_contrato_dom: string | null
+  andreani_cp_origen: string | null
+  andreani_sandbox: boolean
+  andreani_peso_default_g: number
+  andreani_tarifa_fallback: number
 }
 
 export interface Customer {
