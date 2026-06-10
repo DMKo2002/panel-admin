@@ -73,16 +73,30 @@ export default function TiendaPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const [heroUploadError, setHeroUploadError] = useState<string | null>(null)
+
   async function handleHeroUpload(file: File) {
     if (!config) return
     setUploadingHero(true)
+    setHeroUploadError(null)
     const ext = file.name.split('.').pop()
     const path = `${config.tenant_id}/hero.${ext}`
-    const { data: uploadData } = await supabase.storage.from('store-assets').upload(path, file, { upsert: true })
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('store-assets')
+      .upload(path, file, { upsert: true })
+    if (uploadError) {
+      setHeroUploadError(`Error al subir: ${uploadError.message}`)
+      setUploadingHero(false)
+      return
+    }
     if (uploadData) {
       const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(path)
-      await supabase.from('store_config').update({ hero_image_url: publicUrl }).eq('id', config.id)
-      setConfig(c => c ? { ...c, hero_image_url: publicUrl } : c)
+      const { error: dbError } = await supabase.from('store_config').update({ hero_image_url: publicUrl }).eq('id', config.id)
+      if (dbError) {
+        setHeroUploadError(`Error al guardar: ${dbError.message}`)
+      } else {
+        setConfig(c => c ? { ...c, hero_image_url: publicUrl } : c)
+      }
     }
     setUploadingHero(false)
   }
@@ -206,6 +220,9 @@ export default function TiendaPage() {
               >
                 Quitar imagen
               </button>
+            )}
+            {heroUploadError && (
+              <p className="mt-2 text-xs text-red-500">{heroUploadError}</p>
             )}
           </div>
 
