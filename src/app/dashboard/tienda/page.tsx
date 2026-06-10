@@ -66,6 +66,7 @@ export default function TiendaPage() {
       andreani_sandbox: (config as any).andreani_sandbox ?? true,
       andreani_peso_default_g: (config as any).andreani_peso_default_g ?? 500,
       andreani_tarifa_fallback: (config as any).andreani_tarifa_fallback ?? 0,
+      min_order_amount: config.min_order_amount ?? null,
     }).eq('id', config.id)
     setSaving(false)
     setSaved(true)
@@ -217,6 +218,36 @@ export default function TiendaPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Pedido mínimo */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Pedido mínimo</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Si el total del carrito no alcanza este monto, el cliente no puede finalizar la compra.
+              Dejalo en 0 o vacío para no aplicar mínimo.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 max-w-xs">
+            <span className="text-sm text-zinc-500 flex-shrink-0">ARS $</span>
+            <input
+              className="input flex-1"
+              type="number"
+              min={0}
+              step={100}
+              value={config?.min_order_amount ?? ''}
+              onChange={e => update('min_order_amount', e.target.value === '' ? null : Number(e.target.value))}
+              placeholder="Ej: 5000"
+            />
+          </div>
+          {(config?.min_order_amount ?? 0) > 0 && (
+            <p className="text-xs text-violet-600">
+              Los clientes deberán tener al menos{' '}
+              {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(config!.min_order_amount!)}
+              {' '}en el carrito para poder comprar.
+            </p>
+          )}
         </div>
 
         {/* Atributos de productos */}

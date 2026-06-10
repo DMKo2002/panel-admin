@@ -32,6 +32,7 @@ export interface StoreConfig {
   transfer_enabled: boolean
   transfer_cbu: string | null
   transfer_alias: string | null
+  min_order_amount: number | null
   oca_enabled: boolean
   andreani_enabled: boolean
   pickup_enabled: boolean
