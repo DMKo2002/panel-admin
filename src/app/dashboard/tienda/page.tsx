@@ -25,6 +25,7 @@ export default function TiendaPage() {
   const [savingAttrs, setSavingAttrs] = useState(false)
   const [savedAttrs, setSavedAttrs] = useState(false)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
+  const [uploadingHero, setUploadingHero] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -69,6 +70,20 @@ export default function TiendaPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleHeroUpload(file: File) {
+    if (!config) return
+    setUploadingHero(true)
+    const ext = file.name.split('.').pop()
+    const path = `${config.tenant_id}/hero.${ext}`
+    const { data: uploadData } = await supabase.storage.from('store-assets').upload(path, file, { upsert: true })
+    if (uploadData) {
+      const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(path)
+      await supabase.from('store_config').update({ hero_image_url: publicUrl }).eq('id', config.id)
+      setConfig(c => c ? { ...c, hero_image_url: publicUrl } : c)
+    }
+    setUploadingHero(false)
   }
 
   async function handleSaveMpToken() {
@@ -153,6 +168,46 @@ export default function TiendaPage() {
               <input type="file" accept="image/*" className="hidden" />
             </label>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Imagen del hero (página de inicio)</label>
+            <p className="text-xs text-zinc-400 mb-2">Aparece como fondo en la sección principal. Recomendado: 1920×1080px o más, formato JPG o WebP.</p>
+            <label className={`flex items-center gap-3 px-3 py-2 border border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 transition-colors ${uploadingHero ? 'opacity-60 pointer-events-none' : ''}`}>
+              <div className="w-16 h-10 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-400 text-xs flex-shrink-0 overflow-hidden">
+                {config?.hero_image_url
+                  ? <img src={config.hero_image_url} className="w-full h-full object-cover rounded-lg" />
+                  : <span className="text-[10px] text-center leading-tight px-1">Sin imagen</span>
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                {config?.hero_image_url
+                  ? <p className="text-sm text-zinc-600 truncate">{config.hero_image_url.split('/').pop()}</p>
+                  : <p className="text-sm text-zinc-400">Subir imagen de fondo para el hero</p>
+                }
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {uploadingHero ? 'Subiendo...' : 'Hacer clic para cambiar'}
+                </p>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleHeroUpload(f) }}
+              />
+            </label>
+            {config?.hero_image_url && (
+              <button
+                onClick={async () => {
+                  await supabase.from('store_config').update({ hero_image_url: null }).eq('id', config!.id)
+                  setConfig(c => c ? { ...c, hero_image_url: null } : c)
+                }}
+                className="mt-1.5 text-xs text-red-400 hover:text-red-600 transition-colors"
+              >
+                Quitar imagen
+              </button>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Color principal</label>

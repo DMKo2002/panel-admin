@@ -24,6 +24,7 @@ export interface StoreConfig {
   id: string
   tenant_id: string
   logo_url: string | null
+  hero_image_url: string | null
   primary_color: string
   whatsapp_number: string | null
   notification_email: string | null
