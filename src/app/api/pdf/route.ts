@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { ReciboPDF } from '@/components/ReciboPDF'
 import React from 'react'
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'order_id requerido' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     // Cargar orden completa con items y cliente
     const { data: order, error: orderError } = await supabase
