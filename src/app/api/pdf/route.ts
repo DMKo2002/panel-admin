@@ -39,19 +39,25 @@ export async function GET(req: NextRequest) {
 
     const { data: config } = await supabase
       .from('store_config')
-      .select('logo_url, notification_email, whatsapp_number, transfer_cbu, transfer_alias')
+      .select('logo_url, notification_email, whatsapp_number, transfer_cbu, transfer_alias, pdf_show_variant, pdf_show_pricetype, pdf_show_address, pdf_show_notes')
       .eq('tenant_id', order.tenant_id)
       .single()
+
+    const cfg = config as any
 
     // Generar PDF
     const pdfBuffer = await renderToBuffer(
       React.createElement(ReciboPDF, {
         order,
         storeName: tenant?.name ?? 'Tienda',
-        storeEmail: config?.notification_email ?? '',
-        storeWhatsapp: config?.whatsapp_number ?? '',
-        storeCbu: config?.transfer_cbu ?? '',
-        storeAlias: config?.transfer_alias ?? '',
+        storeEmail: cfg?.notification_email ?? '',
+        storeWhatsapp: cfg?.whatsapp_number ?? '',
+        storeCbu: cfg?.transfer_cbu ?? '',
+        storeAlias: cfg?.transfer_alias ?? '',
+        pdfShowVariant:   cfg?.pdf_show_variant   ?? true,
+        pdfShowPricetype: cfg?.pdf_show_pricetype ?? true,
+        pdfShowAddress:   cfg?.pdf_show_address   ?? true,
+        pdfShowNotes:     cfg?.pdf_show_notes     ?? true,
       }) as any
     )
 

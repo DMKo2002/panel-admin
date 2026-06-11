@@ -156,6 +156,24 @@ export default function TiendaPage() {
 
   const hasMpToken = Boolean((config as any)?.mp_access_token || mpToken)
 
+  // PDF config
+  const [savingPdf, setSavingPdf] = useState(false)
+  const [savedPdf, setSavedPdf] = useState(false)
+
+  async function handleSavePdf() {
+    if (!config) return
+    setSavingPdf(true)
+    await supabase.from('store_config').update({
+      pdf_show_variant:   (config as any).pdf_show_variant   ?? true,
+      pdf_show_pricetype: (config as any).pdf_show_pricetype ?? true,
+      pdf_show_address:   (config as any).pdf_show_address   ?? true,
+      pdf_show_notes:     (config as any).pdf_show_notes     ?? true,
+    }).eq('id', config.id)
+    setSavingPdf(false)
+    setSavedPdf(true)
+    setTimeout(() => setSavedPdf(false), 2000)
+  }
+
   return (
     <div>
       <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
@@ -525,6 +543,45 @@ export default function TiendaPage() {
             </div>
           </div>
         )}
+
+        {/* Configuración de Recibos PDF */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Configuración de recibos PDF</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Elegí qué datos mostrar en los comprobantes de compra</p>
+            </div>
+            <button onClick={handleSavePdf} disabled={savingPdf} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedPdf ? '✓ Guardado' : savingPdf ? 'Guardando...' : 'Guardar PDF'}
+            </button>
+          </div>
+          <div className="space-y-1">
+            <ToggleRow
+              label="Mostrar variante"
+              desc="Muestra talle, color u otros atributos de cada producto en la tabla"
+              checked={Boolean((config as any)?.pdf_show_variant ?? true)}
+              onChange={v => update('pdf_show_variant' as any, v)}
+            />
+            <ToggleRow
+              label="Mostrar tipo de precio"
+              desc="Muestra badge Minorista / Mayorista en cada ítem"
+              checked={Boolean((config as any)?.pdf_show_pricetype ?? true)}
+              onChange={v => update('pdf_show_pricetype' as any, v)}
+            />
+            <ToggleRow
+              label="Mostrar dirección"
+              desc="Muestra la dirección del comprador y la dirección de envío"
+              checked={Boolean((config as any)?.pdf_show_address ?? true)}
+              onChange={v => update('pdf_show_address' as any, v)}
+            />
+            <ToggleRow
+              label="Mostrar notas del pedido"
+              desc="Muestra el campo de notas que el cliente ingresó al comprar"
+              checked={Boolean((config as any)?.pdf_show_notes ?? true)}
+              onChange={v => update('pdf_show_notes' as any, v)}
+            />
+          </div>
+        </div>
 
       </div>
     </div>
