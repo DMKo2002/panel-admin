@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { Download, FileText } from 'lucide-react'
@@ -16,6 +17,7 @@ export default async function PedidosPage({
 }: {
   searchParams: { status?: string; payment?: string }
 }) {
+  // Auth check con cliente normal
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -24,7 +26,9 @@ export default async function PedidosPage({
   const tenantId = userRow?.tenant_id
   if (!tenantId) return null
 
-  let query = supabase
+  // Datos con service role para bypassear RLS en customers
+  const service = createServiceClient()
+  let query = service
     .from('orders')
     .select('*, customers(full_name, type, email)')
     .eq('tenant_id', tenantId)
