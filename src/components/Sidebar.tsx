@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt, Tag,
-  Bell, Settings, LogOut, Store
+  Bell, Settings, LogOut, Store, FolderOpen
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard },
   { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart },
   { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt },
+  { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen },
   { label: 'Precios',         href: '/dashboard/precios',        icon: Tag },
   { label: 'Notificaciones',  href: '/dashboard/notificaciones', icon: Bell },
   { label: 'Mi tienda',       href: '/dashboard/tienda',         icon: Settings },

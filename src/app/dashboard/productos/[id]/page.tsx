@@ -34,6 +34,8 @@ export default function EditarProductoPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [active, setActive] = useState(true)
+  const [categoryId, setCategoryId] = useState<string | null>(null)
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean }[]>([])
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
@@ -52,6 +54,22 @@ export default function EditarProductoPage() {
       setName(product.name)
       setDescription(product.description ?? '')
       setActive(product.active)
+      setCategoryId(product.category_id ?? null)
+
+      // Cargar categorías del tenant
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+        if (userRow) {
+          const { data: cats } = await supabase
+            .from('categories')
+            .select('id, name')
+            .eq('tenant_id', userRow.tenant_id)
+            .eq('active', true)
+            .order('sort_order')
+          setCategories(cats ?? [])
+        }
+      }
       setImages(product.product_images ?? [])
 
       const mappedVariants: Variant[] = (product.variants ?? []).map((v: any) => {
@@ -122,6 +140,7 @@ export default function EditarProductoPage() {
         slug: slugify(name) + '-' + id.slice(0, 6),
         description: description.trim() || null,
         active,
+        category_id: categoryId || null,
       }).eq('id', id)
 
       // Subir nuevas imágenes
@@ -288,6 +307,21 @@ export default function EditarProductoPage() {
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
             <textarea className="input resize-none" rows={3} value={description} onChange={e => setDescription(e.target.value)} />
           </div>
+          {categories.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Categoría</label>
+              <select
+                className="input"
+                value={categoryId ?? ''}
+                onChange={e => setCategoryId(e.target.value || null)}
+              >
+                <option value="">Sin categoría</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Imágenes existentes */}
