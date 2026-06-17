@@ -35,7 +35,7 @@ export default function EditarProductoPage() {
   const [description, setDescription] = useState('')
   const [active, setActive] = useState(true)
   const [categoryId, setCategoryId] = useState<string | null>(null)
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
   const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean }[]>([])
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
@@ -63,7 +63,7 @@ export default function EditarProductoPage() {
         if (userRow) {
           const { data: cats } = await supabase
             .from('categories')
-            .select('id, name')
+            .select('id, name, parent_id')
             .eq('tenant_id', userRow.tenant_id)
             .eq('active', true)
             .order('sort_order')
@@ -316,9 +316,19 @@ export default function EditarProductoPage() {
                 onChange={e => setCategoryId(e.target.value || null)}
               >
                 <option value="">Sin categoría</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
+                {categories.filter(c => !c.parent_id).map(parent => {
+                  const subs = categories.filter(c => c.parent_id === parent.id)
+                  return subs.length > 0 ? (
+                    <optgroup key={parent.id} label={parent.name}>
+                      <option value={parent.id}>{parent.name} (general)</option>
+                      {subs.map(sub => (
+                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                      ))}
+                    </optgroup>
+                  ) : (
+                    <option key={parent.id} value={parent.id}>{parent.name}</option>
+                  )
+                })}
               </select>
             </div>
           )}
