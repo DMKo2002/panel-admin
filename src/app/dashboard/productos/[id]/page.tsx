@@ -1,10 +1,91 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Trash2, Plus, Upload, ImageOff } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, Upload, ImageOff, Pipette, X } from 'lucide-react'
+
+// ── Color palette (must match CatalogFilters COLOR_MAP) ──────────────────────
+const COLOR_MAP: Record<string, string> = {
+  negro: '#1C1C1C', blanco: '#F5F5F0', crema: '#F0EBE1', beige: '#D4C5A9',
+  marfil: '#FFFFF0', gris: '#9E9E9E', 'gris claro': '#D0D0D0', 'gris oscuro': '#555555',
+  rojo: '#C0392B', bordo: '#7B2D42', vino: '#6B2737', rosa: '#E8A0B0',
+  coral: '#E8714A', naranja: '#E8813A', mostaza: '#C8A84B', amarillo: '#F0CC4A',
+  azul: '#3A7BC8', 'azul marino': '#1B3A6B', 'azul claro': '#7EB8E0', celeste: '#87CEEB',
+  verde: '#4A9B6F', 'verde oscuro': '#2D6A4F', esmeralda: '#2E8B6E', turquesa: '#3AADA8',
+  lila: '#B09BC8', violeta: '#8E44AD', morado: '#6C3483',
+  camel: '#C19A6B', tabaco: '#8B6355', chocolate: '#5C3A1E', tiza: '#E8E4DC',
+}
+
+function hexToRgb(hex: string) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
+}
+
+function findNearestColorName(hex: string): string {
+  const { r, g, b } = hexToRgb(hex)
+  let minDist = Infinity
+  let nearest = 'negro'
+  for (const [name, colorHex] of Object.entries(COLOR_MAP)) {
+    const c = hexToRgb(colorHex)
+    const dist = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2)
+    if (dist < minDist) { minDist = dist; nearest = name }
+  }
+  return nearest
+}
+
+function colorToHex(colorName: string): string {
+  return COLOR_MAP[colorName.toLowerCase().trim()] ?? '#CCCCCC'
+}
+
+// ── Image resize: center-crop to 2:3, resize to 600×900, compress to ≤150KB ─
+async function resizeImageTo600x900(file: File): Promise<File> {
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      canvas.width = 600
+      canvas.height = 900
+      const ctx = canvas.getContext('2d')!
+
+      // Center-crop to 2:3
+      const targetRatio = 2 / 3
+      const srcRatio = img.width / img.height
+      let sx: number, sy: number, sw: number, sh: number
+      if (srcRatio > targetRatio) {
+        // Image wider than 2:3 → crop sides
+        sh = img.height
+        sw = sh * targetRatio
+        sx = (img.width - sw) / 2
+        sy = 0
+      } else {
+        // Image taller than 2:3 → crop top/bottom
+        sw = img.width
+        sh = sw / targetRatio
+        sx = 0
+        sy = (img.height - sh) / 2
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 600, 900)
+
+      const tryCompress = (quality: number) => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return }
+          if (blob.size <= 150 * 1024 || quality <= 0.3) {
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+          } else {
+            tryCompress(quality - 0.1)
+          }
+        }, 'image/jpeg', quality)
+      }
+      tryCompress(0.85)
+    }
+    img.onerror = () => resolve(file)
+    img.src = url
+  })
+}
 
 interface Variant {
   id?: string
@@ -40,6 +121,9 @@ export default function EditarProductoPage() {
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
   const [variants, setVariants] = useState<Variant[]>([])
+  const [colorPickerFor, setColorPickerFor] = useState<number | null>(null) // variant realIdx
+  const [pickerHex, setPickerHex] = useState('#1C1C1C')
+  const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -95,6 +179,17 @@ export default function EditarProductoPage() {
     load()
   }, [id])
 
+  // Close color picker on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setColorPickerFor(null)
+      }
+    }
+    if (colorPickerFor !== null) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [colorPickerFor])
+
   function slugify(text: string) {
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   }
@@ -111,10 +206,36 @@ export default function EditarProductoPage() {
     setVariants(v => v.map((item, idx) => idx === i ? { ...item, [field]: value } : item))
   }
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    setNewImageFiles(prev => [...prev, ...files])
-    setNewImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
+    const resized = await Promise.all(files.map(resizeImageTo600x900))
+    setNewImageFiles(prev => [...prev, ...resized])
+    setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
+    // Reset input so same file can be re-selected
+    e.target.value = ''
+  }
+
+  function openColorPicker(realIdx: number, currentColor: string) {
+    const hex = colorToHex(currentColor) !== '#CCCCCC' ? colorToHex(currentColor) : '#1C1C1C'
+    setPickerHex(hex)
+    setColorPickerFor(realIdx)
+  }
+
+  function applyColor(realIdx: number, hex: string) {
+    const name = findNearestColorName(hex)
+    updateVariant(realIdx, 'color', name)
+    setColorPickerFor(null)
+  }
+
+  async function launchEyeDropper(realIdx: number) {
+    try {
+      // @ts-ignore — EyeDropper is Chrome 95+
+      const dropper = new window.EyeDropper()
+      const result = await dropper.open()
+      applyColor(realIdx, result.sRGBHex)
+    } catch {
+      // User cancelled or browser unsupported
+    }
   }
 
   async function removeExistingImage(imgId: string) {
@@ -401,9 +522,85 @@ export default function EditarProductoPage() {
                     <label className="block text-xs text-zinc-500 mb-1">Talle</label>
                     <input className="input text-sm" value={v.size} onChange={e => updateVariant(realIdx, 'size', e.target.value)} placeholder="S, M, L, 38..." />
                   </div>
-                  <div>
+                  <div className="relative">
                     <label className="block text-xs text-zinc-500 mb-1">Color</label>
-                    <input className="input text-sm" value={v.color} onChange={e => updateVariant(realIdx, 'color', e.target.value)} placeholder="Negro, Azul..." />
+                    <div className="flex items-center gap-1.5">
+                      {/* Color swatch button */}
+                      <button
+                        type="button"
+                        title="Elegir color"
+                        onClick={() => openColorPicker(realIdx, v.color)}
+                        style={{ backgroundColor: colorToHex(v.color) }}
+                        className="w-8 h-8 rounded border border-zinc-200 flex-shrink-0 shadow-sm hover:scale-105 transition-transform"
+                      />
+                      <input
+                        className="input text-sm flex-1"
+                        value={v.color}
+                        onChange={e => updateVariant(realIdx, 'color', e.target.value)}
+                        placeholder="Negro, Azul..."
+                      />
+                    </div>
+
+                    {/* Color picker popup */}
+                    {colorPickerFor === realIdx && (
+                      <div ref={pickerRef} className="absolute top-full left-0 mt-1 z-50 bg-white border border-zinc-200 rounded-xl shadow-xl p-4 w-64">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-medium text-zinc-700">Elegir color</p>
+                          <button type="button" onClick={() => setColorPickerFor(null)} className="text-zinc-400 hover:text-zinc-600">
+                            <X size={14} />
+                          </button>
+                        </div>
+
+                        {/* Color wheel */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <input
+                            type="color"
+                            value={pickerHex}
+                            onChange={e => setPickerHex(e.target.value)}
+                            className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                          />
+                          <div className="flex-1">
+                            <p className="text-xs text-zinc-500 mb-0.5">Color seleccionado</p>
+                            <p className="text-sm font-medium text-zinc-800 capitalize">{findNearestColorName(pickerHex)}</p>
+                            <p className="text-xs text-zinc-400 font-mono">{pickerHex}</p>
+                          </div>
+                        </div>
+
+                        {/* EyeDropper (Chrome 95+) */}
+                        {'EyeDropper' in window && (
+                          <button
+                            type="button"
+                            onClick={() => launchEyeDropper(realIdx)}
+                            className="w-full flex items-center justify-center gap-2 text-xs py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors mb-3"
+                          >
+                            <Pipette size={13} />
+                            Cuentagotas — clickeá en la foto
+                          </button>
+                        )}
+
+                        {/* Swatches rápidos */}
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {Object.entries(COLOR_MAP).map(([name, hex]) => (
+                            <button
+                              key={name}
+                              type="button"
+                              title={name}
+                              onClick={() => { setPickerHex(hex); }}
+                              style={{ backgroundColor: hex }}
+                              className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-violet-500 scale-110' : 'border-zinc-200'}`}
+                            />
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => applyColor(realIdx, pickerHex)}
+                          className="w-full btn-primary text-xs py-2 justify-center"
+                        >
+                          Aplicar — {findNearestColorName(pickerHex)}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Stock</label>
