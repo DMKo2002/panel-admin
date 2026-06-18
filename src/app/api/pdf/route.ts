@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
     const { data: config } = await supabase
       .from('store_config')
-      .select('logo_url, notification_email, whatsapp_number, transfer_cbu, transfer_alias, pdf_show_variant, pdf_show_pricetype, pdf_show_address, pdf_show_notes')
+      .select('logo_url, notification_email, whatsapp_number, transfer_cbu, transfer_alias, store_address, pdf_show_variant, pdf_show_pricetype, pdf_show_address, pdf_show_notes')
       .eq('tenant_id', order.tenant_id)
       .single()
 
@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
         storeWhatsapp: cfg?.whatsapp_number ?? '',
         storeCbu: cfg?.transfer_cbu ?? '',
         storeAlias: cfg?.transfer_alias ?? '',
+        storeAddress: cfg?.store_address ?? '',
         pdfShowVariant:   cfg?.pdf_show_variant   ?? true,
         pdfShowPricetype: cfg?.pdf_show_pricetype ?? true,
         pdfShowAddress:   cfg?.pdf_show_address   ?? true,

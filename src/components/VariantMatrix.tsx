@@ -65,6 +65,8 @@ interface Props {
   initialCells?: Record<string, CellData>
 }
 
+const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
+
 // Key separator — chosen to be unlikely in real size/color names
 export const SEP = '\x00'
 export const cellKey = (size: string, color: string) => `${size}${SEP}${color}`
@@ -73,7 +75,7 @@ const emptyCell = (): CellData => ({ stock: 0, retailPrice: 0, retailCompareAt: 
 // ── Component ─────────────────────────────────────────────────────────────────
 const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   mode,
-  initialSizes = [''],
+  initialSizes = DEFAULT_SIZES,
   initialColors = [''],
   initialCells = {},
 }, ref) => {
@@ -483,5 +485,4 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   )
 })
 
-VariantMatrix.displayName = 'VariantMatrix'
 export default VariantMatrix

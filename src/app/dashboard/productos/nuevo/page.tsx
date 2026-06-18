@@ -7,6 +7,10 @@ import { Upload, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import VariantMatrix, { VariantMatrixHandle } from '@/components/VariantMatrix'
 
+// ── Attr config ───────────────────────────────────────────────────────────────
+interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
+const SIZE_KEYS = ['talle', 'numero', 'talla', 'size']
+
 // ── Image resize: center-crop to 2:3, resize to 600×900, compress to ≤150KB ─
 async function resizeImageTo600x900(file: File): Promise<File> {
   return new Promise(resolve => {
@@ -39,7 +43,7 @@ async function resizeImageTo600x900(file: File): Promise<File> {
 }
 
 function slugify(text: string) {
-  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 export default function NuevoProductoPage() {
@@ -53,9 +57,14 @@ export default function NuevoProductoPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
   const [name, setName] = useState('')
+  const [sku, setSku] = useState('')
   const [description, setDescription] = useState('')
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+
+  // Custom tenant attributes (non-size, non-color) to show below the matrix
+  const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
+  const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
 
   useEffect(() => {
     async function load() {
@@ -64,10 +73,16 @@ export default function NuevoProductoPage() {
       const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
       if (!userRow) return
       setTenantId(userRow.tenant_id)
-      const { data: cats } = await supabase
-        .from('categories').select('id, name, parent_id')
-        .eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order')
+      const [{ data: cats }, { data: configData }] = await Promise.all([
+        supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
+        supabase.from('store_config').select('variant_attributes').eq('tenant_id', userRow.tenant_id).single(),
+      ])
       setCategories(cats ?? [])
+
+      // Extra attrs = any attrs that aren't size or color
+      const allAttrs: AttrConfig[] = configData?.variant_attributes ?? []
+      const extra = allAttrs.filter(a => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
+      setExtraAttrs(extra)
     }
     load()
   }, [])
@@ -91,7 +106,7 @@ export default function NuevoProductoPage() {
       const slug = slugify(name) + '-' + Date.now()
       const { data: product, error: productError } = await supabase
         .from('products')
-        .insert({ tenant_id: tenantId, name: name.trim(), slug, description: description.trim() || null, active: true, category_id: categoryId || null })
+        .insert({ tenant_id: tenantId, name: name.trim(), sku: sku.trim() || null, slug, description: description.trim() || null, active: true, category_id: categoryId || null })
         .select().single()
       if (productError) throw productError
 
@@ -107,12 +122,13 @@ export default function NuevoProductoPage() {
         }
       }
 
-      // Guardar variantes desde la matriz
+      // Guardar variantes desde la matriz (extra attrs se agregan al JSONB attributes de cada variante)
       const variantsFromMatrix = matrixRef.current?.getVariants() ?? []
       for (const v of variantsFromMatrix) {
+        const attrs = { ...v.attrs, ...extraAttrValues }
         const { data: variant, error: varErr } = await supabase
           .from('variants')
-          .insert({ product_id: product.id, size: v.size, color: v.color, sku: null, stock: v.stock, attributes: v.attrs })
+          .insert({ product_id: product.id, size: v.size, color: v.color, sku: null, stock: v.stock, attributes: attrs })
           .select().single()
         if (varErr) throw varErr
 
@@ -147,9 +163,15 @@ export default function NuevoProductoPage() {
         {/* Datos básicos */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Información básica</h2>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
-            <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Campera de cuero negra" required />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Campera de cuero negra" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">SKU / Código</label>
+              <input className="input" value={sku} onChange={e => setSku(e.target.value)} placeholder="Ej: CAM-001" />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
@@ -189,35 +211,45 @@ export default function NuevoProductoPage() {
                 <div key={i} className="relative">
                   <img src={src} className="w-20 h-20 object-cover rounded-lg border border-zinc-200" />
                   {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>}
-                  <button type="button"
-                    onClick={() => { setImageFiles(p => p.filter((_, idx) => idx !== i)); setImagePreviews(p => p.filter((_, idx) => idx !== i)) }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">×</button>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Matriz de variantes */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-zinc-700">Variantes y precios</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Las columnas son colores y las filas son talles. Podés agregar o eliminar tanto colores como talles.</p>
-          </div>
-          <VariantMatrix ref={matrixRef} mode="create" />
-        </div>
+        {/* Variantes */}
+        <VariantMatrix ref={matrixRef} mode="create" />
 
-        {error && (
-          <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{error}</div>
+        {/* Atributos extra del tenant */}
+        {extraAttrs.length > 0 && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-zinc-700">Atributos adicionales</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {extraAttrs.map(attr => (
+                <div key={attr.key}>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">{attr.label}</label>
+                  {attr.type === 'select' && attr.options ? (
+                    <select className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))}>
+                      <option value="">&#8212; Seleccionar &#8212;</option>
+                      {attr.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <input className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
-        <div className="flex gap-3">
-          <button type="submit" disabled={loading} className="btn-primary disabled:opacity-60">
-            {loading ? 'Guardando...' : 'Guardar producto'}
-          </button>
-          <Link href="/dashboard/productos" className="btn-secondary">Cancelar</Link>
-        </div>
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
+        <div className="flex gap-3 pb-8">
+          <Link href="/dashboard/productos" className="btn-secondary">Cancelar</Link>
+          <button type="submit" disabled={loading} className="btn-primary">
+            {loading ? 'Guardando...' : 'Crear producto'}
+          </button>
+        </div>
       </form>
     </div>
   )

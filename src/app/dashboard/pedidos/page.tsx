@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { Download, FileText } from 'lucide-react'
+import MarkPaidButton from '@/components/MarkPaidButton'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -92,6 +93,7 @@ export default async function PedidosPage({
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Fecha</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Recibo</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -119,10 +121,17 @@ export default async function PedidosPage({
                       PDF
                     </a>
                   </td>
+                  <td className="px-4 py-3">
+                    <MarkPaidButton
+                      orderId={order.id}
+                      paymentStatus={order.payment_status}
+                      paymentMethod={order.payment_method}
+                    />
+                  </td>
                 </tr>
               ))}
               {(!orders || orders.length === 0) && (
-                <tr><td colSpan={9} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
               )}
             </tbody>
           </table>

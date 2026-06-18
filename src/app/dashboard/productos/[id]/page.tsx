@@ -7,6 +7,10 @@ import Link from 'next/link'
 import { ArrowLeft, Trash2, Upload } from 'lucide-react'
 import VariantMatrix, { VariantMatrixHandle, CellData, cellKey } from '@/components/VariantMatrix'
 
+// ── Attr config ───────────────────────────────────────────────────────────────
+interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
+const SIZE_KEYS = ['talle', 'numero', 'talla', 'size']
+
 // ── Image resize ──────────────────────────────────────────────────────────────
 async function resizeImageTo600x900(file: File): Promise<File> {
   return new Promise(resolve => {
@@ -39,7 +43,7 @@ async function resizeImageTo600x900(file: File): Promise<File> {
 }
 
 function slugify(text: string) {
-  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -59,6 +63,7 @@ export default function EditarProductoPage() {
 
   // Basic product fields
   const [name, setName] = useState('')
+  const [sku, setSku] = useState('')
   const [description, setDescription] = useState('')
   const [active, setActive] = useState(true)
   const [categoryId, setCategoryId] = useState<string | null>(null)
@@ -67,7 +72,11 @@ export default function EditarProductoPage() {
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
 
-  // Matrix initial state (set once after load)
+  // Extra tenant attrs (non-size, non-color)
+  const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
+  const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
+
+  // Matrix initial state
   const [matrixInitialSizes, setMatrixInitialSizes] = useState<string[]>([])
   const [matrixInitialColors, setMatrixInitialColors] = useState<string[]>([])
   const [matrixInitialCells, setMatrixInitialCells] = useState<Record<string, CellData>>({})
@@ -82,6 +91,7 @@ export default function EditarProductoPage() {
       if (!product) { router.push('/dashboard/productos'); return }
 
       setName(product.name)
+      setSku(product.sku ?? '')
       setDescription(product.description ?? '')
       setActive(product.active ?? true)
       setCategoryId(product.category_id ?? null)
@@ -91,10 +101,26 @@ export default function EditarProductoPage() {
         const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
         if (userRow) {
           setTenantId(userRow.tenant_id)
-          const { data: cats } = await supabase
-            .from('categories').select('id, name, parent_id')
-            .eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order')
+          const [{ data: cats }, { data: configData }] = await Promise.all([
+            supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
+            supabase.from('store_config').select('variant_attributes').eq('tenant_id', userRow.tenant_id).single(),
+          ])
           setCategories(cats ?? [])
+
+          // Extra attrs (non-size, non-color)
+          const allAttrs: AttrConfig[] = configData?.variant_attributes ?? []
+          const extra = allAttrs.filter(a => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
+          setExtraAttrs(extra)
+
+          // Load existing extra attr values from the first variant's attributes JSONB
+          const firstVariant = (product.variants ?? [])[0]
+          if (firstVariant?.attributes) {
+            const vals: Record<string, string> = {}
+            for (const attr of extra) {
+              if (firstVariant.attributes[attr.key]) vals[attr.key] = firstVariant.attributes[attr.key]
+            }
+            setExtraAttrValues(vals)
+          }
         }
       }
 
@@ -102,8 +128,6 @@ export default function EditarProductoPage() {
       const dbVariants: any[] = product.variants ?? []
       const sizes = [...new Set(dbVariants.map((v: any) => v.size ?? '').filter(Boolean))]
       const colors = [...new Set(dbVariants.map((v: any) => v.color ?? '').filter(Boolean))]
-
-      // Ensure at least one row/col for the matrix
       if (sizes.length === 0) sizes.push('')
       if (colors.length === 0) colors.push('')
 
@@ -153,6 +177,7 @@ export default function EditarProductoPage() {
       // Actualizar producto
       const { error: prodErr } = await supabase.from('products').update({
         name: name.trim(),
+        sku: sku.trim() || null,
         slug: slugify(name) + '-' + id.slice(0, 6),
         description: description.trim() || null,
         active,
@@ -177,23 +202,19 @@ export default function EditarProductoPage() {
       // Guardar variantes desde la matriz
       const variantsFromMatrix = matrixRef.current?.getVariants() ?? []
       for (const v of variantsFromMatrix) {
-        const attrs = v.attrs ?? {}
+        const attrs = { ...(v.attrs ?? {}), ...extraAttrValues }
         const rules: any[] = []
 
         if (v.id) {
-          // Update existing variant
           const { error: varErr } = await supabase.from('variants').update({
             size: v.size, color: v.color, stock: v.stock, attributes: attrs,
           }).eq('id', v.id)
           if (varErr) throw varErr
-
-          // Recreate price rules
           await supabase.from('price_rules').delete().eq('variant_id', v.id)
           if (v.retailPrice > 0) rules.push({ variant_id: v.id, type: 'retail', min_qty: 1, price: v.retailPrice, compare_at_price: v.retailCompareAt > 0 ? v.retailCompareAt : null, active: true })
           if (v.wholesalePrice > 0) rules.push({ variant_id: v.id, type: 'wholesale', min_qty: v.wholesaleMinQty || 6, price: v.wholesalePrice, active: true })
           if (rules.length > 0) { const { error: rErr } = await supabase.from('price_rules').insert(rules); if (rErr) throw rErr }
         } else {
-          // Insert new variant
           const { data: nv, error: nvErr } = await supabase.from('variants')
             .insert({ product_id: id, size: v.size, color: v.color, stock: v.stock, attributes: attrs })
             .select().single()
@@ -277,9 +298,15 @@ export default function EditarProductoPage() {
               Producto activo
             </label>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
-            <input className="input" value={name} onChange={e => setName(e.target.value)} required />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">SKU / Código</label>
+              <input className="input" value={sku} onChange={e => setSku(e.target.value)} placeholder="Ej: CAM-001" />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
@@ -319,38 +346,65 @@ export default function EditarProductoPage() {
               ))}
             </div>
           )}
-          <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 hover:bg-violet-50 transition-colors">
-            <Upload size={16} className="text-zinc-400 mb-1" />
-            <span className="text-sm text-zinc-500">Agregar más fotos</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
-          </label>
           {newImagePreviews.length > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {newImagePreviews.map((src, i) => <img key={i} src={src} className="w-20 h-20 object-cover rounded-lg border border-violet-200" />)}
+              {newImagePreviews.map((src, i) => (
+                <div key={i} className="relative">
+                  <img src={src} className="w-20 h-20 object-cover rounded-lg border border-zinc-200 opacity-70" />
+                  <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-zinc-600 text-white rounded-b-lg py-0.5">Nueva</span>
+                </div>
+              ))}
             </div>
           )}
+          <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 hover:bg-violet-50 transition-colors">
+            <Upload size={20} className="text-zinc-400 mb-1" />
+            <span className="text-sm text-zinc-500">Agregar más imágenes</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a 600×900</span>
+            <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
+          </label>
         </div>
 
-        {/* Matriz de variantes */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-zinc-700">Variantes y precios</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Podés agregar nuevas filas y columnas. En modo edición no se eliminan las existentes para no perder datos.</p>
-          </div>
-          {matrixReady && (
-            <VariantMatrix
-              ref={matrixRef}
-              mode="edit"
-              initialSizes={matrixInitialSizes}
-              initialColors={matrixInitialColors}
-              initialCells={matrixInitialCells}
-            />
-          )}
-        </div>
-
-        {error && (
-          <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{error}</div>
+        {/* Variantes */}
+        {matrixReady && (
+          <VariantMatrix
+            ref={matrixRef}
+            mode="edit"
+            initialSizes={matrixInitialSizes}
+            initialColors={matrixInitialColors}
+            initialCells={matrixInitialCells}
+          />
         )}
+
+        {/* Atributos extra del tenant */}
+        {extraAttrs.length > 0 && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-zinc-700">Atributos adicionales</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {extraAttrs.map(attr => (
+                <div key={attr.key}>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">{attr.label}</label>
+                  {attr.type === 'select' && attr.options ? (
+                    <select className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))}>
+                      <option value="">&#8212; Seleccionar &#8212;</option>
+                      {attr.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <input className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        <div className="flex gap-3 pb-8">
+          <Link href="/dashboard/productos" className="btn-secondary">Cancelar</Link>
+          <button type="submit" form="edit-form" disabled={saving} className="btn-primary">
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
       </form>
     </div>
   )
