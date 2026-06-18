@@ -4,7 +4,6 @@ import { createServiceClient } from '@/lib/supabase/service'
 
 export async function POST(req: NextRequest) {
   try {
-    // Verify the user is authenticated and belongs to the same tenant as the order
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -17,18 +16,45 @@ export async function POST(req: NextRequest) {
 
     const service = createServiceClient()
 
-    // Verify the order belongs to this tenant
-    const { data: order } = await service.from('orders').select('id, tenant_id, payment_status').eq('id', order_id).single()
+    const { data: order } = await service
+      .from('orders')
+      .select('id, tenant_id, payment_status')
+      .eq('id', order_id)
+      .single()
+
     if (!order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
     if (order.tenant_id !== userRow.tenant_id) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
-    // Mark as paid + confirm the order
-    const { error } = await service.from('orders').update({
+    if (order.payment_status === 'paid') {
+      return NextResponse.json({ ok: true, already_paid: true })
+    }
+
+    const { error: updateErr } = await service.from('orders').update({
       payment_status: 'paid',
       status: 'confirmed',
     }).eq('id', order_id)
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+    const { data: items } = await service
+      .from('order_items')
+      .select('variant_id, quantity')
+      .eq('order_id', order_id)
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        if (!item.variant_id || !item.quantity) continue
+        const { data: variant } = await service
+          .from('variants')
+          .select('stock')
+          .eq('id', item.variant_id)
+          .single()
+        if (variant != null) {
+          const newStock = Math.max(0, (variant.stock ?? 0) - item.quantity)
+          await service.from('variants').update({ stock: newStock }).eq('id', item.variant_id)
+        }
+      }
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
