@@ -36,6 +36,7 @@ export default function TiendaPage() {
   const [branches, setBranches] = useState<{name:string;address:string;phone?:string}[]>([])
   const [savingSocial, setSavingSocial] = useState(false)
   const [savedSocial, setSavedSocial] = useState(false)
+  const [socialError, setSocialError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -45,9 +46,9 @@ export default function TiendaPage() {
       if (!userRow) return
       const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
       setConfig(data)
-      if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token)
-      if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes)
-      if ((data as any)?.branches) setBranches((data as any).branches)
+      if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token as string)
+      if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
+      if (data?.branches) setBranches(data.branches)
 
       // Load tenant name
       const { data: tenant } = await supabase.from('tenants').select('name').eq('id', userRow.tenant_id).single()
@@ -70,17 +71,23 @@ export default function TiendaPage() {
   async function handleSaveSocial() {
     if (!config) return
     setSavingSocial(true)
-    await supabase.from('store_config').update({
-      pickup_address: (config as any).pickup_address || null,
-      instagram_url:  (config as any).instagram_url  || null,
-      facebook_url:   (config as any).facebook_url   || null,
-      tiktok_url:     (config as any).tiktok_url     || null,
-      whatsapp_number:(config as any).whatsapp_number || null,
-      notification_email: (config as any).notification_email || null,
-      store_address:  (config as any).store_address  || null,
+    setSocialError(null)
+    const { error } = await supabase.from('store_config').update({
+      pickup_address:     config.pickup_address     || null,
+      instagram_url:      config.instagram_url      || null,
+      facebook_url:       config.facebook_url       || null,
+      tiktok_url:         config.tiktok_url         || null,
+      whatsapp_number:    config.whatsapp_number    || null,
+      notification_email: config.notification_email || null,
+      store_address:      config.store_address      || null,
       branches,
     }).eq('id', config.id)
-    setSavingSocial(false); setSavedSocial(true); setTimeout(() => setSavedSocial(false), 2000)
+    setSavingSocial(false)
+    if (error) {
+      setSocialError('Error al guardar: ' + error.message + '. Asegurate de haber corrido la migración SQL en Supabase.')
+    } else {
+      setSavedSocial(true); setTimeout(() => setSavedSocial(false), 2000)
+    }
   }
 
   async function handleSave() {
@@ -655,15 +662,15 @@ export default function TiendaPage() {
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Email de notificaciones</label>
-              <input className="input text-sm" value={(config as any)?.notification_email ?? ''} onChange={e => update('notification_email' as any, e.target.value)} placeholder="tu@email.com" />
+              <input className="input text-sm" value={config?.notification_email ?? ''} onChange={e => update('notification_email', e.target.value)} placeholder="tu@email.com" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n del local (aparece en PDFs y footer)</label>
-              <input className="input text-sm" value={(config as any)?.store_address ?? ''} onChange={e => update('store_address' as any, e.target.value)} placeholder="Av. Santa Fe 1234, CABA" />
+              <input className="input text-sm" value={config?.store_address ?? ''} onChange={e => update('store_address', e.target.value)} placeholder="Av. Santa Fe 1234, CABA" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n para mapa de retiro</label>
-              <input className="input text-sm" value={(config as any)?.pickup_address ?? ''} onChange={e => update('pickup_address' as any, e.target.value)} placeholder="Av. Santa Fe 1234, Buenos Aires" />
+              <input className="input text-sm" value={config?.pickup_address ?? ''} onChange={e => update('pickup_address', e.target.value)} placeholder="Av. Santa Fe 1234, Buenos Aires" />
               <p className="text-xs text-zinc-400 mt-1">Aparece en el footer del sitio como mapa interactivo cuando el retiro en local est\u00e1 habilitado</p>
             </div>
           </div>
@@ -671,15 +678,15 @@ export default function TiendaPage() {
           <div className="grid grid-cols-3 gap-4 pt-2 border-t border-zinc-50">
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Instagram</label>
-              <input className="input text-sm" value={(config as any)?.instagram_url ?? ''} onChange={e => update('instagram_url' as any, e.target.value)} placeholder="https://instagram.com/tu_marca" />
+              <input className="input text-sm" value={config?.instagram_url ?? ''} onChange={e => update('instagram_url', e.target.value)} placeholder="https://instagram.com/tu_marca" />
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Facebook</label>
-              <input className="input text-sm" value={(config as any)?.facebook_url ?? ''} onChange={e => update('facebook_url' as any, e.target.value)} placeholder="https://facebook.com/tu_marca" />
+              <input className="input text-sm" value={config?.facebook_url ?? ''} onChange={e => update('facebook_url', e.target.value)} placeholder="https://facebook.com/tu_marca" />
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">TikTok</label>
-              <input className="input text-sm" value={(config as any)?.tiktok_url ?? ''} onChange={e => update('tiktok_url' as any, e.target.value)} placeholder="https://tiktok.com/@tu_marca" />
+              <input className="input text-sm" value={config?.tiktok_url ?? ''} onChange={e => update('tiktok_url', e.target.value)} placeholder="https://tiktok.com/@tu_marca" />
             </div>
           </div>
         </div>

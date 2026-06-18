@@ -20,6 +20,12 @@ export interface Tenant {
   created_at: string
 }
 
+export interface Branch {
+  name: string
+  address: string
+  phone?: string
+}
+
 export interface StoreConfig {
   id: string
   tenant_id: string
@@ -50,6 +56,13 @@ export interface StoreConfig {
   andreani_sandbox: boolean
   andreani_peso_default_g: number
   andreani_tarifa_fallback: number
+  // Redes sociales y sucursales
+  store_address: string | null
+  pickup_address: string | null
+  instagram_url: string | null
+  facebook_url: string | null
+  tiktok_url: string | null
+  branches: Branch[]
 }
 
 export interface Customer {
