@@ -1,5 +1,5 @@
 // ============================================================
-//  Tipos TypeScript — mapeados al schema de Supabase
+//  Tipos TypeScript - mapeados al schema de Supabase
 // ============================================================
 
 export type UserRole = 'superadmin' | 'owner' | 'staff'
@@ -26,6 +26,12 @@ export interface Branch {
   phone?: string
 }
 
+export interface CustomShippingMethod {
+  name: string
+  price: number
+  active: boolean
+}
+
 export interface StoreConfig {
   id: string
   tenant_id: string
@@ -47,7 +53,6 @@ export interface StoreConfig {
   notify_wa_low_stock: boolean
   notify_wa_pending_transfer: boolean
   updated_at: string
-  // Andreani API
   andreani_usuario: string | null
   andreani_password: string | null
   andreani_codigo_cliente: string | null
@@ -56,13 +61,14 @@ export interface StoreConfig {
   andreani_sandbox: boolean
   andreani_peso_default_g: number
   andreani_tarifa_fallback: number
-  // Redes sociales y sucursales
   store_address: string | null
   pickup_address: string | null
   instagram_url: string | null
   facebook_url: string | null
   tiktok_url: string | null
   branches: Branch[]
+  price_visibility: 'all' | 'logged_in' | 'wholesale_only'
+  custom_shipping: CustomShippingMethod[]
 }
 
 export interface Customer {

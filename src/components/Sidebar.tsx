@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  LayoutDashboard, ShoppingCart, Shirt, Tag,
+  LayoutDashboard, ShoppingCart, Shirt,
   Bell, Settings, LogOut, Store, FolderOpen
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -14,7 +14,6 @@ const navItems = [
   { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart },
   { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt },
   { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen },
-  { label: 'Precios',         href: '/dashboard/precios',        icon: Tag },
   { label: 'Notificaciones',  href: '/dashboard/notificaciones', icon: Bell },
   { label: 'Mi tienda',       href: '/dashboard/tienda',         icon: Settings },
 ]
@@ -69,7 +68,7 @@ export default function Sidebar({ storeName, storeDomain }: SidebarProps) {
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">
           Configuración
         </p>
-        {navItems.slice(4).map(item => (
+        {navItems.slice(3).map(item => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>

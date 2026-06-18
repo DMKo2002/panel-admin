@@ -34,6 +34,7 @@ export default function TiendaPage() {
 
   // Social + branches
   const [branches, setBranches] = useState<{name:string;address:string;phone?:string}[]>([])
+  const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean}[]>([])
   const [savingSocial, setSavingSocial] = useState(false)
   const [savedSocial, setSavedSocial] = useState(false)
   const [socialError, setSocialError] = useState<string | null>(null)
@@ -49,6 +50,7 @@ export default function TiendaPage() {
       if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token as string)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
       if (data?.branches) setBranches(data.branches)
+      if ((data as any)?.custom_shipping) setCustomShipping((data as any).custom_shipping)
 
       // Load tenant name
       const { data: tenant } = await supabase.from('tenants').select('name').eq('id', userRow.tenant_id).single()
@@ -112,6 +114,8 @@ export default function TiendaPage() {
       andreani_peso_default_g: (config as any).andreani_peso_default_g ?? 500,
       andreani_tarifa_fallback: (config as any).andreani_tarifa_fallback ?? 0,
       min_order_amount: config.min_order_amount ?? null,
+      price_visibility: config.price_visibility ?? 'all',
+      custom_shipping: customShipping,
     }).eq('id', config.id)
     setSaving(false)
     setSaved(true)
@@ -466,12 +470,60 @@ export default function TiendaPage() {
         </div>
 
         {/* Envíos */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <h2 className="text-sm font-semibold text-zinc-700 mb-4">Métodos de envío</h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-700">Métodos de envío</h2>
           <div className="space-y-1">
             <ToggleRow label="OCA" desc="Cálculo automático de flete por código postal" checked={Boolean(config?.oca_enabled)} onChange={v => update('oca_enabled', v)} />
             <ToggleRow label="Andreani" desc="Cotización automática via API por código postal" checked={Boolean(config?.andreani_enabled)} onChange={v => update('andreani_enabled', v)} />
             <ToggleRow label="Retiro en local" desc="El cliente retira sin costo de envío" checked={Boolean(config?.pickup_enabled)} onChange={v => update('pickup_enabled', v)} />
+          </div>
+
+          {/* Envíos personalizados */}
+          <div className="border-t border-zinc-100 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs font-semibold text-zinc-700">Envíos personalizados</p>
+                <p className="text-xs text-zinc-400">Ej: Moto mensajería, Flete propio, etc.</p>
+              </div>
+              <button
+                onClick={() => setCustomShipping(s => [...s, { name: '', price: 0, active: true }])}
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors flex items-center gap-1"
+              >
+                <Plus size={12} /> Agregar
+              </button>
+            </div>
+            <div className="space-y-2">
+              {customShipping.map((method, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    className="input text-sm flex-1"
+                    placeholder="Nombre (ej: Moto mensajería)"
+                    value={method.name}
+                    onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))}
+                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="input text-sm pl-6 w-28"
+                      placeholder="Precio"
+                      value={method.price || ''}
+                      onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))}
+                    />
+                  </div>
+                  <button
+                    onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}
+                  >
+                    {method.active ? 'Activo' : 'Inactivo'}
+                  </button>
+                  <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
