@@ -1,0 +1,487 @@
+'use client'
+
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
+import { Plus, Pipette, X } from 'lucide-react'
+
+// ── Color palette ─────────────────────────────────────────────────────────────
+const COLOR_MAP: Record<string, string> = {
+  negro: '#1C1C1C', blanco: '#F5F5F0', crema: '#F0EBE1', beige: '#D4C5A9',
+  marfil: '#FFFFF0', gris: '#9E9E9E', 'gris claro': '#D0D0D0', 'gris oscuro': '#555555',
+  rojo: '#C0392B', bordo: '#7B2D42', vino: '#6B2737', rosa: '#E8A0B0',
+  coral: '#E8714A', naranja: '#E8813A', mostaza: '#C8A84B', amarillo: '#F0CC4A',
+  azul: '#3A7BC8', 'azul marino': '#1B3A6B', 'azul claro': '#7EB8E0', celeste: '#87CEEB',
+  verde: '#4A9B6F', 'verde oscuro': '#2D6A4F', esmeralda: '#2E8B6E', turquesa: '#3AADA8',
+  lila: '#B09BC8', violeta: '#8E44AD', morado: '#6C3483',
+  camel: '#C19A6B', tabaco: '#8B6355', chocolate: '#5C3A1E', tiza: '#E8E4DC',
+}
+function hexToRgb(hex: string) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
+}
+function findNearestColorName(hex: string): string {
+  const { r, g, b } = hexToRgb(hex)
+  let minDist = Infinity, nearest = 'negro'
+  for (const [name, h] of Object.entries(COLOR_MAP)) {
+    const c = hexToRgb(h)
+    const d = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2)
+    if (d < minDist) { minDist = d; nearest = name }
+  }
+  return nearest
+}
+function colorToHex(name: string): string {
+  return COLOR_MAP[name.toLowerCase().trim()] ?? '#CCCCCC'
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+export interface CellData {
+  variantId?: string   // defined for existing variants (edit mode)
+  stock: number
+  retailPrice: number
+  retailCompareAt: number
+  wholesalePrice: number
+  wholesaleMinQty: number
+}
+
+export interface VariantForSave {
+  id?: string
+  size: string | null
+  color: string | null
+  attrs: Record<string, string>
+  stock: number
+  retailPrice: number
+  retailCompareAt: number
+  wholesalePrice: number
+  wholesaleMinQty: number
+}
+
+export interface VariantMatrixHandle {
+  getVariants: () => VariantForSave[]
+}
+
+interface Props {
+  mode: 'create' | 'edit'
+  initialSizes?: string[]
+  initialColors?: string[]
+  initialCells?: Record<string, CellData>
+}
+
+// Key separator — chosen to be unlikely in real size/color names
+export const SEP = '\x00'
+export const cellKey = (size: string, color: string) => `${size}${SEP}${color}`
+const emptyCell = (): CellData => ({ stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleMinQty: 6 })
+
+// ── Component ─────────────────────────────────────────────────────────────────
+const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
+  mode,
+  initialSizes = [''],
+  initialColors = [''],
+  initialCells = {},
+}, ref) => {
+  const [sizes, setSizes] = useState<string[]>(initialSizes)
+  const [colors, setColors] = useState<string[]>(initialColors)
+  const [cells, setCells] = useState<Record<string, CellData>>(() => {
+    const init: Record<string, CellData> = {}
+    for (const s of initialSizes)
+      for (const c of initialColors)
+        init[cellKey(s, c)] = initialCells[cellKey(s, c)] ?? emptyCell()
+    return init
+  })
+
+  // Color picker
+  const [pickerForCol, setPickerForCol] = useState<number | null>(null)
+  const [pickerHex, setPickerHex] = useState('#1C1C1C')
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Active expanded cell
+  const [activeCell, setActiveCell] = useState<string | null>(null)
+
+  // Bulk edit
+  const [bulk, setBulk] = useState({ stock: '', retail: '', compare: '', wholesale: '' })
+
+  // Close color picker on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerForCol(null)
+    }
+    if (pickerForCol !== null) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [pickerForCol])
+
+  // ── Exposed API ────────────────────────────────────────────────────────────
+  useImperativeHandle(ref, () => ({
+    getVariants: () => {
+      const result: VariantForSave[] = []
+      for (const size of sizes) {
+        for (const color of colors) {
+          const cell = cells[cellKey(size, color)] ?? emptyCell()
+          result.push({
+            id: cell.variantId,
+            size: size || null,
+            color: color || null,
+            attrs: { talle: size, color },
+            ...cell,
+          })
+        }
+      }
+      return result
+    },
+  }))
+
+  // ── Cell updaters ──────────────────────────────────────────────────────────
+  function updateCell(size: string, color: string, field: keyof CellData, value: any) {
+    const key = cellKey(size, color)
+    setCells(prev => ({ ...prev, [key]: { ...(prev[key] ?? emptyCell()), [field]: value } }))
+  }
+
+  // ── Size (row) management ──────────────────────────────────────────────────
+  function addSize() {
+    const newSize = ''
+    setSizes(prev => [...prev, newSize])
+    setCells(prev => {
+      const next = { ...prev }
+      for (const c of colors) next[cellKey(newSize, c)] = emptyCell()
+      return next
+    })
+  }
+
+  function removeSize(idx: number) {
+    const size = sizes[idx]
+    setSizes(prev => prev.filter((_, i) => i !== idx))
+    setCells(prev => {
+      const next = { ...prev }
+      for (const c of colors) delete next[cellKey(size, c)]
+      return next
+    })
+  }
+
+  function renameSize(idx: number, newName: string) {
+    const oldName = sizes[idx]
+    setSizes(prev => prev.map((s, i) => i === idx ? newName : s))
+    setCells(prev => {
+      const next = { ...prev }
+      for (const c of colors) {
+        const old = cellKey(oldName, c)
+        const nk = cellKey(newName, c)
+        if (next[old]) { next[nk] = next[old]; delete next[old] }
+      }
+      return next
+    })
+  }
+
+  // ── Color (column) management ──────────────────────────────────────────────
+  function addColor() {
+    const newColor = ''
+    setColors(prev => [...prev, newColor])
+    setCells(prev => {
+      const next = { ...prev }
+      for (const s of sizes) next[cellKey(s, newColor)] = emptyCell()
+      return next
+    })
+  }
+
+  function removeColor(idx: number) {
+    const color = colors[idx]
+    setColors(prev => prev.filter((_, i) => i !== idx))
+    setCells(prev => {
+      const next = { ...prev }
+      for (const s of sizes) delete next[cellKey(s, color)]
+      return next
+    })
+  }
+
+  function renameColor(idx: number, newName: string) {
+    const oldName = colors[idx]
+    setColors(prev => prev.map((c, i) => i === idx ? newName : c))
+    setCells(prev => {
+      const next = { ...prev }
+      for (const s of sizes) {
+        const old = cellKey(s, oldName)
+        const nk = cellKey(s, newName)
+        if (next[old]) { next[nk] = next[old]; delete next[old] }
+      }
+      return next
+    })
+  }
+
+  // ── Color picker for column header ─────────────────────────────────────────
+  function openPicker(colIdx: number) {
+    const hex = colorToHex(colors[colIdx]) !== '#CCCCCC' ? colorToHex(colors[colIdx]) : '#1C1C1C'
+    setPickerHex(hex)
+    setPickerForCol(colIdx)
+  }
+
+  function applyPickerColor(colIdx: number) {
+    renameColor(colIdx, findNearestColorName(pickerHex))
+    setPickerForCol(null)
+  }
+
+  async function launchEyeDropper(colIdx: number) {
+    try {
+      // @ts-ignore
+      const result = await new window.EyeDropper().open()
+      setPickerHex(result.sRGBHex)
+      renameColor(colIdx, findNearestColorName(result.sRGBHex))
+      setPickerForCol(null)
+    } catch { }
+  }
+
+  // ── Bulk edit ──────────────────────────────────────────────────────────────
+  function applyBulk() {
+    setCells(prev => {
+      const next = { ...prev }
+      for (const s of sizes) {
+        for (const c of colors) {
+          const key = cellKey(s, c)
+          const cell = { ...(next[key] ?? emptyCell()) }
+          if (bulk.stock !== '') cell.stock = parseInt(bulk.stock, 10) || 0
+          if (bulk.retail !== '') cell.retailPrice = parseFloat(bulk.retail) || 0
+          if (bulk.compare !== '') cell.retailCompareAt = parseFloat(bulk.compare) || 0
+          if (bulk.wholesale !== '') cell.wholesalePrice = parseFloat(bulk.wholesale) || 0
+          next[key] = cell
+        }
+      }
+      return next
+    })
+    setBulk({ stock: '', retail: '', compare: '', wholesale: '' })
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4">
+
+      {/* ── Bulk edit panel ────────────────────────────────────────────────── */}
+      <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
+        <p className="text-xs font-semibold text-violet-700 mb-3">Editar todas las celdas a la vez</p>
+        <div className="flex flex-wrap items-end gap-3">
+          {[
+            { label: 'Stock', field: 'stock' as const, w: 'w-20' },
+            { label: 'Precio minorista $', field: 'retail' as const, w: 'w-28' },
+            { label: 'Precio anterior $', field: 'compare' as const, w: 'w-28' },
+            { label: 'Precio mayorista $', field: 'wholesale' as const, w: 'w-28' },
+          ].map(({ label, field, w }) => (
+            <div key={field}>
+              <label className="block text-xs text-violet-600 mb-1">{label}</label>
+              <input
+                className={`input text-sm ${w}`}
+                type="number" min="0"
+                value={bulk[field]}
+                onChange={e => setBulk(b => ({ ...b, [field]: e.target.value }))}
+                placeholder="—"
+              />
+            </div>
+          ))}
+          <button type="button" onClick={applyBulk}
+            className="btn-primary text-xs py-2 px-4 bg-violet-600 hover:bg-violet-700 border-violet-600">
+            Aplicar a todas
+          </button>
+        </div>
+        <p className="text-[10px] text-violet-400 mt-2">Solo los campos que completes se van a aplicar. Los demás se dejan como están.</p>
+      </div>
+
+      {/* ── Matrix table ───────────────────────────────────────────────────── */}
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+        <table className="border-collapse w-full">
+          <thead>
+            <tr className="bg-zinc-50">
+              {/* Top-left: add color button */}
+              <th className="px-3 py-3 text-left border-b border-r border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[90px]">
+                <button type="button" onClick={addColor}
+                  className="text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 font-medium">
+                  <Plus size={11} /> Color
+                </button>
+              </th>
+
+              {/* Color column headers */}
+              {colors.map((color, ci) => (
+                <th key={ci} className="px-2 py-2 border-b border-r border-zinc-200 last:border-r-0 min-w-[150px]">
+                  <div className="relative flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      {/* Color swatch */}
+                      <button type="button" onClick={() => openPicker(ci)}
+                        style={{ backgroundColor: colorToHex(color) }}
+                        title="Elegir color"
+                        className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
+                      {/* Color name input */}
+                      <input
+                        className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none text-center capitalize"
+                        style={{ width: '80px' }}
+                        value={color}
+                        onChange={e => renameColor(ci, e.target.value)}
+                        placeholder="Color..."
+                      />
+                      {/* Remove (create only) */}
+                      {mode === 'create' && colors.length > 1 && (
+                        <button type="button" onClick={() => removeColor(ci)}
+                          className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
+                          <X size={11} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Color picker popup */}
+                    {pickerForCol === ci && (
+                      <div ref={pickerRef}
+                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-zinc-200 rounded-xl shadow-xl p-4 w-64">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-medium text-zinc-700">Elegir color</p>
+                          <button type="button" onClick={() => setPickerForCol(null)} className="text-zinc-400 hover:text-zinc-600">
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <input type="color" value={pickerHex}
+                            onChange={e => setPickerHex(e.target.value)}
+                            className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
+                          <div>
+                            <p className="text-xs text-zinc-500 mb-0.5">Seleccionado</p>
+                            <p className="text-sm font-semibold text-zinc-800 capitalize">{findNearestColorName(pickerHex)}</p>
+                            <p className="text-xs text-zinc-400 font-mono">{pickerHex}</p>
+                          </div>
+                        </div>
+                        {'EyeDropper' in window && (
+                          <button type="button" onClick={() => launchEyeDropper(ci)}
+                            className="w-full flex items-center justify-center gap-2 text-xs py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors mb-3">
+                            <Pipette size={13} /> Cuentagotas — clickeá en la foto
+                          </button>
+                        )}
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {Object.entries(COLOR_MAP).map(([name, hex]) => (
+                            <button key={name} type="button" title={name}
+                              onClick={() => setPickerHex(hex)}
+                              style={{ backgroundColor: hex }}
+                              className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-violet-500 scale-110' : 'border-zinc-200'}`} />
+                          ))}
+                        </div>
+                        <button type="button" onClick={() => applyPickerColor(ci)}
+                          className="w-full btn-primary text-xs py-2 justify-center">
+                          Aplicar — {findNearestColorName(pickerHex)}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {sizes.map((size, si) => (
+              <tr key={si} className="border-t border-zinc-100 hover:bg-zinc-50/30 transition-colors">
+                {/* Size label cell */}
+                <td className="px-3 py-2 border-r border-zinc-200 sticky left-0 bg-white z-10">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none"
+                      style={{ width: '56px' }}
+                      value={size}
+                      onChange={e => renameSize(si, e.target.value)}
+                      placeholder="Talle..."
+                    />
+                    {mode === 'create' && sizes.length > 1 && (
+                      <button type="button" onClick={() => removeSize(si)}
+                        className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
+                        <X size={11} />
+                      </button>
+                    )}
+                  </div>
+                </td>
+
+                {/* Data cells */}
+                {colors.map((color, ci) => {
+                  const key = cellKey(size, color)
+                  const cell = cells[key] ?? emptyCell()
+                  const isActive = activeCell === key
+
+                  return (
+                    <td key={ci} className="p-1.5 border-r border-zinc-100 last:border-r-0 align-top">
+                      <div
+                        className={`rounded-lg border transition-all ${isActive ? 'border-violet-300 bg-violet-50/60 shadow-sm' : 'border-zinc-100 bg-white hover:border-zinc-200'}`}
+                      >
+                        {/* Always visible: Stock + Retail */}
+                        <div className="grid grid-cols-2 gap-1 p-1.5">
+                          <div>
+                            <p className="text-[9px] text-zinc-400 leading-none mb-1">Stock</p>
+                            <input
+                              className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              type="number" min="0"
+                              value={cell.stock || ''}
+                              placeholder="0"
+                              onChange={e => updateCell(size, color, 'stock', parseInt(e.target.value, 10) || 0)}
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-zinc-400 leading-none mb-1">$ min.</p>
+                            <input
+                              className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              type="number" min="0"
+                              value={cell.retailPrice || ''}
+                              placeholder="0"
+                              onChange={e => updateCell(size, color, 'retailPrice', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Expand toggle */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveCell(isActive ? null : key)}
+                          className={`w-full text-[9px] py-0.5 transition-colors rounded-b-lg ${isActive ? 'text-violet-500 bg-violet-100/60 hover:bg-violet-100' : 'text-zinc-300 hover:text-zinc-400 hover:bg-zinc-50'}`}
+                        >
+                          {isActive ? '▲ menos' : '▼ más'}
+                        </button>
+
+                        {/* Expanded: compare_at + wholesale */}
+                        {isActive && (
+                          <div className="grid grid-cols-2 gap-1 p-1.5 pt-0 border-t border-violet-100">
+                            <div>
+                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ anterior</p>
+                              <input
+                                className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                                type="number" min="0"
+                                value={cell.retailCompareAt || ''}
+                                placeholder="0"
+                                onChange={e => updateCell(size, color, 'retailCompareAt', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ may.</p>
+                              <input
+                                className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                                type="number" min="0"
+                                value={cell.wholesalePrice || ''}
+                                placeholder="0"
+                                onChange={e => updateCell(size, color, 'wholesalePrice', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+
+            {/* Add size row */}
+            <tr className="border-t border-zinc-100">
+              <td className="px-3 py-2 sticky left-0 bg-white">
+                <button type="button" onClick={addSize}
+                  className="text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 font-medium">
+                  <Plus size={11} /> Talle
+                </button>
+              </td>
+              {colors.map((_, ci) => <td key={ci} />)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-zinc-400">
+        Hacé click en <span className="font-medium">▼ más</span> en cualquier celda para ver precio anterior y mayorista · Solo completá los campos que aplican a cada variante
+      </p>
+    </div>
+  )
+})
+
+VariantMatrix.displayName = 'VariantMatrix'
+export default VariantMatrix
