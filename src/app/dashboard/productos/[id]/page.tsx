@@ -604,7 +604,7 @@ export default function EditarProductoPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Stock</label>
-                    <input className="input text-sm" type="number" min="0" value={v.stock} onChange={e => updateVariant(realIdx, 'stock', parseInt(e.target.value) || 0)} />
+                    <input className="input text-sm" type="number" min="0" value={v.stock || ''} placeholder="0" onChange={e => updateVariant(realIdx, 'stock', parseInt(e.target.value, 10) || 0)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
