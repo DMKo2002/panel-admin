@@ -27,6 +27,16 @@ export default function TiendaPage() {
   const [newOption, setNewOption] = useState<Record<number, string>>({})
   const [uploadingHero, setUploadingHero] = useState(false)
 
+  // Store identity
+  const [storeName, setStoreName] = useState('')
+  const [savingName, setSavingName] = useState(false)
+  const [savedName, setSavedName] = useState(false)
+
+  // Social + branches
+  const [branches, setBranches] = useState<{name:string;address:string;phone?:string}[]>([])
+  const [savingSocial, setSavingSocial] = useState(false)
+  const [savedSocial, setSavedSocial] = useState(false)
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -37,12 +47,40 @@ export default function TiendaPage() {
       setConfig(data)
       if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes)
+      if ((data as any)?.branches) setBranches((data as any).branches)
+
+      // Load tenant name
+      const { data: tenant } = await supabase.from('tenants').select('name').eq('id', userRow.tenant_id).single()
+      if (tenant) setStoreName(tenant.name)
     }
     load()
   }, [])
 
   function update(field: keyof StoreConfig, value: any) {
     setConfig(c => c ? { ...c, [field]: value } : c)
+  }
+
+  async function handleSaveName() {
+    if (!config) return
+    setSavingName(true)
+    await supabase.from('tenants').update({ name: storeName.trim() }).eq('id', config.tenant_id)
+    setSavingName(false); setSavedName(true); setTimeout(() => setSavedName(false), 2000)
+  }
+
+  async function handleSaveSocial() {
+    if (!config) return
+    setSavingSocial(true)
+    await supabase.from('store_config').update({
+      pickup_address: (config as any).pickup_address || null,
+      instagram_url:  (config as any).instagram_url  || null,
+      facebook_url:   (config as any).facebook_url   || null,
+      tiktok_url:     (config as any).tiktok_url     || null,
+      whatsapp_number:(config as any).whatsapp_number || null,
+      notification_email: (config as any).notification_email || null,
+      store_address:  (config as any).store_address  || null,
+      branches,
+    }).eq('id', config.id)
+    setSavingSocial(false); setSavedSocial(true); setTimeout(() => setSavedSocial(false), 2000)
   }
 
   async function handleSave() {
@@ -581,6 +619,110 @@ export default function TiendaPage() {
               onChange={v => update('pdf_show_notes' as any, v)}
             />
           </div>
+        </div>
+
+
+        {/* Nombre de la tienda */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Nombre de la tienda</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">El nombre que aparece en el sitio, footer y comprobantes</p>
+            </div>
+            <button onClick={handleSaveName} disabled={savingName} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedName ? '\u2713 Guardado' : savingName ? 'Guardando...' : 'Guardar nombre'}
+            </button>
+          </div>
+          <input className="input" value={storeName} onChange={e => setStoreName(e.target.value)} placeholder="Nombre de tu marca..." />
+        </div>
+
+        {/* Contacto, redes sociales y sucursales */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Contacto y redes sociales</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Aparece en el footer del sitio y en los PDFs</p>
+            </div>
+            <button onClick={handleSaveSocial} disabled={savingSocial} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedSocial ? '\u2713 Guardado' : savingSocial ? 'Guardando...' : 'Guardar contacto'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">WhatsApp</label>
+              <input className="input text-sm" value={(config as any)?.whatsapp_number ?? ''} onChange={e => update('whatsapp_number' as any, e.target.value)} placeholder="+54 9 11 1234-5678" />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Email de notificaciones</label>
+              <input className="input text-sm" value={(config as any)?.notification_email ?? ''} onChange={e => update('notification_email' as any, e.target.value)} placeholder="tu@email.com" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n del local (aparece en PDFs y footer)</label>
+              <input className="input text-sm" value={(config as any)?.store_address ?? ''} onChange={e => update('store_address' as any, e.target.value)} placeholder="Av. Santa Fe 1234, CABA" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n para mapa de retiro</label>
+              <input className="input text-sm" value={(config as any)?.pickup_address ?? ''} onChange={e => update('pickup_address' as any, e.target.value)} placeholder="Av. Santa Fe 1234, Buenos Aires" />
+              <p className="text-xs text-zinc-400 mt-1">Aparece en el footer del sitio como mapa interactivo cuando el retiro en local est\u00e1 habilitado</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-zinc-50">
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Instagram</label>
+              <input className="input text-sm" value={(config as any)?.instagram_url ?? ''} onChange={e => update('instagram_url' as any, e.target.value)} placeholder="https://instagram.com/tu_marca" />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Facebook</label>
+              <input className="input text-sm" value={(config as any)?.facebook_url ?? ''} onChange={e => update('facebook_url' as any, e.target.value)} placeholder="https://facebook.com/tu_marca" />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">TikTok</label>
+              <input className="input text-sm" value={(config as any)?.tiktok_url ?? ''} onChange={e => update('tiktok_url' as any, e.target.value)} placeholder="https://tiktok.com/@tu_marca" />
+            </div>
+          </div>
+        </div>
+
+        {/* Sucursales */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Sucursales</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Aparecen en el footer del sitio</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBranches(prev => [...prev, { name: '', address: '', phone: '' }])}
+              className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 transition-colors"
+            >
+              <Plus size={14} /> Agregar sucursal
+            </button>
+          </div>
+          {branches.length === 0 && (
+            <p className="text-xs text-zinc-400">No hay sucursales cargadas</p>
+          )}
+          {branches.map((branch, i) => (
+            <div key={i} className="grid grid-cols-3 gap-3 pb-3 border-b border-zinc-50 last:border-0">
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Nombre</label>
+                <input className="input text-sm" value={branch.name} onChange={e => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, name: e.target.value } : b))} placeholder="Sucursal Centro" />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n</label>
+                <input className="input text-sm" value={branch.address} onChange={e => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, address: e.target.value } : b))} placeholder="Av. Corrientes 1234, CABA" />
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">Tel\u00e9fono (opcional)</label>
+                  <input className="input text-sm" value={branch.phone ?? ''} onChange={e => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, phone: e.target.value } : b))} placeholder="11 1234-5678" />
+                </div>
+                <button type="button" onClick={() => setBranches(prev => prev.filter((_, idx) => idx !== i))} className="text-zinc-300 hover:text-red-400 transition-colors mb-1">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
       </div>

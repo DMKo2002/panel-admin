@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react'
+import DashboardRefresher from '@/components/DashboardRefresher'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -51,6 +52,8 @@ export default async function DashboardPage() {
   return (
     <div>
       {/* Header */}
+      <DashboardRefresher tenantId={tenantId} />
+
       <div className="px-8 py-6 border-b border-zinc-200 bg-white">
         <h1 className="text-xl font-semibold text-zinc-900">Dashboard</h1>
         <p className="text-sm text-zinc-500 mt-0.5">
