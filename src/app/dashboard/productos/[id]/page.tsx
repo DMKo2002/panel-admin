@@ -149,6 +149,7 @@ export default function EditarProductoPage() {
           retailPrice: Math.round(retail?.price ?? 0),
           retailCompareAt: Math.round(retail?.compare_at_price ?? 0),
           wholesalePrice: Math.round(wholesale?.price ?? 0),
+          wholesaleCompareAt: Math.round(wholesale?.compare_at_price ?? 0),
           wholesaleMinQty: wholesale?.min_qty ?? 6,
         }
       }
@@ -232,7 +233,7 @@ export default function EditarProductoPage() {
           if (varErr) throw varErr
           await supabase.from('price_rules').delete().eq('variant_id', v.id)
           if (v.retailPrice > 0) rules.push({ variant_id: v.id, type: 'retail', min_qty: 1, price: v.retailPrice, compare_at_price: v.retailCompareAt > 0 ? v.retailCompareAt : null, active: true })
-          if (v.wholesalePrice > 0) rules.push({ variant_id: v.id, type: 'wholesale', min_qty: v.wholesaleMinQty || 6, price: v.wholesalePrice, active: true })
+          if (v.wholesalePrice > 0) rules.push({ variant_id: v.id, type: 'wholesale', min_qty: v.wholesaleMinQty || 6, price: v.wholesalePrice, compare_at_price: v.wholesaleCompareAt > 0 ? v.wholesaleCompareAt : null, active: true })
           if (rules.length > 0) { const { error: rErr } = await supabase.from('price_rules').insert(rules); if (rErr) throw rErr }
         } else {
           const { data: nv, error: nvErr } = await supabase.from('variants')
@@ -241,7 +242,7 @@ export default function EditarProductoPage() {
           if (nvErr) throw nvErr
           if (nv) {
             if (v.retailPrice > 0) rules.push({ variant_id: nv.id, type: 'retail', min_qty: 1, price: v.retailPrice, compare_at_price: v.retailCompareAt > 0 ? v.retailCompareAt : null, active: true })
-            if (v.wholesalePrice > 0) rules.push({ variant_id: nv.id, type: 'wholesale', min_qty: v.wholesaleMinQty || 6, price: v.wholesalePrice, active: true })
+            if (v.wholesalePrice > 0) rules.push({ variant_id: nv.id, type: 'wholesale', min_qty: v.wholesaleMinQty || 6, price: v.wholesalePrice, compare_at_price: v.wholesaleCompareAt > 0 ? v.wholesaleCompareAt : null, active: true })
             if (rules.length > 0) { const { error: rErr } = await supabase.from('price_rules').insert(rules); if (rErr) throw rErr }
           }
         }

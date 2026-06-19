@@ -39,6 +39,7 @@ export interface CellData {
   retailPrice: number
   retailCompareAt: number
   wholesalePrice: number
+  wholesaleCompareAt: number
   wholesaleMinQty: number
 }
 
@@ -51,6 +52,7 @@ export interface VariantForSave {
   retailPrice: number
   retailCompareAt: number
   wholesalePrice: number
+  wholesaleCompareAt: number
   wholesaleMinQty: number
 }
 
@@ -70,7 +72,7 @@ const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
 // Key separator — chosen to be unlikely in real size/color names
 export const SEP = '\x00'
 export const cellKey = (size: string, color: string) => `${size}${SEP}${color}`
-const emptyCell = (): CellData => ({ stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleMinQty: 6 })
+const emptyCell = (): CellData => ({ stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleCompareAt: 0, wholesaleMinQty: 6 })
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
@@ -94,11 +96,8 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   const [pickerHex, setPickerHex] = useState('#1C1C1C')
   const pickerRef = useRef<HTMLDivElement>(null)
 
-  // Active expanded cell
-  const [activeCell, setActiveCell] = useState<string | null>(null)
-
   // Bulk edit
-  const [bulk, setBulk] = useState({ stock: '', retail: '', compare: '', wholesale: '' })
+  const [bulk, setBulk] = useState({ stock: '', retail: '', compareRetail: '', wholesale: '', compareWholesale: '' })
 
   // Close color picker on outside click
   useEffect(() => {
@@ -237,14 +236,15 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
           const cell = { ...(next[key] ?? emptyCell()) }
           if (bulk.stock !== '') cell.stock = parseInt(bulk.stock, 10) || 0
           if (bulk.retail !== '') cell.retailPrice = Math.round(parseFloat(bulk.retail) || 0)
-          if (bulk.compare !== '') cell.retailCompareAt = Math.round(parseFloat(bulk.compare) || 0)
+          if (bulk.compareRetail !== '') cell.retailCompareAt = Math.round(parseFloat(bulk.compareRetail) || 0)
           if (bulk.wholesale !== '') cell.wholesalePrice = Math.round(parseFloat(bulk.wholesale) || 0)
+          if (bulk.compareWholesale !== '') cell.wholesaleCompareAt = Math.round(parseFloat(bulk.compareWholesale) || 0)
           next[key] = cell
         }
       }
       return next
     })
-    setBulk({ stock: '', retail: '', compare: '', wholesale: '' })
+    setBulk({ stock: '', retail: '', compareRetail: '', wholesale: '', compareWholesale: '' })
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -257,9 +257,10 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
         <div className="flex flex-wrap items-end gap-3">
           {[
             { label: 'Stock', field: 'stock' as const, w: 'w-20' },
-            { label: 'Precio minorista $', field: 'retail' as const, w: 'w-28' },
-            { label: 'Precio anterior tachado $', field: 'compare' as const, w: 'w-28' },
-            { label: 'Precio mayorista $', field: 'wholesale' as const, w: 'w-28' },
+            { label: '$ Minorista', field: 'retail' as const, w: 'w-28' },
+            { label: '$ Min. rebajado', field: 'compareRetail' as const, w: 'w-28' },
+            { label: '$ Mayorista', field: 'wholesale' as const, w: 'w-28' },
+            { label: '$ May. rebajado', field: 'compareWholesale' as const, w: 'w-28' },
           ].map(({ label, field, w }) => (
             <div key={field}>
               <label className="block text-xs text-violet-600 mb-1">{label}</label>
@@ -392,71 +393,71 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                 {colors.map((color, ci) => {
                   const key = cellKey(size, color)
                   const cell = cells[key] ?? emptyCell()
-                  const isActive = activeCell === key
 
                   return (
                     <td key={ci} className="p-1.5 border-r border-zinc-100 last:border-r-0 align-top">
-                      <div
-                        className={`rounded-lg border transition-all ${isActive ? 'border-violet-300 bg-violet-50/60 shadow-sm' : 'border-zinc-100 bg-white hover:border-zinc-200'}`}
-                      >
-                        {/* Always visible: Stock + Retail */}
-                        <div className="grid grid-cols-2 gap-1 p-1.5">
-                          <div>
-                            <p className="text-[9px] text-zinc-400 leading-none mb-1">Stock</p>
-                            <input
-                              className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                              type="number" min="0"
-                              value={cell.stock || ''}
-                              placeholder="0"
-                              onChange={e => updateCell(size, color, 'stock', parseInt(e.target.value, 10) || 0)}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-zinc-400 leading-none mb-1">$ min.</p>
-                            <input
-                              className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                              type="number" min="0" step="1"
-                              value={cell.retailPrice || ''}
-                              placeholder="0"
-                              onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
-                            />
-                          </div>
+                      <div className="rounded-lg border border-zinc-100 bg-white hover:border-zinc-200 transition-all divide-y divide-zinc-100">
+
+                        {/* Stock */}
+                        <div className="p-1.5">
+                          <p className="text-[9px] text-zinc-400 leading-none mb-1">Stock</p>
+                          <input
+                            className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                            type="number" min="0"
+                            value={cell.stock || ''}
+                            placeholder="0"
+                            onChange={e => updateCell(size, color, 'stock', parseInt(e.target.value, 10) || 0)}
+                          />
                         </div>
 
-                        {/* Expand toggle */}
-                        <button
-                          type="button"
-                          onClick={() => setActiveCell(isActive ? null : key)}
-                          className={`w-full text-[9px] py-0.5 transition-colors rounded-b-lg ${isActive ? 'text-violet-500 bg-violet-100/60 hover:bg-violet-100' : 'text-zinc-300 hover:text-zinc-400 hover:bg-zinc-50'}`}
-                        >
-                          {isActive ? '▲ menos' : '▼ más'}
-                        </button>
+                        {/* Precio minorista */}
+                        <div className="p-1.5">
+                          <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Minorista</p>
+                          <input
+                            className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                            type="number" min="0" step="1"
+                            value={cell.retailPrice || ''}
+                            placeholder="0"
+                            onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
+                          />
+                        </div>
 
-                        {/* Expanded: compare_at + wholesale */}
-                        {isActive && (
-                          <div className="grid grid-cols-2 gap-1 p-1.5 pt-0 border-t border-violet-100">
-                            <div>
-                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ anterior (tachado)</p>
-                              <input
-                                className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                                type="number" min="0" step="1"
-                                value={cell.retailCompareAt || ''}
-                                placeholder="0"
-                                onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-                              />
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ may.</p>
-                              <input
-                                className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                                type="number" min="0" step="1"
-                                value={cell.wholesalePrice || ''}
-                                placeholder="0"
-                                onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
-                              />
-                            </div>
-                          </div>
-                        )}
+                        {/* Precio minorista rebajado */}
+                        <div className="p-1.5 bg-orange-50/40">
+                          <p className="text-[9px] text-orange-400 leading-none mb-1">$ Min. rebajado</p>
+                          <input
+                            className="w-full text-xs border border-orange-100 rounded px-1.5 py-1 focus:outline-none focus:border-orange-300 bg-white text-center"
+                            type="number" min="0" step="1"
+                            value={cell.retailCompareAt || ''}
+                            placeholder="0"
+                            onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+                          />
+                        </div>
+
+                        {/* Precio mayorista */}
+                        <div className="p-1.5 bg-violet-50/40">
+                          <p className="text-[9px] text-violet-500 leading-none mb-1">$ Mayorista</p>
+                          <input
+                            className="w-full text-xs border border-violet-100 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                            type="number" min="0" step="1"
+                            value={cell.wholesalePrice || ''}
+                            placeholder="0"
+                            onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
+                          />
+                        </div>
+
+                        {/* Precio mayorista rebajado */}
+                        <div className="p-1.5 bg-violet-50/40">
+                          <p className="text-[9px] text-violet-400 leading-none mb-1">$ May. rebajado</p>
+                          <input
+                            className="w-full text-xs border border-violet-100 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                            type="number" min="0" step="1"
+                            value={cell.wholesaleCompareAt || ''}
+                            placeholder="0"
+                            onChange={e => updateCell(size, color, 'wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+                          />
+                        </div>
+
                       </div>
                     </td>
                   )
@@ -479,7 +480,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
       </div>
 
       <p className="text-xs text-zinc-400">
-        Hacé click en <span className="font-medium">▼ más</span> en cualquier celda para ver precio anterior y mayorista · Solo completá los campos que aplican a cada variante
+        Cada celda muestra: stock · precio minorista · precio min. rebajado (tachado) · precio mayorista · precio may. rebajado · Solo completá los campos que aplican
       </p>
     </div>
   )
