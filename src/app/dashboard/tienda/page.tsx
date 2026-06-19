@@ -50,7 +50,17 @@ export default function TiendaPage() {
       if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token as string)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
       if (data?.branches) setBranches(data.branches)
-      if ((data as any)?.custom_shipping) setCustomShipping((data as any).custom_shipping)
+      const cs = (data as any)?.custom_shipping
+      if (cs && cs.length > 0) {
+        setCustomShipping(cs)
+      } else {
+        setCustomShipping([
+          { name: 'Retiro en local', price: 0, active: true },
+          { name: 'OCA', price: 0, active: true },
+          { name: 'Andreani', price: 0, active: true },
+          { name: 'Moto mensajería', price: 0, active: true },
+        ])
+      }
 
       // Load tenant name
       const { data: tenant } = await supabase.from('tenants').select('name').eq('id', userRow.tenant_id).single()
@@ -101,18 +111,6 @@ export default function TiendaPage() {
       transfer_enabled: config.transfer_enabled,
       transfer_cbu: config.transfer_cbu,
       transfer_alias: config.transfer_alias,
-      oca_enabled: config.oca_enabled,
-      andreani_enabled: config.andreani_enabled,
-      pickup_enabled: config.pickup_enabled,
-      // Andreani API
-      andreani_usuario: (config as any).andreani_usuario || null,
-      andreani_password: (config as any).andreani_password || null,
-      andreani_codigo_cliente: (config as any).andreani_codigo_cliente || null,
-      andreani_contrato_dom: (config as any).andreani_contrato_dom || null,
-      andreani_cp_origen: (config as any).andreani_cp_origen || null,
-      andreani_sandbox: (config as any).andreani_sandbox ?? true,
-      andreani_peso_default_g: (config as any).andreani_peso_default_g ?? 500,
-      andreani_tarifa_fallback: (config as any).andreani_tarifa_fallback ?? 0,
       min_order_amount: config.min_order_amount ?? null,
       price_visibility: config.price_visibility ?? 'all',
       custom_shipping: customShipping,
@@ -471,175 +469,60 @@ export default function TiendaPage() {
 
         {/* Envíos */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Métodos de envío</h2>
-          <div className="space-y-1">
-            <ToggleRow label="OCA" desc="Cálculo automático de flete por código postal" checked={Boolean(config?.oca_enabled)} onChange={v => update('oca_enabled', v)} />
-            <ToggleRow label="Andreani" desc="Cotización automática via API por código postal" checked={Boolean(config?.andreani_enabled)} onChange={v => update('andreani_enabled', v)} />
-            <ToggleRow label="Retiro en local" desc="El cliente retira sin costo de envío" checked={Boolean(config?.pickup_enabled)} onChange={v => update('pickup_enabled', v)} />
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Métodos de envío</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Los clientes eligen uno al finalizar la compra</p>
+            </div>
+            <button
+              onClick={() => setCustomShipping(s => [...s, { name: '', price: 0, active: true }])}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors flex items-center gap-1"
+            >
+              <Plus size={12} /> Agregar
+            </button>
           </div>
 
-          {/* Envíos personalizados */}
-          <div className="border-t border-zinc-100 pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-xs font-semibold text-zinc-700">Envíos personalizados</p>
-                <p className="text-xs text-zinc-400">Ej: Moto mensajería, Flete propio, etc.</p>
-              </div>
-              <button
-                onClick={() => setCustomShipping(s => [...s, { name: '', price: 0, active: true }])}
-                className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors flex items-center gap-1"
-              >
-                <Plus size={12} /> Agregar
-              </button>
-            </div>
-            <div className="space-y-2">
-              {customShipping.map((method, i) => (
-                <div key={i} className="flex items-center gap-2">
+          {customShipping.length === 0 && (
+            <p className="text-xs text-zinc-400 italic">No hay métodos configurados. Usá el botón de arriba para agregar uno.</p>
+          )}
+
+          <div className="space-y-2">
+            {customShipping.map((method, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  className="input text-sm flex-1"
+                  placeholder="Nombre (ej: OCA, Andreani, Moto mensajería)"
+                  value={method.name}
+                  onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))}
+                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
                   <input
-                    className="input text-sm flex-1"
-                    placeholder="Nombre (ej: Moto mensajería)"
-                    value={method.name}
-                    onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))}
+                    type="number"
+                    min={0}
+                    className="input text-sm pl-6 w-28"
+                    placeholder="Precio"
+                    value={method.price || ''}
+                    onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))}
                   />
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                    <input
-                      type="number"
-                      min={0}
-                      className="input text-sm pl-6 w-28"
-                      placeholder="Precio"
-                      value={method.price || ''}
-                      onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))}
-                    />
-                  </div>
-                  <button
-                    onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))}
-                    className={`text-xs px-2 py-1 rounded border transition-colors ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}
-                  >
-                    {method.active ? 'Activo' : 'Inactivo'}
-                  </button>
-                  <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 transition-colors">
-                    <Trash2 size={15} />
-                  </button>
                 </div>
-              ))}
-            </div>
+                <button
+                  onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))}
+                  className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}
+                >
+                  {method.active ? 'Activo' : 'Inactivo'}
+                </button>
+                <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
           </div>
+
+          <p className="text-xs text-zinc-400">
+            Usá precio $0 para métodos gratuitos (ej: Retiro en local). Recordá guardar los cambios arriba.
+          </p>
         </div>
-
-        {/* Andreani — credenciales API */}
-        {config?.andreani_enabled && (
-          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-700">Andreani — Configuración API</h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Sin credenciales se usa la tarifa de fallback. Con credenciales se cotiza en tiempo real.
-                </p>
-              </div>
-              <a
-                href="mailto:apis@andreani.com"
-                className="text-xs text-violet-600 hover:underline"
-                target="_blank" rel="noopener noreferrer"
-              >
-                Solicitar credenciales →
-              </a>
-            </div>
-
-            {/* Ambiente */}
-            <div className="flex items-center justify-between py-2 border-b border-zinc-50">
-              <div>
-                <p className="text-sm text-zinc-800">Modo sandbox (pruebas)</p>
-                <p className="text-xs text-zinc-400 mt-0.5">Activado = usa api.qa.andreani.com. Desactivar al pasar a producción.</p>
-              </div>
-              <Toggle checked={Boolean(config?.andreani_sandbox ?? true)} onChange={v => update('andreani_sandbox' as any, v)} />
-            </div>
-
-            {/* Credenciales */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Usuario</label>
-                <input
-                  className="input text-sm"
-                  value={(config as any)?.andreani_usuario ?? ''}
-                  onChange={e => update('andreani_usuario' as any, e.target.value)}
-                  placeholder="usuario_api"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Contraseña</label>
-                <input
-                  className="input text-sm font-mono"
-                  type="password"
-                  value={(config as any)?.andreani_password ?? ''}
-                  onChange={e => update('andreani_password' as any, e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Código de cliente</label>
-                <input
-                  className="input text-sm"
-                  value={(config as any)?.andreani_codigo_cliente ?? ''}
-                  onChange={e => update('andreani_codigo_cliente' as any, e.target.value)}
-                  placeholder="CL0001234"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Contrato (domicilio)</label>
-                <input
-                  className="input text-sm"
-                  value={(config as any)?.andreani_contrato_dom ?? ''}
-                  onChange={e => update('andreani_contrato_dom' as any, e.target.value)}
-                  placeholder="400006711"
-                />
-              </div>
-            </div>
-
-            {/* CP origen y peso */}
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-50">
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Código postal de origen</label>
-                <input
-                  className="input text-sm"
-                  value={(config as any)?.andreani_cp_origen ?? ''}
-                  onChange={e => update('andreani_cp_origen' as any, e.target.value)}
-                  placeholder="1428"
-                  maxLength={4}
-                />
-                <p className="text-xs text-zinc-400 mt-1">CP desde donde despachás los pedidos</p>
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Peso estimado por ítem (gramos)</label>
-                <input
-                  className="input text-sm"
-                  type="number"
-                  min={50}
-                  value={(config as any)?.andreani_peso_default_g ?? 500}
-                  onChange={e => update('andreani_peso_default_g' as any, Number(e.target.value))}
-                  placeholder="500"
-                />
-                <p className="text-xs text-zinc-400 mt-1">Peso promedio de cada producto</p>
-              </div>
-            </div>
-
-            {/* Tarifa fallback */}
-            <div className="pt-2 border-t border-zinc-50">
-              <label className="block text-xs text-zinc-500 mb-1">Tarifa fija de fallback (ARS)</label>
-              <input
-                className="input text-sm w-48"
-                type="number"
-                min={0}
-                value={(config as any)?.andreani_tarifa_fallback ?? 0}
-                onChange={e => update('andreani_tarifa_fallback' as any, Number(e.target.value))}
-                placeholder="5000"
-              />
-              <p className="text-xs text-zinc-400 mt-1">
-                Se muestra cuando no hay credenciales configuradas. Poné 0 para mostrar "Gratis".
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Configuración de Recibos PDF */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
