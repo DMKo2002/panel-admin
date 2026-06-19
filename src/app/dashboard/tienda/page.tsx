@@ -26,6 +26,8 @@ export default function TiendaPage() {
   const [savedAttrs, setSavedAttrs] = useState(false)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
   const [uploadingHero, setUploadingHero] = useState(false)
+  const [uploadingThumb1, setUploadingThumb1] = useState(false)
+  const [uploadingThumb2, setUploadingThumb2] = useState(false)
 
   // Store identity
   const [storeName, setStoreName] = useState('')
@@ -121,6 +123,30 @@ export default function TiendaPage() {
   }
 
   const [heroUploadError, setHeroUploadError] = useState<string | null>(null)
+  const [thumb1UploadError, setThumb1UploadError] = useState<string | null>(null)
+  const [thumb2UploadError, setThumb2UploadError] = useState<string | null>(null)
+
+  async function handleThumbUpload(file: File, thumbNum: 1 | 2) {
+    if (!config) return
+    const setUploading = thumbNum === 1 ? setUploadingThumb1 : setUploadingThumb2
+    const setError = thumbNum === 1 ? setThumb1UploadError : setThumb2UploadError
+    const field = thumbNum === 1 ? 'hero_thumb1_url' : 'hero_thumb2_url'
+    setUploading(true)
+    setError(null)
+    const ext = file.name.split('.').pop()
+    const path = `${config.tenant_id}/hero-thumb${thumbNum}.${ext}`
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('store-assets')
+      .upload(path, file, { upsert: true })
+    if (uploadError) { setError(`Error: ${uploadError.message}`); setUploading(false); return }
+    if (uploadData) {
+      const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(path)
+      const { error: dbError } = await supabase.from('store_config').update({ [field]: publicUrl }).eq('id', config.id)
+      if (dbError) setError(`Error al guardar: ${dbError.message}`)
+      else setConfig(c => c ? { ...c, [field]: publicUrl } : c)
+    }
+    setUploading(false)
+  }
 
   async function handleHeroUpload(file: File) {
     if (!config) return
@@ -289,6 +315,39 @@ export default function TiendaPage() {
             {heroUploadError && (
               <p className="mt-2 text-xs text-red-500">{heroUploadError}</p>
             )}
+          </div>
+
+          {/* Thumbnails del hero */}
+          <div className="grid grid-cols-2 gap-4">
+            {([1, 2] as const).map(n => {
+              const url = n === 1 ? config?.hero_thumb1_url : config?.hero_thumb2_url
+              const uploading = n === 1 ? uploadingThumb1 : uploadingThumb2
+              const err = n === 1 ? thumb1UploadError : thumb2UploadError
+              return (
+                <div key={n}>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Thumbnail hero {n}</label>
+                  <p className="text-xs text-zinc-400 mb-2">Imagen pequeña superpuesta en el hero. Recomendado: 320×420px.</p>
+                  <label className={`flex items-center gap-3 px-3 py-2 border border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                    <div className="w-10 h-14 bg-zinc-100 rounded flex items-center justify-center text-zinc-400 text-xs flex-shrink-0 overflow-hidden">
+                      {url ? <img src={url} className="w-full h-full object-cover rounded" /> : <span className="text-[9px] text-center">Sin img</span>}
+                    </div>
+                    <span className="text-sm text-zinc-400">{uploading ? 'Subiendo...' : 'Subir imagen'}</span>
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbUpload(f, n) }} />
+                  </label>
+                  {url && (
+                    <button onClick={async () => {
+                      const field = n === 1 ? 'hero_thumb1_url' : 'hero_thumb2_url'
+                      await supabase.from('store_config').update({ [field]: null }).eq('id', config!.id)
+                      setConfig(c => c ? { ...c, [field]: null } as any : c)
+                    }} className="mt-1 text-xs text-red-400 hover:text-red-600 transition-colors">
+                      Quitar imagen
+                    </button>
+                  )}
+                  {err && <p className="mt-1 text-xs text-red-500">{err}</p>}
+                </div>
+              )
+            })}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

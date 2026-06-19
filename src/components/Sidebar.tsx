@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen
+  Bell, Settings, LogOut, Store, FolderOpen, Palette
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -14,8 +14,9 @@ const navItems = [
   { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart },
   { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt },
   { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen },
-  { label: 'Notificaciones',  href: '/dashboard/notificaciones', icon: Bell },
-  { label: 'Mi tienda',       href: '/dashboard/tienda',         icon: Settings },
+  { label: 'Notificaciones',   href: '/dashboard/notificaciones',  icon: Bell },
+  { label: 'Mi tienda',        href: '/dashboard/tienda',          icon: Settings },
+  { label: 'Personalización',  href: '/dashboard/personalizacion', icon: Palette },
 ]
 
 interface SidebarProps {
