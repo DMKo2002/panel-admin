@@ -398,11 +398,11 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                     <td key={ci} className="p-1.5 border-r border-zinc-100 last:border-r-0 align-top">
                       <div className="rounded-lg border border-zinc-100 bg-white hover:border-zinc-200 transition-all divide-y divide-zinc-100">
 
-                        {/* Stock */}
+                        {/* Fila 1 — Stock (ancho completo) */}
                         <div className="p-1.5">
                           <p className="text-[9px] text-zinc-400 leading-none mb-1">Stock</p>
                           <input
-                            className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                            className="w-full text-sm font-semibold border border-zinc-200 rounded px-1.5 py-1.5 focus:outline-none focus:border-violet-400 bg-white text-center"
                             type="number" min="0"
                             value={cell.stock || ''}
                             placeholder="0"
@@ -410,52 +410,52 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                           />
                         </div>
 
-                        {/* Precio minorista */}
-                        <div className="p-1.5">
-                          <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Minorista</p>
-                          <input
-                            className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                            type="number" min="0" step="1"
-                            value={cell.retailPrice || ''}
-                            placeholder="0"
-                            onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
-                          />
+                        {/* Fila 2 — Minorista | Minorista rebajado */}
+                        <div className="grid grid-cols-2 divide-x divide-zinc-100">
+                          <div className="p-1.5">
+                            <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Min.</p>
+                            <input
+                              className="w-full text-xs border border-zinc-200 rounded px-1 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              type="number" min="0" step="1"
+                              value={cell.retailPrice || ''}
+                              placeholder="0"
+                              onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
+                            />
+                          </div>
+                          <div className="p-1.5 bg-orange-50/50">
+                            <p className="text-[9px] text-orange-400 leading-none mb-1">$ Min. reb.</p>
+                            <input
+                              className="w-full text-xs border border-orange-100 rounded px-1 py-1 focus:outline-none focus:border-orange-300 bg-white text-center"
+                              type="number" min="0" step="1"
+                              value={cell.retailCompareAt || ''}
+                              placeholder="0"
+                              onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+                            />
+                          </div>
                         </div>
 
-                        {/* Precio minorista rebajado */}
-                        <div className="p-1.5 bg-orange-50/40">
-                          <p className="text-[9px] text-orange-400 leading-none mb-1">$ Min. rebajado</p>
-                          <input
-                            className="w-full text-xs border border-orange-100 rounded px-1.5 py-1 focus:outline-none focus:border-orange-300 bg-white text-center"
-                            type="number" min="0" step="1"
-                            value={cell.retailCompareAt || ''}
-                            placeholder="0"
-                            onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-                          />
-                        </div>
-
-                        {/* Precio mayorista */}
-                        <div className="p-1.5 bg-violet-50/40">
-                          <p className="text-[9px] text-violet-500 leading-none mb-1">$ Mayorista</p>
-                          <input
-                            className="w-full text-xs border border-violet-100 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                            type="number" min="0" step="1"
-                            value={cell.wholesalePrice || ''}
-                            placeholder="0"
-                            onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
-                          />
-                        </div>
-
-                        {/* Precio mayorista rebajado */}
-                        <div className="p-1.5 bg-violet-50/40">
-                          <p className="text-[9px] text-violet-400 leading-none mb-1">$ May. rebajado</p>
-                          <input
-                            className="w-full text-xs border border-violet-100 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                            type="number" min="0" step="1"
-                            value={cell.wholesaleCompareAt || ''}
-                            placeholder="0"
-                            onChange={e => updateCell(size, color, 'wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-                          />
+                        {/* Fila 3 — Mayorista | Mayorista rebajado */}
+                        <div className="grid grid-cols-2 divide-x divide-violet-100">
+                          <div className="p-1.5 bg-violet-50/40">
+                            <p className="text-[9px] text-violet-500 leading-none mb-1">$ May.</p>
+                            <input
+                              className="w-full text-xs border border-violet-100 rounded px-1 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              type="number" min="0" step="1"
+                              value={cell.wholesalePrice || ''}
+                              placeholder="0"
+                              onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
+                            />
+                          </div>
+                          <div className="p-1.5 bg-violet-50/40">
+                            <p className="text-[9px] text-violet-400 leading-none mb-1">$ May. reb.</p>
+                            <input
+                              className="w-full text-xs border border-violet-100 rounded px-1 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              type="number" min="0" step="1"
+                              value={cell.wholesaleCompareAt || ''}
+                              placeholder="0"
+                              onChange={e => updateCell(size, color, 'wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+                            />
+                          </div>
                         </div>
 
                       </div>
