@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Badge from '@/components/Badge'
-import { Plus, ImageOff, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { Plus, ImageOff, Search, X, SlidersHorizontal, LayoutGrid, List, Trash2, CheckSquare, Square } from 'lucide-react'
 
 interface ProductItem {
   id: string
@@ -27,7 +29,21 @@ interface ProductosGridProps {
 const formatPrice = (n: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 
+async function deleteProduct(supabase: ReturnType<typeof createClient>, id: string) {
+  const { data: variantRows } = await supabase.from('variants').select('id').eq('product_id', id)
+  const variantIds = (variantRows ?? []).map((v: any) => v.id)
+  if (variantIds.length > 0) {
+    await supabase.from('price_rules').delete().in('variant_id', variantIds)
+    await supabase.from('variants').delete().in('id', variantIds)
+  }
+  await supabase.from('product_images').delete().eq('product_id', id)
+  await supabase.from('products').delete().eq('id', id)
+}
+
 export default function ProductosGrid({ products, categories }: ProductosGridProps) {
+  const router = useRouter()
+  const supabase = createClient()
+
   const [q, setQ] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'sin_stock' | 'bajo' | 'ok'>('all')
@@ -35,6 +51,9 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
   const [orden, setOrden] = useState<'reciente' | 'precio-asc' | 'precio-desc' | 'nombre' | 'stock-asc'>('reciente')
   const [showFilters, setShowFilters] = useState(false)
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
 
   const filtered = useMemo(() => {
     let list = [...products]
@@ -67,6 +86,47 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
 
   function clearFilters() {
     setCatFilter(''); setStockFilter('all'); setDiscountOnly(false); setOrden('reciente'); setQ('')
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length && filtered.length > 0) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(filtered.map(p => p.id)))
+    }
+  }
+
+  async function handleDeleteSingle(id: string, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!confirm('¿Eliminar este producto? Se eliminarán también sus variantes e imágenes.')) return
+    setDeleting(true)
+    try {
+      await deleteProduct(supabase, id)
+      router.refresh()
+    } catch { }
+    setDeleting(false)
+  }
+
+  async function handleBulkDelete() {
+    setDeleting(true)
+    try {
+      for (const id of Array.from(selected)) {
+        await deleteProduct(supabase, id)
+      }
+      setSelected(new Set())
+      setConfirmBulkDelete(false)
+      router.refresh()
+    } catch { }
+    setDeleting(false)
   }
 
   const EmptyState = () => (
@@ -147,6 +207,17 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
           </div>
 
           <span className="text-sm text-zinc-400 ml-auto">{filtered.length} productos</span>
+
+          {/* Bulk action bar */}
+          {selected.size > 0 && (
+            <button
+              onClick={() => setConfirmBulkDelete(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={14} />
+              Eliminar {selected.size} seleccionados
+            </button>
+          )}
         </div>
 
         {showFilters && (
@@ -186,62 +257,112 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
         )}
       </div>
 
+      {/* Bulk delete modal */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border border-zinc-200 p-6 max-w-sm w-full mx-4 shadow-xl">
+            <h2 className="text-base font-semibold text-zinc-900 mb-2">¿Eliminar {selected.size} productos?</h2>
+            <p className="text-sm text-zinc-500 mb-5">Se eliminarán también todas sus variantes, precios e imágenes. Esta acción no se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button onClick={handleBulkDelete} disabled={deleting} className="flex-1 py-2 px-4 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg disabled:opacity-60 transition-colors">
+                {deleting ? 'Eliminando...' : 'Sí, eliminar todo'}
+              </button>
+              <button onClick={() => setConfirmBulkDelete(false)} className="flex-1 btn-secondary justify-center">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="px-8 py-6">
 
         {/* VISTA GALERIA */}
         {view === 'grid' && (
-          <div className="grid grid-cols-3 gap-4">
-            {filtered.length === 0 ? (
-              <div className="col-span-3"><EmptyState /></div>
-            ) : filtered.map((product) => {
-              const hasDiscount = product.compareAtPrice && product.compareAtPrice > (product.retailPrice ?? 0)
-              const discountPct = hasDiscount ? Math.round((1 - product.retailPrice! / product.compareAtPrice!) * 100) : null
-              return (
-                <Link key={product.id} href={`/dashboard/productos/${product.id}`}
-                  className="bg-white rounded-xl border border-zinc-200 overflow-hidden hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group"
-                >
-                  <div className="h-40 bg-zinc-50 flex items-center justify-center relative overflow-hidden">
-                    {product.cover
-                      ? <img src={product.cover} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      : <ImageOff size={28} className="text-zinc-300" />
-                    }
-                    {!product.active && (
-                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                        <Badge variant="zinc">Inactivo</Badge>
-                      </div>
-                    )}
-                    {discountPct && (
-                      <div className="absolute top-2 left-2 bg-zinc-900 text-white text-[10px] tracking-wide uppercase px-2 py-0.5 rounded">
-                        -{discountPct}%
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <p className="font-medium text-zinc-900 text-sm truncate">{product.name}</p>
-                    {product.sku && <p className="text-[11px] text-zinc-400 font-mono mt-0.5">{product.sku}</p>}
-                    <div className="mt-1.5 space-y-0.5">
-                      {product.retailPrice != null && (
-                        <p className="text-xs text-zinc-500">
-                          Minorista: <span className="text-zinc-800 font-medium">{formatPrice(product.retailPrice)}</span>
-                          {hasDiscount && <span className="text-zinc-400 line-through ml-1.5">{formatPrice(product.compareAtPrice!)}</span>}
-                        </p>
-                      )}
-                      {product.wholesalePrice != null && (
-                        <p className="text-xs text-zinc-500">Mayorista: <span className="text-zinc-800 font-medium">{formatPrice(product.wholesalePrice)}</span></p>
-                      )}
-                    </div>
-                    <div className="mt-3">
-                      {product.totalStock === 0
-                        ? <Badge variant="red">Sin stock</Badge>
-                        : product.totalStock <= 3
-                        ? <Badge variant="amber">Stock bajo: {product.totalStock}</Badge>
-                        : <Badge variant="green">Stock: {product.totalStock}</Badge>
+          <div>
+            {filtered.length > 0 && (
+              <div className="flex items-center gap-2 mb-3">
+                <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-700 transition-colors">
+                  {selected.size === filtered.length && filtered.length > 0
+                    ? <CheckSquare size={14} className="text-zinc-700" />
+                    : <Square size={14} />
+                  }
+                  {selected.size === filtered.length && filtered.length > 0 ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-4">
+              {filtered.length === 0 ? (
+                <div className="col-span-3"><EmptyState /></div>
+              ) : filtered.map((product) => {
+                const hasDiscount = product.compareAtPrice && product.compareAtPrice > (product.retailPrice ?? 0)
+                const discountPct = hasDiscount ? Math.round((1 - product.retailPrice! / product.compareAtPrice!) * 100) : null
+                const isSelected = selected.has(product.id)
+                return (
+                  <div key={product.id} className={`relative bg-white rounded-xl border overflow-hidden transition-all group ${isSelected ? 'border-violet-400 shadow-sm ring-1 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300 hover:shadow-sm'}`}>
+                    {/* Selection checkbox */}
+                    <button
+                      onClick={() => toggleSelect(product.id)}
+                      className="absolute top-2 left-2 z-10 w-5 h-5 rounded flex items-center justify-center transition-opacity"
+                      title="Seleccionar"
+                    >
+                      {isSelected
+                        ? <CheckSquare size={16} className="text-violet-600 drop-shadow" />
+                        : <Square size={16} className="text-white drop-shadow opacity-0 group-hover:opacity-100 transition-opacity" />
                       }
-                    </div>
+                    </button>
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => handleDeleteSingle(product.id, e)}
+                      disabled={deleting}
+                      className="absolute top-2 right-2 z-10 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-white transition-colors shadow-sm opacity-0 group-hover:opacity-100"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                    <Link href={`/dashboard/productos/${product.id}`}>
+                      <div className="h-40 bg-zinc-50 flex items-center justify-center relative overflow-hidden">
+                        {product.cover
+                          ? <img src={product.cover} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          : <ImageOff size={28} className="text-zinc-300" />
+                        }
+                        {!product.active && (
+                          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                            <Badge variant="zinc">Inactivo</Badge>
+                          </div>
+                        )}
+                        {discountPct && (
+                          <div className="absolute top-2 left-8 bg-zinc-900 text-white text-[10px] tracking-wide uppercase px-2 py-0.5 rounded">
+                            -{discountPct}%
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <p className="font-medium text-zinc-900 text-sm truncate">{product.name}</p>
+                        {product.sku && <p className="text-[11px] text-zinc-400 font-mono mt-0.5">{product.sku}</p>}
+                        <div className="mt-1.5 space-y-0.5">
+                          {product.retailPrice != null && (
+                            <p className="text-xs text-zinc-500">
+                              Minorista: <span className="text-zinc-800 font-medium">{formatPrice(product.retailPrice)}</span>
+                              {hasDiscount && <span className="text-zinc-400 line-through ml-1.5">{formatPrice(product.compareAtPrice!)}</span>}
+                            </p>
+                          )}
+                          {product.wholesalePrice != null && (
+                            <p className="text-xs text-zinc-500">Mayorista: <span className="text-zinc-800 font-medium">{formatPrice(product.wholesalePrice)}</span></p>
+                          )}
+                        </div>
+                        <div className="mt-3">
+                          {product.totalStock === 0
+                            ? <Badge variant="red">Sin stock</Badge>
+                            : product.totalStock <= 3
+                            ? <Badge variant="amber">Stock bajo: {product.totalStock}</Badge>
+                            : <Badge variant="green">Stock: {product.totalStock}</Badge>
+                          }
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                </Link>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         )}
 
@@ -252,6 +373,14 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100">
+                    <th className="px-4 py-3 w-8">
+                      <button onClick={toggleSelectAll}>
+                        {selected.size === filtered.length && filtered.length > 0
+                          ? <CheckSquare size={14} className="text-zinc-700" />
+                          : <Square size={14} className="text-zinc-300" />
+                        }
+                      </button>
+                    </th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3 w-12"></th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Producto</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">SKU</th>
@@ -259,16 +388,24 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Mayorista</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Stock</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado</th>
+                    <th className="w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((product) => {
                     const hasDiscount = product.compareAtPrice && product.compareAtPrice > (product.retailPrice ?? 0)
+                    const isSelected = selected.has(product.id)
                     return (
-                      <tr key={product.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors cursor-pointer"
-                        onClick={() => { window.location.href = `/dashboard/productos/${product.id}` }}
-                      >
+                      <tr key={product.id} className={`border-b border-zinc-50 transition-colors ${isSelected ? 'bg-violet-50' : 'hover:bg-zinc-50'}`}>
                         <td className="px-4 py-2">
+                          <button onClick={() => toggleSelect(product.id)}>
+                            {isSelected
+                              ? <CheckSquare size={14} className="text-violet-600" />
+                              : <Square size={14} className="text-zinc-300" />
+                            }
+                          </button>
+                        </td>
+                        <td className="px-4 py-2 cursor-pointer" onClick={() => { window.location.href = `/dashboard/productos/${product.id}` }}>
                           <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-100 flex items-center justify-center flex-shrink-0">
                             {product.cover
                               ? <img src={product.cover} alt={product.name} className="w-full h-full object-cover" />
@@ -276,7 +413,7 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
                             }
                           </div>
                         </td>
-                        <td className="px-4 py-2">
+                        <td className="px-4 py-2 cursor-pointer" onClick={() => { window.location.href = `/dashboard/productos/${product.id}` }}>
                           <p className="font-medium text-zinc-900 truncate max-w-xs">{product.name}</p>
                         </td>
                         <td className="px-4 py-2">
@@ -309,6 +446,16 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
                         </td>
                         <td className="px-4 py-2">
                           {product.active ? <Badge variant="green">Activo</Badge> : <Badge variant="zinc">Inactivo</Badge>}
+                        </td>
+                        <td className="px-4 py-2">
+                          <button
+                            onClick={(e) => handleDeleteSingle(product.id, e)}
+                            disabled={deleting}
+                            className="text-zinc-300 hover:text-red-400 transition-colors disabled:opacity-50"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </td>
                       </tr>
                     )

@@ -236,9 +236,9 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
           const key = cellKey(s, c)
           const cell = { ...(next[key] ?? emptyCell()) }
           if (bulk.stock !== '') cell.stock = parseInt(bulk.stock, 10) || 0
-          if (bulk.retail !== '') cell.retailPrice = parseFloat(bulk.retail) || 0
-          if (bulk.compare !== '') cell.retailCompareAt = parseFloat(bulk.compare) || 0
-          if (bulk.wholesale !== '') cell.wholesalePrice = parseFloat(bulk.wholesale) || 0
+          if (bulk.retail !== '') cell.retailPrice = Math.round(parseFloat(bulk.retail) || 0)
+          if (bulk.compare !== '') cell.retailCompareAt = Math.round(parseFloat(bulk.compare) || 0)
+          if (bulk.wholesale !== '') cell.wholesalePrice = Math.round(parseFloat(bulk.wholesale) || 0)
           next[key] = cell
         }
       }
@@ -258,14 +258,14 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
           {[
             { label: 'Stock', field: 'stock' as const, w: 'w-20' },
             { label: 'Precio minorista $', field: 'retail' as const, w: 'w-28' },
-            { label: 'Precio anterior $', field: 'compare' as const, w: 'w-28' },
+            { label: 'Precio anterior tachado $', field: 'compare' as const, w: 'w-28' },
             { label: 'Precio mayorista $', field: 'wholesale' as const, w: 'w-28' },
           ].map(({ label, field, w }) => (
             <div key={field}>
               <label className="block text-xs text-violet-600 mb-1">{label}</label>
               <input
                 className={`input text-sm ${w}`}
-                type="number" min="0"
+                type="number" min="0" step="1"
                 value={bulk[field]}
                 onChange={e => setBulk(b => ({ ...b, [field]: e.target.value }))}
                 placeholder="—"
@@ -415,10 +415,10 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                             <p className="text-[9px] text-zinc-400 leading-none mb-1">$ min.</p>
                             <input
                               className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                              type="number" min="0"
+                              type="number" min="0" step="1"
                               value={cell.retailPrice || ''}
                               placeholder="0"
-                              onChange={e => updateCell(size, color, 'retailPrice', parseFloat(e.target.value) || 0)}
+                              onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
                             />
                           </div>
                         </div>
@@ -436,23 +436,23 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                         {isActive && (
                           <div className="grid grid-cols-2 gap-1 p-1.5 pt-0 border-t border-violet-100">
                             <div>
-                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ anterior</p>
+                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ anterior (tachado)</p>
                               <input
                                 className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                                type="number" min="0"
+                                type="number" min="0" step="1"
                                 value={cell.retailCompareAt || ''}
                                 placeholder="0"
-                                onChange={e => updateCell(size, color, 'retailCompareAt', parseFloat(e.target.value) || 0)}
+                                onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
                               />
                             </div>
                             <div>
                               <p className="text-[9px] text-zinc-400 leading-none mb-1">$ may.</p>
                               <input
                                 className="w-full text-xs border border-zinc-200 rounded px-1.5 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
-                                type="number" min="0"
+                                type="number" min="0" step="1"
                                 value={cell.wholesalePrice || ''}
                                 placeholder="0"
-                                onChange={e => updateCell(size, color, 'wholesalePrice', parseFloat(e.target.value) || 0)}
+                                onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
                               />
                             </div>
                           </div>

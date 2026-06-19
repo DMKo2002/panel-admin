@@ -63,6 +63,7 @@ export default function CategoriasPage() {
   // Build 3-level tree
   const topLevel: CategoryTree[] = allCats
     .filter(c => !c.parent_id)
+    .sort((a, b) => a.sort_order - b.sort_order)
     .map(c => ({
       ...c,
       subcategories: allCats

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Upload, ArrowLeft } from 'lucide-react'
+import { Upload, ArrowLeft, X, Star } from 'lucide-react'
 import Link from 'next/link'
 import VariantMatrix, { VariantMatrixHandle } from '@/components/VariantMatrix'
 
@@ -93,6 +93,17 @@ export default function NuevoProductoPage() {
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
     e.target.value = ''
+  }
+
+  function removeImage(idx: number) {
+    setImageFiles(prev => prev.filter((_, i) => i !== idx))
+    setImagePreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function moveImageToFront(idx: number) {
+    if (idx === 0) return
+    setImageFiles(prev => { const a = [...prev]; const [item] = a.splice(idx, 1); a.unshift(item); return a })
+    setImagePreviews(prev => { const a = [...prev]; const [item] = a.splice(idx, 1); a.unshift(item); return a })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -206,13 +217,26 @@ export default function NuevoProductoPage() {
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
           {imagePreviews.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {imagePreviews.map((src, i) => (
-                <div key={i} className="relative">
-                  <img src={src} className="w-20 h-20 object-cover rounded-lg border border-zinc-200" />
-                  {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>}
-                </div>
-              ))}
+            <div>
+              <p className="text-xs text-zinc-400 mb-2">Click en ★ para establecer como portada. La primera imagen es la portada.</p>
+              <div className="flex gap-2 flex-wrap">
+                {imagePreviews.map((src, i) => (
+                  <div key={i} className="relative group">
+                    <img src={src} className={`w-20 h-20 object-cover rounded-lg border-2 ${i === 0 ? 'border-violet-500' : 'border-zinc-200'}`} />
+                    {i === 0
+                      ? <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>
+                      : <button type="button" onClick={() => moveImageToFront(i)} title="Establecer como portada"
+                          className="absolute top-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-400 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex shadow-sm">
+                          <Star size={11} />
+                        </button>
+                    }
+                    <button type="button" onClick={() => removeImage(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs items-center justify-center hidden group-hover:flex shadow-sm">
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

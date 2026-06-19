@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink } from 'lucide-react'
 import VariantMatrix, { VariantMatrixHandle, CellData, cellKey } from '@/components/VariantMatrix'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ async function resizeImageTo600x900(file: File): Promise<File> {
 }
 
 function slugify(text: string) {
-  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -60,6 +60,7 @@ export default function EditarProductoPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const [productSlug, setProductSlug] = useState<string>('')
 
   // Basic product fields
   const [name, setName] = useState('')
@@ -95,7 +96,12 @@ export default function EditarProductoPage() {
       setDescription(product.description ?? '')
       setActive(product.active ?? true)
       setCategoryId(product.category_id ?? null)
-      setImages(product.product_images ?? [])
+      setProductSlug(product.slug ?? '')
+      setImages((product.product_images ?? []).sort((a: any, b: any) => {
+        if (a.is_cover) return -1
+        if (b.is_cover) return 1
+        return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      }))
 
       if (user) {
         const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
@@ -140,9 +146,9 @@ export default function EditarProductoPage() {
         cells[cellKey(s, c)] = {
           variantId: v.id,
           stock: v.stock ?? 0,
-          retailPrice: retail?.price ?? 0,
-          retailCompareAt: retail?.compare_at_price ?? 0,
-          wholesalePrice: wholesale?.price ?? 0,
+          retailPrice: Math.round(retail?.price ?? 0),
+          retailCompareAt: Math.round(retail?.compare_at_price ?? 0),
+          wholesalePrice: Math.round(wholesale?.price ?? 0),
           wholesaleMinQty: wholesale?.min_qty ?? 6,
         }
       }
@@ -164,9 +170,23 @@ export default function EditarProductoPage() {
     e.target.value = ''
   }
 
+  function removeNewImage(idx: number) {
+    setNewImageFiles(prev => prev.filter((_, i) => i !== idx))
+    setNewImagePreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
   async function removeExistingImage(imgId: string) {
     await supabase.from('product_images').delete().eq('id', imgId)
     setImages(prev => prev.filter(i => i.id !== imgId))
+  }
+
+  async function setCoverImage(imgId: string) {
+    // Set all to false, then set this one to true
+    const ids = images.map(i => i.id)
+    for (const id2 of ids) {
+      await supabase.from('product_images').update({ is_cover: id2 === imgId }).eq('id', id2)
+    }
+    setImages(prev => prev.map(i => ({ ...i, is_cover: i.id === imgId })))
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -227,6 +247,8 @@ export default function EditarProductoPage() {
         }
       }
 
+      setNewImageFiles([])
+      setNewImagePreviews([])
       router.push('/dashboard/productos')
       router.refresh()
     } catch (err: any) {
@@ -239,7 +261,15 @@ export default function EditarProductoPage() {
   async function handleDelete() {
     setDeleting(true)
     try {
-      await supabase.from('products').update({ active: false }).eq('id', id)
+      // Cascade delete: price_rules → variants → product_images → product
+      const { data: variantRows } = await supabase.from('variants').select('id').eq('product_id', id)
+      const variantIds = (variantRows ?? []).map((v: any) => v.id)
+      if (variantIds.length > 0) {
+        await supabase.from('price_rules').delete().in('variant_id', variantIds)
+        await supabase.from('variants').delete().in('id', variantIds)
+      }
+      await supabase.from('product_images').delete().eq('product_id', id)
+      await supabase.from('products').delete().eq('id', id)
       router.push('/dashboard/productos')
       router.refresh()
     } catch (err: any) { setError(err.message); setDeleting(false) }
@@ -259,7 +289,19 @@ export default function EditarProductoPage() {
           <Link href="/dashboard/productos" className="text-zinc-400 hover:text-zinc-600 transition-colors">
             <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-xl font-semibold text-zinc-900">Editar producto</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-zinc-900">Editar producto</h1>
+            {productSlug && (
+              <a
+                href={`/tienda/${productSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-violet-500 hover:text-violet-700 flex items-center gap-1 mt-0.5"
+              >
+                Ver en tienda <ExternalLink size={10} />
+              </a>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setConfirmDelete(true)} className="btn-secondary text-red-500 hover:text-red-600 hover:border-red-200">
@@ -276,7 +318,7 @@ export default function EditarProductoPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl border border-zinc-200 p-6 max-w-sm w-full mx-4 shadow-xl">
             <h2 className="text-base font-semibold text-zinc-900 mb-2">¿Eliminar producto?</h2>
-            <p className="text-sm text-zinc-500 mb-5">El producto se va a desactivar. Podés reactivarlo después desde la base de datos.</p>
+            <p className="text-sm text-zinc-500 mb-5">Se van a eliminar el producto, todas sus variantes, precios e imágenes. Esta acción no se puede deshacer.</p>
             <div className="flex gap-3">
               <button onClick={handleDelete} disabled={deleting} className="flex-1 btn-primary bg-red-500 hover:bg-red-600 justify-center disabled:opacity-60">
                 {deleting ? 'Eliminando...' : 'Sí, eliminar'}
@@ -322,7 +364,13 @@ export default function EditarProductoPage() {
                   return subs.length > 0 ? (
                     <optgroup key={parent.id} label={parent.name}>
                       <option value={parent.id}>{parent.name} (general)</option>
-                      {subs.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+                      {subs.map(sub => {
+                        const subSubs = categories.filter(c => c.parent_id === sub.id)
+                        return subSubs.length > 0 ? [
+                          <option key={sub.id} value={sub.id}>  {sub.name}</option>,
+                          ...subSubs.map(ss => <option key={ss.id} value={ss.id}>    {ss.name}</option>)
+                        ] : <option key={sub.id} value={sub.id}>  {sub.name}</option>
+                      })}
                     </optgroup>
                   ) : <option key={parent.id} value={parent.id}>{parent.name}</option>
                 })}
@@ -333,15 +381,37 @@ export default function EditarProductoPage() {
 
         {/* Imágenes */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Click en ★ para cambiar la foto de portada. La portada es la imagen principal del producto.</p>
+          </div>
           {images.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {images.map(img => (
                 <div key={img.id} className="relative group">
-                  <img src={img.url} className="w-20 h-20 object-cover rounded-lg border border-zinc-200" />
-                  {img.is_cover && <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>}
-                  <button type="button" onClick={() => removeExistingImage(img.id)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs items-center justify-center hidden group-hover:flex">×</button>
+                  <img src={img.url} className={`w-20 h-20 object-cover rounded-lg border-2 transition-colors ${img.is_cover ? 'border-violet-500' : 'border-zinc-200'}`} />
+                  {img.is_cover && (
+                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>
+                  )}
+                  {/* Cover toggle */}
+                  {!img.is_cover && (
+                    <button
+                      type="button"
+                      onClick={() => setCoverImage(img.id)}
+                      title="Establecer como portada"
+                      className="absolute top-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-400 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex transition-colors shadow-sm"
+                    >
+                      <Star size={11} />
+                    </button>
+                  )}
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    onClick={() => removeExistingImage(img.id)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs items-center justify-center hidden group-hover:flex shadow-sm"
+                  >
+                    <X size={10} />
+                  </button>
                 </div>
               ))}
             </div>
@@ -349,9 +419,16 @@ export default function EditarProductoPage() {
           {newImagePreviews.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {newImagePreviews.map((src, i) => (
-                <div key={i} className="relative">
+                <div key={i} className="relative group">
                   <img src={src} className="w-20 h-20 object-cover rounded-lg border border-zinc-200 opacity-70" />
                   <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-zinc-600 text-white rounded-b-lg py-0.5">Nueva</span>
+                  <button
+                    type="button"
+                    onClick={() => removeNewImage(i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs items-center justify-center hidden group-hover:flex shadow-sm"
+                  >
+                    <X size={10} />
+                  </button>
                 </div>
               ))}
             </div>

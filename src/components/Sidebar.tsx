@@ -68,7 +68,7 @@ export default function Sidebar({ storeName, storeDomain }: SidebarProps) {
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">
           Configuración
         </p>
-        {navItems.slice(3).map(item => (
+        {navItems.slice(4).map(item => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
