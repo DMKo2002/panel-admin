@@ -14,19 +14,27 @@ import { ImageIcon, Upload, X, Loader2 } from 'lucide-react'
 
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
   default: [
-    { key: 'hero_main',     label: 'Hero principal',    hint: '1400 × 850 px', aspect: '16/9' },
+    { key: 'logo',        label: 'Logo',           hint: 'PNG o SVG, fondo transparente', aspect: '3/1'  },
+    { key: 'hero_main',   label: 'Hero principal', hint: '1400 × 850 px',                 aspect: '16/9' },
   ],
   mykonoslove: [
-    { key: 'hero_main',       label: 'Hero principal',      hint: '1400 × 850 px recomendado', aspect: '16/10' },
-    { key: 'hero_thumb_1',    label: 'Thumbnail Hero 1',    hint: '320 × 420 px recomendado',  aspect: '3/4'   },
-    { key: 'hero_thumb_2',    label: 'Thumbnail Hero 2',    hint: '320 × 420 px recomendado',  aspect: '3/4'   },
-    { key: 'collection_1',    label: 'Colección — Banner 1', hint: '600 × 750 px recomendado', aspect: '4/5'   },
-    { key: 'collection_2',    label: 'Colección — Banner 2', hint: '600 × 750 px recomendado', aspect: '4/5'   },
-    { key: 'collection_3',    label: 'Colección — Banner 3', hint: '600 × 750 px recomendado', aspect: '4/5'   },
-    { key: 'blog_1',          label: 'Blog — Foto 1',        hint: '800 × 500 px recomendado', aspect: '16/9'  },
-    { key: 'blog_2',          label: 'Blog — Foto 2',        hint: '800 × 500 px recomendado', aspect: '16/9'  },
-    { key: 'blog_3',          label: 'Blog — Foto 3',        hint: '800 × 500 px recomendado', aspect: '16/9'  },
+    { key: 'logo',          label: 'Logo',                hint: 'PNG o SVG, fondo transparente',  aspect: '3/1'   },
+    { key: 'hero_main',     label: 'Hero principal',      hint: '1400 × 850 px recomendado',      aspect: '16/10' },
+    { key: 'hero_thumb_1',  label: 'Thumbnail Hero 1',    hint: '320 × 420 px recomendado',       aspect: '3/4'   },
+    { key: 'hero_thumb_2',  label: 'Thumbnail Hero 2',    hint: '320 × 420 px recomendado',       aspect: '3/4'   },
+    { key: 'collection_1',  label: 'Colección — Banner 1', hint: '600 × 750 px recomendado',      aspect: '4/5'   },
+    { key: 'collection_2',  label: 'Colección — Banner 2', hint: '600 × 750 px recomendado',      aspect: '4/5'   },
+    { key: 'collection_3',  label: 'Colección — Banner 3', hint: '600 × 750 px recomendado',      aspect: '4/5'   },
+    { key: 'blog_1',         label: 'Blog — Foto 1',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
+    { key: 'blog_2',         label: 'Blog — Foto 2',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
+    { key: 'blog_3',         label: 'Blog — Foto 3',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
   ],
+}
+
+// Slots que además sincronizan con columnas de store_config
+const SYNC_TO_STORE_CONFIG: Record<string, string> = {
+  logo:      'logo_url',
+  hero_main: 'hero_image_url',
 }
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -218,6 +226,15 @@ export default function PersonalizacionPage() {
       return
     }
 
+    // Sincronizar con store_config si aplica (logo → logo_url, hero_main → hero_image_url)
+    const configField = SYNC_TO_STORE_CONFIG[slotKey]
+    if (configField) {
+      await supabase
+        .from('store_config')
+        .update({ [configField]: publicUrl })
+        .eq('tenant_id', tenantId)
+    }
+
     setSlotState(slotKey, { url: publicUrl, uploading: false, error: null })
   }
 
@@ -230,6 +247,15 @@ export default function PersonalizacionPage() {
       .delete()
       .eq('tenant_id', tenantId)
       .eq('slot', slotKey)
+
+    // Limpiar también store_config si aplica
+    const configField = SYNC_TO_STORE_CONFIG[slotKey]
+    if (configField) {
+      await supabase
+        .from('store_config')
+        .update({ [configField]: null })
+        .eq('tenant_id', tenantId)
+    }
 
     setSlotState(slotKey, { url: null, uploading: false, error: null })
   }
@@ -245,6 +271,7 @@ export default function PersonalizacionPage() {
   }
 
   const groupLabels: Record<string, string> = {
+    logo:       'Identidad',
     hero:       'Hero',
     collection: 'Colecciones',
     blog:       'Blog',
