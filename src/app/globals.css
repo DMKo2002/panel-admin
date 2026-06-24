@@ -46,12 +46,10 @@
 
   .input {
     @apply w-full px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none transition;
-    focus-visible:outline: none;
   }
   .input:focus {
-    ring: 2px solid var(--pa-accent-ring);
     border-color: var(--pa-accent);
-    outline: 2px solid var(--pa-accent-ring);
+    box-shadow: 0 0 0 2px var(--pa-accent-ring);
   }
 
   .card {
