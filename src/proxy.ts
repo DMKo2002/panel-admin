@@ -1,9 +1,27 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+
+// Cliente service-role para el middleware — bypasea RLS en Edge Runtime
+// El anon-key + RLS no propaga la sesión correctamente en middleware de Next.js
+function serviceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
+
+function redirect(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = pathname
+  return NextResponse.redirect(url)
+}
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // Cliente SSR para auth (lee session del cookie)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,54 +42,25 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-// 1. Sin sesión → solo puede ir al login
-if (!user && path.startsWith('/dashboard')) {
-  const url = request.nextUrl.clone()
-  url.pathname = '/login'
-  return NextResponse.redirect(url)
-}
-
-if (!user && path === '/onboarding') {
-  const url = request.nextUrl.clone()
-  url.pathname = '/login'
-  return NextResponse.redirect(url)
-}
+  // 1. Sin sesión → solo puede ir al login
+  if (!user && path.startsWith('/dashboard')) return redirect(request, '/login')
+  if (!user && path === '/onboarding') return redirect(request, '/login')
 
   // 2. Con sesión en login → ir al dashboard
-  if (user && path === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
+  if (user && path === '/login') return redirect(request, '/dashboard')
 
-  // 3. Con sesión → verificar si tiene tenant
-  if (user && path.startsWith('/dashboard')) {
-    const { data: userRow } = await supabase
+  // 3 & 4. Con sesión → verificar tenant usando service role (bypasea RLS)
+  if (user && (path.startsWith('/dashboard') || path === '/onboarding')) {
+    const { data: userRow } = await serviceClient()
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
       .single()
 
-    if (!userRow?.tenant_id) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/onboarding'
-      return NextResponse.redirect(url)
-    }
-  }
+    const hasTenant = !!userRow?.tenant_id
 
-  // 4. Con sesión y con tenant → no volver al onboarding
-  if (user && path === '/onboarding') {
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userRow?.tenant_id) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
+    if (!hasTenant && path.startsWith('/dashboard')) return redirect(request, '/onboarding')
+    if (hasTenant && path === '/onboarding') return redirect(request, '/dashboard')
   }
 
   return supabaseResponse
