@@ -107,7 +107,7 @@ export default function OnboardingPage() {
       const slug = slugify(storeName) + '-' + Date.now().toString().slice(-4)
       const { data: tenant, error: tenantError } = await supabase
         .from('tenants')
-        .insert({ slug, name: storeName.trim(), domain: storeDomain.trim() || null, plan: 'basic' })
+        .insert({ slug, name: storeName.trim(), domain: storeDomain.trim() || null, plan: 'basic', status: 'pending' })
         .select()
         .single()
 
@@ -125,6 +125,21 @@ export default function OnboardingPage() {
         { id: user.id, email: user.email, tenant_id: tenant.id, role: 'owner' },
         { onConflict: 'id' }
       )
+
+      // Notificar al admin del nuevo registro
+      try {
+        await fetch('/api/notify-new-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantName: storeName.trim(),
+            email: user.email ?? '',
+            tenantId: tenant.id,
+          }),
+        })
+      } catch (e) {
+        console.warn('notify-new-tenant failed:', e)
+      }
 
       router.push('/dashboard')
       router.refresh()

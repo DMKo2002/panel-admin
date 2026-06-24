@@ -91,9 +91,20 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-zinc-400 mt-6">
-          ¿Problemas para ingresar? Contactá a soporte.
-        </p>
+        <div className="mt-5 space-y-3">
+          <p className="text-center text-sm text-zinc-500">
+            ¿No tenés cuenta?{' '}
+            <a href="/registro" className="text-violet-600 hover:underline font-medium">
+              Registrate acá
+            </a>
+          </p>
+          <p className="text-center text-xs text-zinc-400">
+            ¿Olvidaste tu contraseña?{' '}
+            <a href="/reset-password" className="text-zinc-500 hover:underline">
+              Recuperala
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   )

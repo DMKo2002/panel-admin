@@ -41,10 +41,13 @@ export async function proxy(request: NextRequest) {
 
   // 1. Sin sesión → login
   if (!user && path.startsWith('/dashboard')) return redirectTo(request, '/login')
+  // Rutas públicas: no redirigir si no hay sesión
+  const publicPaths = ['/login', '/registro', '/reset-password', '/update-password']
+  if (!user && publicPaths.some(pp => path.startsWith(pp))) return supabaseResponse
   if (!user && path === '/onboarding') return redirectTo(request, '/login')
 
   // 2. Ya logueado → no volver al login
-  if (user && path === '/login') return redirectTo(request, '/dashboard')
+  if (user && ['/login', '/registro', '/reset-password'].some(pp => path.startsWith(pp))) return redirectTo(request, '/dashboard')
 
   // 3. Con sesión → verificar tenant
   if (user && (path.startsWith('/dashboard') || path === '/onboarding')) {
@@ -77,5 +80,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding', '/login'],
+  matcher: ['/dashboard/:path*', '/onboarding', '/login', '/registro', '/reset-password', '/update-password'],
 }
