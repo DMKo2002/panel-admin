@@ -9,6 +9,7 @@ export type PaymentMethod = 'mercadopago' | 'transfer'
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed'
 export type PriceType = 'retail' | 'wholesale'
 export type NotifChannel = 'whatsapp' | 'email' | 'sms'
+export type PanelTheme = 'default' | 'dark'
 
 export interface Tenant {
   id: string
@@ -71,6 +72,10 @@ export interface StoreConfig {
   branches: Branch[]
   price_visibility: 'all' | 'logged_in' | 'wholesale_only'
   custom_shipping: CustomShippingMethod[]
+  panel_theme: PanelTheme
+  panel_accent_color: string | null
+  terms_and_conditions: string | null
+  privacy_policy: string | null
 }
 
 export interface Customer {

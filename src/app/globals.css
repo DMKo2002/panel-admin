@@ -5,31 +5,68 @@
 @layer base {
   :root {
     --font-sans: 'DM Sans', sans-serif;
+    /* Panel accent color — se sobrescribe via inline style desde ThemeProvider */
+    --pa-accent: #7c3aed;
+    --pa-accent-hover: #6d28d9;
+    --pa-accent-ring: #7c3aed40;
   }
 
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
-  body {
-    font-family: var(--font-sans);
-  }
+  body { font-family: var(--font-sans); }
+
+  /* ── Dark mode overrides ─────────────────────────────────────────────────── */
+  .dark body                              { background: #18181b; color: #f4f4f5; }
+  .dark .bg-white                         { background: #27272a !important; }
+  .dark .bg-zinc-50                       { background: #18181b !important; }
+  .dark .border-zinc-200                  { border-color: #3f3f46 !important; }
+  .dark .border-zinc-100                  { border-color: #3f3f46 !important; }
+  .dark .border-zinc-50                   { border-color: #3f3f46 !important; }
+  .dark .text-zinc-900                    { color: #f4f4f5 !important; }
+  .dark .text-zinc-800                    { color: #e4e4e7 !important; }
+  .dark .text-zinc-700                    { color: #d4d4d8 !important; }
+  .dark .text-zinc-600                    { color: #a1a1aa !important; }
+  .dark .text-zinc-500                    { color: #71717a !important; }
+  .dark .text-zinc-400                    { color: #52525b !important; }
+  .dark .hover\:bg-zinc-50:hover          { background: #27272a !important; }
+  .dark .hover\:bg-zinc-100:hover         { background: #3f3f46 !important; }
+  .dark .bg-zinc-100                      { background: #3f3f46 !important; }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors;
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors;
+    background-color: var(--pa-accent);
   }
+  .btn-primary:hover { background-color: var(--pa-accent-hover); }
 
   .btn-secondary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50 transition-colors;
   }
 
   .input {
-    @apply w-full px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition;
+    @apply w-full px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none transition;
+    focus-visible:outline: none;
+  }
+  .input:focus {
+    ring: 2px solid var(--pa-accent-ring);
+    border-color: var(--pa-accent);
+    outline: 2px solid var(--pa-accent-ring);
   }
 
   .card {
     @apply bg-white rounded-xl border border-zinc-200 p-5;
   }
+
+  /* Dark overrides for form elements */
+  .dark .input {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #f4f4f5;
+  }
+  .dark .input::placeholder { color: #52525b; }
+  .dark .card              { background: #27272a; border-color: #3f3f46; }
+  .dark .btn-secondary     { background: #27272a; border-color: #3f3f46; color: #d4d4d8; }
+  .dark .btn-secondary:hover { background: #3f3f46; }
+  .dark select.input       { background: #27272a; color: #f4f4f5; }
 }

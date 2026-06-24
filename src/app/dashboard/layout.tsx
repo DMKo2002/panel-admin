@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/Sidebar'
+import ThemeProvider from '@/components/ThemeProvider'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -8,7 +9,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Cargar datos del tenant del usuario
   const { data: userRow } = await supabase
     .from('users')
     .select('tenant_id, role')
@@ -33,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
+      <ThemeProvider />
       <Sidebar storeName={storeName} storeDomain={storeDomain} />
       <main className="flex-1 overflow-y-auto">
         {children}

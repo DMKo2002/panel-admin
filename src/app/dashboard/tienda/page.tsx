@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Toggle from '@/components/Toggle'
 import type { StoreConfig } from '@/lib/types'
-import { CheckCircle, XCircle, Plus, Trash2, GripVertical, X } from 'lucide-react'
+import { CheckCircle, XCircle, Plus, Trash2, X } from 'lucide-react'
+import { applyTheme } from '@/components/ThemeProvider'
 
 interface VariantAttribute {
   key: string
@@ -12,6 +13,11 @@ interface VariantAttribute {
   type: 'text' | 'select'
   options?: string[]
 }
+
+const THEMES = [
+  { id: 'default', label: 'Default', desc: 'Fondo claro, sidebar violeta' },
+  { id: 'dark',    label: 'Dark',    desc: 'Fondo oscuro, ideal para uso nocturno' },
+]
 
 export default function TiendaPage() {
   const supabase = createClient()
@@ -25,19 +31,15 @@ export default function TiendaPage() {
   const [savingAttrs, setSavingAttrs] = useState(false)
   const [savedAttrs, setSavedAttrs] = useState(false)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
-
-
-  // Store identity
-  const [storeName, setStoreName] = useState('')
-  const [savingName, setSavingName] = useState(false)
-  const [savedName, setSavedName] = useState(false)
-
-  // Social + branches
-  const [branches, setBranches] = useState<{name:string;address:string;phone?:string}[]>([])
   const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean}[]>([])
-  const [savingSocial, setSavingSocial] = useState(false)
-  const [savedSocial, setSavedSocial] = useState(false)
-  const [socialError, setSocialError] = useState<string | null>(null)
+
+  // Apariencia
+  const [panelTheme, setPanelTheme] = useState<'default' | 'dark'>('default')
+  const [panelAccent, setPanelAccent] = useState('#7c3aed')
+
+  // PDF
+  const [savingPdf, setSavingPdf] = useState(false)
+  const [savedPdf, setSavedPdf] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -49,22 +51,21 @@ export default function TiendaPage() {
       setConfig(data)
       if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token as string)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
-      if (data?.branches) setBranches(data.branches)
       const cs = (data as any)?.custom_shipping
-      if (cs && cs.length > 0) {
-        setCustomShipping(cs)
-      } else {
-        setCustomShipping([
-          { name: 'Retiro en local', price: 0, active: true },
-          { name: 'OCA', price: 0, active: true },
-          { name: 'Andreani', price: 0, active: true },
-          { name: 'Moto mensajería', price: 0, active: true },
-        ])
-      }
-
-      // Load tenant name
-      const { data: tenant } = await supabase.from('tenants').select('name').eq('id', userRow.tenant_id).single()
-      if (tenant) setStoreName(tenant.name)
+      setCustomShipping(cs?.length ? cs : [
+        { name: 'Retiro en local', price: 0, active: true },
+        { name: 'OCA', price: 0, active: true },
+        { name: 'Andreani', price: 0, active: true },
+        { name: 'Moto mensajería', price: 0, active: true },
+      ])
+      // Theme
+      const theme = (data as any)?.panel_theme ?? 'default'
+      const accent = (data as any)?.panel_accent_color ?? '#7c3aed'
+      setPanelTheme(theme)
+      setPanelAccent(accent)
+      localStorage.setItem('pa-theme', theme)
+      localStorage.setItem('pa-accent', accent)
+      applyTheme(theme, accent)
     }
     load()
   }, [])
@@ -73,47 +74,32 @@ export default function TiendaPage() {
     setConfig(c => c ? { ...c, [field]: value } : c)
   }
 
-  async function handleSaveName() {
-    if (!config) return
-    setSavingName(true)
-    await supabase.from('tenants').update({ name: storeName.trim() }).eq('id', config.tenant_id)
-    setSavingName(false); setSavedName(true); setTimeout(() => setSavedName(false), 2000)
+  function handleThemeChange(theme: 'default' | 'dark') {
+    setPanelTheme(theme)
+    applyTheme(theme, panelAccent)
+    localStorage.setItem('pa-theme', theme)
   }
 
-  async function handleSaveSocial() {
-    if (!config) return
-    setSavingSocial(true)
-    setSocialError(null)
-    const { error } = await supabase.from('store_config').update({
-      pickup_address:     config.pickup_address     || null,
-      instagram_url:      config.instagram_url      || null,
-      facebook_url:       config.facebook_url       || null,
-      tiktok_url:         config.tiktok_url         || null,
-      whatsapp_number:    config.whatsapp_number    || null,
-      notification_email: config.notification_email || null,
-      store_address:      config.store_address      || null,
-      branches,
-    }).eq('id', config.id)
-    setSavingSocial(false)
-    if (error) {
-      setSocialError('Error al guardar: ' + error.message + '. Asegurate de haber corrido la migración SQL en Supabase.')
-    } else {
-      setSavedSocial(true); setTimeout(() => setSavedSocial(false), 2000)
-    }
+  function handleAccentChange(color: string) {
+    setPanelAccent(color)
+    applyTheme(panelTheme, color)
+    localStorage.setItem('pa-accent', color)
   }
 
   async function handleSave() {
     if (!config) return
     setSaving(true)
     await supabase.from('store_config').update({
-      primary_color: config.primary_color,
-      mp_enabled: config.mp_enabled,
+      primary_color:   config.primary_color,
+      panel_theme:     panelTheme,
+      panel_accent_color: panelAccent,
+      mp_enabled:      config.mp_enabled,
       transfer_enabled: config.transfer_enabled,
-      transfer_cbu: config.transfer_cbu,
-      transfer_alias: config.transfer_alias,
+      transfer_cbu:    config.transfer_cbu,
+      transfer_alias:  config.transfer_alias,
       min_order_amount: config.min_order_amount ?? null,
       price_visibility: config.price_visibility ?? 'all',
-      custom_shipping: customShipping,
+      custom_shipping:  customShipping,
     }).eq('id', config.id)
     setSaving(false)
     setSaved(true)
@@ -138,47 +124,6 @@ export default function TiendaPage() {
     setTimeout(() => setSavedAttrs(false), 2000)
   }
 
-  function addAttribute() {
-    setAttributes(prev => [...prev, { key: `attr_${Date.now()}`, label: '', type: 'text', options: [] }])
-  }
-
-  function removeAttribute(i: number) {
-    setAttributes(prev => prev.filter((_, idx) => idx !== i))
-  }
-
-  function updateAttribute(i: number, field: keyof VariantAttribute, value: any) {
-    setAttributes(prev => prev.map((attr, idx) => {
-      if (idx !== i) return attr
-      const updated = { ...attr, [field]: value }
-      if (field === 'label') updated.key = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
-      if (field === 'type' && value === 'select' && !updated.options) updated.options = []
-      return updated
-    }))
-  }
-
-  function addOption(attrIdx: number) {
-    const val = newOption[attrIdx]?.trim()
-    if (!val) return
-    setAttributes(prev => prev.map((attr, idx) => {
-      if (idx !== attrIdx) return attr
-      return { ...attr, options: [...(attr.options ?? []), val] }
-    }))
-    setNewOption(prev => ({ ...prev, [attrIdx]: '' }))
-  }
-
-  function removeOption(attrIdx: number, optIdx: number) {
-    setAttributes(prev => prev.map((attr, idx) => {
-      if (idx !== attrIdx) return attr
-      return { ...attr, options: (attr.options ?? []).filter((_, i) => i !== optIdx) }
-    }))
-  }
-
-  const hasMpToken = Boolean((config as any)?.mp_access_token || mpToken)
-
-  // PDF config
-  const [savingPdf, setSavingPdf] = useState(false)
-  const [savedPdf, setSavedPdf] = useState(false)
-
   async function handleSavePdf() {
     if (!config) return
     setSavingPdf(true)
@@ -192,6 +137,33 @@ export default function TiendaPage() {
     setSavedPdf(true)
     setTimeout(() => setSavedPdf(false), 2000)
   }
+
+  function addAttribute() {
+    setAttributes(prev => [...prev, { key: `attr_${Date.now()}`, label: '', type: 'text', options: [] }])
+  }
+  function removeAttribute(i: number) {
+    setAttributes(prev => prev.filter((_, idx) => idx !== i))
+  }
+  function updateAttribute(i: number, field: keyof VariantAttribute, value: any) {
+    setAttributes(prev => prev.map((attr, idx) => {
+      if (idx !== i) return attr
+      const updated = { ...attr, [field]: value }
+      if (field === 'label') updated.key = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
+      if (field === 'type' && value === 'select' && !updated.options) updated.options = []
+      return updated
+    }))
+  }
+  function addOption(attrIdx: number) {
+    const val = newOption[attrIdx]?.trim()
+    if (!val) return
+    setAttributes(prev => prev.map((attr, idx) => idx !== attrIdx ? attr : { ...attr, options: [...(attr.options ?? []), val] }))
+    setNewOption(prev => ({ ...prev, [attrIdx]: '' }))
+  }
+  function removeOption(attrIdx: number, optIdx: number) {
+    setAttributes(prev => prev.map((attr, idx) => idx !== attrIdx ? attr : { ...attr, options: (attr.options ?? []).filter((_, i) => i !== optIdx) }))
+  }
+
+  const hasMpToken = Boolean((config as any)?.mp_access_token || mpToken)
 
   return (
     <div>
@@ -207,34 +179,76 @@ export default function TiendaPage() {
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
-        {/* Apariencia */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        {/* ── Apariencia ── */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Apariencia</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Las imágenes (logo, hero, colecciones, blog) se gestionan en{' '}
+              Las imágenes (logo, hero, colecciones) se gestionan en{' '}
               <a href="/dashboard/personalizacion" className="text-violet-600 hover:underline">Personalización</a>.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          {/* Tema */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-2">Tema del panel</label>
+            <div className="grid grid-cols-2 gap-3">
+              {THEMES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => handleThemeChange(t.id as 'default' | 'dark')}
+                  className={`relative flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                    panelTheme === t.id
+                      ? 'border-violet-500 bg-violet-50'
+                      : 'border-zinc-200 hover:border-zinc-300'
+                  }`}
+                >
+                  {/* Mini preview */}
+                  <div className={`w-full h-10 rounded-md flex overflow-hidden mb-2 ${t.id === 'dark' ? 'bg-zinc-800' : 'bg-zinc-100'}`}>
+                    <div className={`w-8 h-full ${t.id === 'dark' ? 'bg-zinc-900' : 'bg-violet-600'}`} />
+                    <div className="flex-1 p-1.5 space-y-1">
+                      <div className={`h-1.5 rounded-full w-3/4 ${t.id === 'dark' ? 'bg-zinc-600' : 'bg-zinc-300'}`} />
+                      <div className={`h-1.5 rounded-full w-1/2 ${t.id === 'dark' ? 'bg-zinc-700' : 'bg-zinc-200'}`} />
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-zinc-900">{t.label}</p>
+                  <p className="text-xs text-zinc-400">{t.desc}</p>
+                  {panelTheme === t.id && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-violet-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Color de acento */}
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Color principal</label>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Color de acento del panel</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={panelAccent} onChange={e => handleAccentChange(e.target.value)} className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer p-0.5" />
+                <input className="input flex-1" value={panelAccent} onChange={e => handleAccentChange(e.target.value)} placeholder="#7c3aed" />
+              </div>
+              <p className="text-xs text-zinc-400 mt-1">Afecta botones, barras de progreso y selects del panel admin</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Color principal de la tienda</label>
               <div className="flex items-center gap-2">
                 <input type="color" value={config?.primary_color ?? '#7F77DD'} onChange={e => update('primary_color', e.target.value)} className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer p-0.5" />
                 <input className="input flex-1" value={config?.primary_color ?? ''} onChange={e => update('primary_color', e.target.value)} placeholder="#7F77DD" />
               </div>
+              <p className="text-xs text-zinc-400 mt-1">Color de botones y detalles en el sitio del cliente</p>
             </div>
           </div>
         </div>
 
-        {/* Pedido mínimo */}
+        {/* ── Pedido mínimo ── */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Pedido mínimo</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Si el total del carrito no alcanza este monto, el cliente no puede finalizar la compra.
-              Dejalo en 0 o vacío para no aplicar mínimo.
-            </p>
+            <p className="text-xs text-zinc-400 mt-0.5">Monto mínimo requerido para finalizar la compra. Dejá en 0 para no aplicar.</p>
           </div>
           <div className="flex items-center gap-3 max-w-xs">
             <span className="text-sm text-zinc-500 flex-shrink-0">ARS $</span>
@@ -248,16 +262,26 @@ export default function TiendaPage() {
               placeholder="Ej: 5000"
             />
           </div>
-          {(config?.min_order_amount ?? 0) > 0 && (
-            <p className="text-xs text-violet-600">
-              Los clientes deberán tener al menos{' '}
-              {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(config!.min_order_amount!)}
-              {' '}en el carrito para poder comprar.
-            </p>
-          )}
         </div>
 
-        {/* Atributos de productos */}
+        {/* ── Visibilidad de precios ── */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Visibilidad de precios</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Quién puede ver los precios en tu tienda</p>
+          </div>
+          <select
+            className="input max-w-xs"
+            value={config?.price_visibility ?? 'all'}
+            onChange={e => update('price_visibility', e.target.value as any)}
+          >
+            <option value="all">Todos (sin login)</option>
+            <option value="logged_in">Solo usuarios registrados</option>
+            <option value="wholesale_only">Solo clientes mayoristas</option>
+          </select>
+        </div>
+
+        {/* ── Atributos de productos ── */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -268,7 +292,6 @@ export default function TiendaPage() {
               {savedAttrs ? '✓ Guardado' : savingAttrs ? 'Guardando...' : 'Guardar atributos'}
             </button>
           </div>
-
           <div className="space-y-3">
             {attributes.map((attr, i) => (
               <div key={i} className="border border-zinc-100 rounded-lg p-4 space-y-3">
@@ -276,20 +299,11 @@ export default function TiendaPage() {
                   <div className="flex-1 grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-zinc-500 mb-1">Nombre del atributo</label>
-                      <input
-                        className="input text-sm"
-                        value={attr.label}
-                        onChange={e => updateAttribute(i, 'label', e.target.value)}
-                        placeholder="Ej: Talle, Color, Textura..."
-                      />
+                      <input className="input text-sm" value={attr.label} onChange={e => updateAttribute(i, 'label', e.target.value)} placeholder="Ej: Talle, Color..." />
                     </div>
                     <div>
                       <label className="block text-xs text-zinc-500 mb-1">Tipo</label>
-                      <select
-                        className="input text-sm"
-                        value={attr.type}
-                        onChange={e => updateAttribute(i, 'type', e.target.value as 'text' | 'select')}
-                      >
+                      <select className="input text-sm" value={attr.type} onChange={e => updateAttribute(i, 'type', e.target.value as any)}>
                         <option value="text">Texto libre</option>
                         <option value="select">Lista de opciones</option>
                       </select>
@@ -299,46 +313,32 @@ export default function TiendaPage() {
                     <Trash2 size={15} />
                   </button>
                 </div>
-
-                {/* Opciones para tipo select */}
                 {attr.type === 'select' && (
-                  <div className="pl-0">
+                  <div>
                     <p className="text-xs text-zinc-500 mb-2">Opciones disponibles</p>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {(attr.options ?? []).map((opt, optIdx) => (
                         <span key={optIdx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 rounded-full text-xs text-zinc-700">
                           {opt}
-                          <button onClick={() => removeOption(i, optIdx)} className="text-zinc-400 hover:text-red-400 transition-colors">
-                            <X size={11} />
-                          </button>
+                          <button onClick={() => removeOption(i, optIdx)} className="text-zinc-400 hover:text-red-400"><X size={11} /></button>
                         </span>
                       ))}
                     </div>
                     <div className="flex gap-2">
-                      <input
-                        className="input text-sm flex-1"
-                        value={newOption[i] ?? ''}
-                        onChange={e => setNewOption(prev => ({ ...prev, [i]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(i) } }}
-                        placeholder="Nueva opción..."
-                      />
-                      <button onClick={() => addOption(i)} className="btn-secondary text-xs px-3 py-1.5 flex-shrink-0">
-                        <Plus size={13} /> Agregar
-                      </button>
+                      <input className="input text-sm flex-1" value={newOption[i] ?? ''} onChange={e => setNewOption(prev => ({ ...prev, [i]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(i) } }} placeholder="Nueva opción..." />
+                      <button onClick={() => addOption(i)} className="btn-secondary text-xs px-3 py-1.5 flex-shrink-0"><Plus size={13} /> Agregar</button>
                     </div>
                   </div>
                 )}
               </div>
             ))}
           </div>
-
           <button onClick={addAttribute} className="flex items-center gap-2 text-sm text-violet-600 hover:text-violet-700 transition-colors">
-            <Plus size={14} />
-            Agregar atributo
+            <Plus size={14} /> Agregar atributo
           </button>
         </div>
 
-        {/* MercadoPago */}
+        {/* ── MercadoPago ── */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-700">MercadoPago</h2>
@@ -347,13 +347,7 @@ export default function TiendaPage() {
               : <span className="flex items-center gap-1.5 text-xs text-zinc-400"><XCircle size={13} />No conectado</span>
             }
           </div>
-          <div className="flex items-center justify-between py-2 border-b border-zinc-50">
-            <div>
-              <p className="text-sm text-zinc-800">Habilitar MercadoPago</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Los clientes podrán pagar con tarjeta, débito y QR</p>
-            </div>
-            <Toggle checked={Boolean(config?.mp_enabled)} onChange={v => update('mp_enabled', v)} />
-          </div>
+          <ToggleRow label="Habilitar MercadoPago" desc="Los clientes podrán pagar con tarjeta, débito y QR" checked={Boolean(config?.mp_enabled)} onChange={v => update('mp_enabled', v)} />
           {config?.mp_enabled && (
             <div className="space-y-3">
               <div>
@@ -361,9 +355,7 @@ export default function TiendaPage() {
                 <input className="input font-mono text-xs" type="password" value={mpToken} onChange={e => setMpToken(e.target.value)} placeholder="APP_USR-... o TEST-..." />
                 <p className="text-xs text-zinc-400 mt-1.5">
                   Lo encontrás en{' '}
-                  <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">
-                    mercadopago.com.ar/developers
-                  </a>
+                  <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">mercadopago.com.ar/developers</a>
                   {' '}→ Credenciales de producción
                 </p>
               </div>
@@ -374,7 +366,7 @@ export default function TiendaPage() {
           )}
         </div>
 
-        {/* Transferencia */}
+        {/* ── Transferencia ── */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
           <h2 className="text-sm font-semibold text-zinc-700 mb-4">Transferencia bancaria</h2>
           <ToggleRow label="Habilitar transferencia" desc="El cliente transfiere y vos confirmás el pago manualmente" checked={Boolean(config?.transfer_enabled)} onChange={v => update('transfer_enabled', v)} />
@@ -392,64 +384,37 @@ export default function TiendaPage() {
           )}
         </div>
 
-        {/* Envíos */}
+        {/* ── Métodos de envío ── */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-zinc-700">Métodos de envío</h2>
               <p className="text-xs text-zinc-400 mt-0.5">Los clientes eligen uno al finalizar la compra</p>
             </div>
-            <button
-              onClick={() => setCustomShipping(s => [...s, { name: '', price: 0, active: true }])}
-              className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors flex items-center gap-1"
-            >
+            <button onClick={() => setCustomShipping(s => [...s, { name: '', price: 0, active: true }])} className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors flex items-center gap-1">
               <Plus size={12} /> Agregar
             </button>
           </div>
-
-          {customShipping.length === 0 && (
-            <p className="text-xs text-zinc-400 italic">No hay métodos configurados. Usá el botón de arriba para agregar uno.</p>
-          )}
-
+          {customShipping.length === 0 && <p className="text-xs text-zinc-400 italic">No hay métodos configurados.</p>}
           <div className="space-y-2">
             {customShipping.map((method, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input
-                  className="input text-sm flex-1"
-                  placeholder="Nombre (ej: OCA, Andreani, Moto mensajería)"
-                  value={method.name}
-                  onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))}
-                />
+                <input className="input text-sm flex-1" placeholder="Nombre (ej: OCA, Andreani...)" value={method.name} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} />
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                  <input
-                    type="number"
-                    min={0}
-                    className="input text-sm pl-6 w-28"
-                    placeholder="Precio"
-                    value={method.price || ''}
-                    onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))}
-                  />
+                  <input type="number" min={0} className="input text-sm pl-6 w-28" placeholder="Precio" value={method.price || ''} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))} />
                 </div>
-                <button
-                  onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))}
-                  className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}
-                >
+                <button onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))} className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}>
                   {method.active ? 'Activo' : 'Inactivo'}
                 </button>
-                <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
-                  <Trash2 size={15} />
-                </button>
+                <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 flex-shrink-0"><Trash2 size={15} /></button>
               </div>
             ))}
           </div>
-
-          <p className="text-xs text-zinc-400">
-            Usá precio $0 para métodos gratuitos (ej: Retiro en local). Recordá guardar los cambios arriba.
-          </p>
+          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos (ej: Retiro en local). Guardá arriba para aplicar.</p>
         </div>
 
-        {/* Configuración de Recibos PDF */}
+        {/* ── PDF ── */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -461,135 +426,11 @@ export default function TiendaPage() {
             </button>
           </div>
           <div className="space-y-1">
-            <ToggleRow
-              label="Mostrar variante"
-              desc="Muestra talle, color u otros atributos de cada producto en la tabla"
-              checked={Boolean((config as any)?.pdf_show_variant ?? true)}
-              onChange={v => update('pdf_show_variant' as any, v)}
-            />
-            <ToggleRow
-              label="Mostrar tipo de precio"
-              desc="Muestra badge Minorista / Mayorista en cada ítem"
-              checked={Boolean((config as any)?.pdf_show_pricetype ?? true)}
-              onChange={v => update('pdf_show_pricetype' as any, v)}
-            />
-            <ToggleRow
-              label="Mostrar dirección"
-              desc="Muestra la dirección del comprador y la dirección de envío"
-              checked={Boolean((config as any)?.pdf_show_address ?? true)}
-              onChange={v => update('pdf_show_address' as any, v)}
-            />
-            <ToggleRow
-              label="Mostrar notas del pedido"
-              desc="Muestra el campo de notas que el cliente ingresó al comprar"
-              checked={Boolean((config as any)?.pdf_show_notes ?? true)}
-              onChange={v => update('pdf_show_notes' as any, v)}
-            />
+            <ToggleRow label="Mostrar variante" desc="Talle, color u otros atributos en la tabla del comprobante" checked={Boolean((config as any)?.pdf_show_variant ?? true)} onChange={v => update('pdf_show_variant' as any, v)} />
+            <ToggleRow label="Mostrar tipo de precio" desc="Badge Minorista / Mayorista en cada ítem" checked={Boolean((config as any)?.pdf_show_pricetype ?? true)} onChange={v => update('pdf_show_pricetype' as any, v)} />
+            <ToggleRow label="Mostrar dirección" desc="Dirección del comprador y dirección de envío" checked={Boolean((config as any)?.pdf_show_address ?? true)} onChange={v => update('pdf_show_address' as any, v)} />
+            <ToggleRow label="Mostrar notas del pedido" desc="El campo de notas que ingresó el cliente" checked={Boolean((config as any)?.pdf_show_notes ?? true)} onChange={v => update('pdf_show_notes' as any, v)} />
           </div>
-        </div>
-
-
-        {/* Nombre de la tienda */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Nombre de la tienda</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">El nombre que aparece en el sitio, footer y comprobantes</p>
-            </div>
-            <button onClick={handleSaveName} disabled={savingName} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
-              {savedName ? '\u2713 Guardado' : savingName ? 'Guardando...' : 'Guardar nombre'}
-            </button>
-          </div>
-          <input className="input" value={storeName} onChange={e => setStoreName(e.target.value)} placeholder="Nombre de tu marca..." />
-        </div>
-
-        {/* Contacto, redes sociales y sucursales */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Contacto y redes sociales</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Aparece en el footer del sitio y en los PDFs</p>
-            </div>
-            <button onClick={handleSaveSocial} disabled={savingSocial} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
-              {savedSocial ? '\u2713 Guardado' : savingSocial ? 'Guardando...' : 'Guardar contacto'}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">WhatsApp</label>
-              <input className="input text-sm" value={(config as any)?.whatsapp_number ?? ''} onChange={e => update('whatsapp_number' as any, e.target.value)} placeholder="+54 9 11 1234-5678" />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Email de notificaciones</label>
-              <input className="input text-sm" value={config?.notification_email ?? ''} onChange={e => update('notification_email', e.target.value)} placeholder="tu@email.com" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n del local (aparece en PDFs y footer)</label>
-              <input className="input text-sm" value={config?.store_address ?? ''} onChange={e => update('store_address', e.target.value)} placeholder="Av. Santa Fe 1234, CABA" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n para mapa de retiro</label>
-              <input className="input text-sm" value={config?.pickup_address ?? ''} onChange={e => update('pickup_address', e.target.value)} placeholder="Av. Santa Fe 1234, Buenos Aires" />
-              <p className="text-xs text-zinc-400 mt-1">Aparece en el footer del sitio como mapa interactivo cuando el retiro en local est\u00e1 habilitado</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-zinc-50">
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Instagram</label>
-              <input className="input text-sm" value={config?.instagram_url ?? ''} onChange={e => update('instagram_url', e.target.value)} placeholder="https://instagram.com/tu_marca" />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Facebook</label>
-              <input className="input text-sm" value={config?.facebook_url ?? ''} onChange={e => update('facebook_url', e.target.value)} placeholder="https://facebook.com/tu_marca" />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">TikTok</label>
-              <input className="input text-sm" value={config?.tiktok_url ?? ''} onChange={e => update('tiktok_url', e.target.value)} placeholder="https://tiktok.com/@tu_marca" />
-            </div>
-          </div>
-        </div>
-
-        {/* Sucursales */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Sucursales</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Aparecen en el footer del sitio</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setBranches(prev => [...prev, { name: '', address: '', phone: '' }])}
-              className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 transition-colors"
-            >
-              <Plus size={14} /> Agregar sucursal
-            </button>
-          </div>
-          {branches.length === 0 && (
-            <p className="text-xs text-zinc-400">No hay sucursales cargadas</p>
-          )}
-          {branches.map((branch, i) => (
-            <div key={i} className="grid grid-cols-3 gap-3 pb-3 border-b border-zinc-50 last:border-0">
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Nombre</label>
-                <input className="input text-sm" value={branch.name} onChange={e => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, name: e.target.value } : b))} placeholder="Sucursal Centro" />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">Direcci\u00f3n</label>
-                <input className="input text-sm" value={branch.address} onChange={e => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, address: e.target.value } : b))} placeholder="Av. Corrientes 1234, CABA" />
-              </div>
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs text-zinc-500 mb-1">Tel\u00e9fono (opcional)</label>
-                  <input className="input text-sm" value={branch.phone ?? ''} onChange={e => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, phone: e.target.value } : b))} placeholder="11 1234-5678" />
-                </div>
-                <button type="button" onClick={() => setBranches(prev => prev.filter((_, idx) => idx !== i))} className="text-zinc-300 hover:text-red-400 transition-colors mb-1">
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
 
       </div>
