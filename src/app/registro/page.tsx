@@ -4,14 +4,11 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-type Stage = 'form' | 'confirm'
-
 export default function RegistroPage() {
   const supabase = createClient()
-  const [stage, setStage] = useState<Stage>('form')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,24 +20,17 @@ export default function RegistroPage() {
       setError('La contraseña debe tener al menos 8 caracteres')
       return
     }
-    if (password !== confirm) {
+    if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden')
       return
     }
 
     setLoading(true)
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        // Redirigir al onboarding luego de confirmar el email
-        emailRedirectTo: `${window.location.origin}/onboarding`,
-      },
-    })
-
+    const { error: signUpError } = await supabase.auth.signUp({ email, password })
     setLoading(false)
+
     if (signUpError) {
-      if (signUpError.message.includes('already registered')) {
+      if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
         setError('Ya existe una cuenta con ese email. Ingresá desde el login.')
       } else {
         setError(signUpError.message)
@@ -48,34 +38,8 @@ export default function RegistroPage() {
       return
     }
 
-    setStage('confirm')
-  }
-
-  if (stage === 'confirm') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <div className="w-full max-w-sm text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 mb-5">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-violet-600">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h1 className="text-xl font-semibold text-zinc-900 mb-2">Revisá tu email</h1>
-          <p className="text-sm text-zinc-500 leading-relaxed mb-6">
-            Te enviamos un link de confirmación a <strong className="text-zinc-800">{email}</strong>.
-            Hacé clic en el link para activar tu cuenta y comenzar el setup de tu tienda.
-          </p>
-          <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-xs text-violet-700 text-left">
-            <p className="font-medium mb-1">¿No llegó el email?</p>
-            <p>Revisá la carpeta de spam. Si sigue sin llegar, escribinos a soporte.</p>
-          </div>
-          <Link href="/login" className="inline-block mt-6 text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
-            ← Volver al login
-          </Link>
-        </div>
-      </div>
-    )
+    // Sin confirmación por email — ir directo al onboarding
+    window.location.href = '/onboarding'
   }
 
   return (
@@ -123,8 +87,8 @@ export default function RegistroPage() {
               type="password"
               className="input"
               placeholder="••••••••"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
               required
             />
           </div>
