@@ -67,7 +67,7 @@ export default function OnboardingPage() {
 
   function slugify(text: string) {
     return text.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
   }
@@ -126,11 +126,14 @@ export default function OnboardingPage() {
         pickup_enabled: true,
       })
 
-      // Actualizar el usuario con el tenant_id
+      // Crear o actualizar el usuario con el tenant_id
+      // Upsert por si la fila aún no existe (nuevo usuario sin trigger)
       await supabase
         .from('users')
-        .update({ tenant_id: tenant.id })
-        .eq('id', user.id)
+        .upsert(
+          { id: user.id, email: user.email, tenant_id: tenant.id, role: 'owner' },
+          { onConflict: 'id' }
+        )
 
       router.push('/dashboard')
       router.refresh()
