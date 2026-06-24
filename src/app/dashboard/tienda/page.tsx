@@ -15,8 +15,8 @@ interface VariantAttribute {
 }
 
 const THEMES = [
-  { id: 'default', label: 'Default', desc: 'Fondo claro, sidebar violeta' },
-  { id: 'dark',    label: 'Dark',    desc: 'Fondo oscuro, ideal para uso nocturno' },
+  { id: 'default', label: 'Default', preview: { sidebar: 'bg-violet-600', bg: 'bg-zinc-100' } },
+  { id: 'dark',    label: 'Dark',    preview: { sidebar: 'bg-zinc-900',   bg: 'bg-zinc-800' } },
 ]
 
 export default function TiendaPage() {
@@ -32,12 +32,7 @@ export default function TiendaPage() {
   const [savedAttrs, setSavedAttrs] = useState(false)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
   const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean}[]>([])
-
-  // Apariencia
   const [panelTheme, setPanelTheme] = useState<'default' | 'dark'>('default')
-  const [panelAccent, setPanelAccent] = useState('#7c3aed')
-
-  // PDF
   const [savingPdf, setSavingPdf] = useState(false)
   const [savedPdf, setSavedPdf] = useState(false)
 
@@ -58,14 +53,8 @@ export default function TiendaPage() {
         { name: 'Andreani', price: 0, active: true },
         { name: 'Moto mensajería', price: 0, active: true },
       ])
-      // Theme
       const theme = (data as any)?.panel_theme ?? 'default'
-      const accent = (data as any)?.panel_accent_color ?? '#7c3aed'
       setPanelTheme(theme)
-      setPanelAccent(accent)
-      localStorage.setItem('pa-theme', theme)
-      localStorage.setItem('pa-accent', accent)
-      applyTheme(theme, accent)
     }
     load()
   }, [])
@@ -76,27 +65,19 @@ export default function TiendaPage() {
 
   function handleThemeChange(theme: 'default' | 'dark') {
     setPanelTheme(theme)
-    applyTheme(theme, panelAccent)
+    applyTheme(theme)
     localStorage.setItem('pa-theme', theme)
-  }
-
-  function handleAccentChange(color: string) {
-    setPanelAccent(color)
-    applyTheme(panelTheme, color)
-    localStorage.setItem('pa-accent', color)
   }
 
   async function handleSave() {
     if (!config) return
     setSaving(true)
     await supabase.from('store_config').update({
-      primary_color:   config.primary_color,
-      panel_theme:     panelTheme,
-      panel_accent_color: panelAccent,
-      mp_enabled:      config.mp_enabled,
+      panel_theme:      panelTheme,
+      mp_enabled:       config.mp_enabled,
       transfer_enabled: config.transfer_enabled,
-      transfer_cbu:    config.transfer_cbu,
-      transfer_alias:  config.transfer_alias,
+      transfer_cbu:     config.transfer_cbu,
+      transfer_alias:   config.transfer_alias,
       min_order_amount: config.min_order_amount ?? null,
       price_visibility: config.price_visibility ?? 'all',
       custom_shipping:  customShipping,
@@ -110,18 +91,14 @@ export default function TiendaPage() {
     if (!config) return
     setSavingMp(true)
     await supabase.from('store_config').update({ mp_access_token: mpToken.trim() || null }).eq('id', config.id)
-    setSavingMp(false)
-    setSavedMp(true)
-    setTimeout(() => setSavedMp(false), 2000)
+    setSavingMp(false); setSavedMp(true); setTimeout(() => setSavedMp(false), 2000)
   }
 
   async function handleSaveAttributes() {
     if (!config) return
     setSavingAttrs(true)
     await supabase.from('store_config').update({ variant_attributes: attributes }).eq('id', config.id)
-    setSavingAttrs(false)
-    setSavedAttrs(true)
-    setTimeout(() => setSavedAttrs(false), 2000)
+    setSavingAttrs(false); setSavedAttrs(true); setTimeout(() => setSavedAttrs(false), 2000)
   }
 
   async function handleSavePdf() {
@@ -133,9 +110,7 @@ export default function TiendaPage() {
       pdf_show_address:   (config as any).pdf_show_address   ?? true,
       pdf_show_notes:     (config as any).pdf_show_notes     ?? true,
     }).eq('id', config.id)
-    setSavingPdf(false)
-    setSavedPdf(true)
-    setTimeout(() => setSavedPdf(false), 2000)
+    setSavingPdf(false); setSavedPdf(true); setTimeout(() => setSavedPdf(false), 2000)
   }
 
   function addAttribute() {
@@ -148,7 +123,7 @@ export default function TiendaPage() {
     setAttributes(prev => prev.map((attr, idx) => {
       if (idx !== i) return attr
       const updated = { ...attr, [field]: value }
-      if (field === 'label') updated.key = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
+      if (field === 'label') updated.key = value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
       if (field === 'type' && value === 'select' && !updated.options) updated.options = []
       return updated
     }))
@@ -179,8 +154,8 @@ export default function TiendaPage() {
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
-        {/* ── Apariencia ── */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
+        {/* Apariencia */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Apariencia</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
@@ -188,63 +163,38 @@ export default function TiendaPage() {
               <a href="/dashboard/personalizacion" className="text-violet-600 hover:underline">Personalización</a>.
             </p>
           </div>
-
-          {/* Tema */}
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-2">Tema del panel</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex gap-3">
               {THEMES.map(t => (
                 <button
                   key={t.id}
                   onClick={() => handleThemeChange(t.id as 'default' | 'dark')}
-                  className={`relative flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
-                    panelTheme === t.id
-                      ? 'border-violet-500 bg-violet-50'
-                      : 'border-zinc-200 hover:border-zinc-300'
+                  className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all w-32 ${
+                    panelTheme === t.id ? 'border-violet-500 bg-violet-50' : 'border-zinc-200 hover:border-zinc-300'
                   }`}
                 >
                   {/* Mini preview */}
-                  <div className={`w-full h-10 rounded-md flex overflow-hidden mb-2 ${t.id === 'dark' ? 'bg-zinc-800' : 'bg-zinc-100'}`}>
-                    <div className={`w-8 h-full ${t.id === 'dark' ? 'bg-zinc-900' : 'bg-violet-600'}`} />
-                    <div className="flex-1 p-1.5 space-y-1">
-                      <div className={`h-1.5 rounded-full w-3/4 ${t.id === 'dark' ? 'bg-zinc-600' : 'bg-zinc-300'}`} />
-                      <div className={`h-1.5 rounded-full w-1/2 ${t.id === 'dark' ? 'bg-zinc-700' : 'bg-zinc-200'}`} />
+                  <div className={`w-full h-10 rounded-md flex overflow-hidden ${t.preview.bg}`}>
+                    <div className={`w-8 h-full ${t.preview.sidebar}`} />
+                    <div className="flex-1 p-1.5 space-y-1.5">
+                      <div className="h-1.5 rounded-full w-3/4 bg-white/40" />
+                      <div className="h-1.5 rounded-full w-1/2 bg-white/20" />
                     </div>
                   </div>
                   <p className="text-sm font-medium text-zinc-900">{t.label}</p>
-                  <p className="text-xs text-zinc-400">{t.desc}</p>
                   {panelTheme === t.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-violet-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-violet-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-[9px] font-bold">✓</span>
                     </div>
                   )}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Color de acento */}
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100">
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 mb-1">Color de acento del panel</label>
-              <div className="flex items-center gap-2">
-                <input type="color" value={panelAccent} onChange={e => handleAccentChange(e.target.value)} className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer p-0.5" />
-                <input className="input flex-1" value={panelAccent} onChange={e => handleAccentChange(e.target.value)} placeholder="#7c3aed" />
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">Afecta botones, barras de progreso y selects del panel admin</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 mb-1">Color principal de la tienda</label>
-              <div className="flex items-center gap-2">
-                <input type="color" value={config?.primary_color ?? '#7F77DD'} onChange={e => update('primary_color', e.target.value)} className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer p-0.5" />
-                <input className="input flex-1" value={config?.primary_color ?? ''} onChange={e => update('primary_color', e.target.value)} placeholder="#7F77DD" />
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">Color de botones y detalles en el sitio del cliente</p>
-            </div>
-          </div>
         </div>
 
-        {/* ── Pedido mínimo ── */}
+        {/* Pedido mínimo */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Pedido mínimo</h2>
@@ -252,36 +202,24 @@ export default function TiendaPage() {
           </div>
           <div className="flex items-center gap-3 max-w-xs">
             <span className="text-sm text-zinc-500 flex-shrink-0">ARS $</span>
-            <input
-              className="input flex-1"
-              type="number"
-              min={0}
-              step={100}
-              value={config?.min_order_amount ?? ''}
-              onChange={e => update('min_order_amount', e.target.value === '' ? null : Number(e.target.value))}
-              placeholder="Ej: 5000"
-            />
+            <input className="input flex-1" type="number" min={0} step={100} value={config?.min_order_amount ?? ''} onChange={e => update('min_order_amount', e.target.value === '' ? null : Number(e.target.value))} placeholder="Ej: 5000" />
           </div>
         </div>
 
-        {/* ── Visibilidad de precios ── */}
+        {/* Visibilidad de precios */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Visibilidad de precios</h2>
             <p className="text-xs text-zinc-400 mt-0.5">Quién puede ver los precios en tu tienda</p>
           </div>
-          <select
-            className="input max-w-xs"
-            value={config?.price_visibility ?? 'all'}
-            onChange={e => update('price_visibility', e.target.value as any)}
-          >
+          <select className="input max-w-xs" value={config?.price_visibility ?? 'all'} onChange={e => update('price_visibility', e.target.value as any)}>
             <option value="all">Todos (sin login)</option>
             <option value="logged_in">Solo usuarios registrados</option>
             <option value="wholesale_only">Solo clientes mayoristas</option>
           </select>
         </div>
 
-        {/* ── Atributos de productos ── */}
+        {/* Atributos de productos */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -309,9 +247,7 @@ export default function TiendaPage() {
                       </select>
                     </div>
                   </div>
-                  <button onClick={() => removeAttribute(i)} className="text-zinc-300 hover:text-red-400 transition-colors mt-6 flex-shrink-0">
-                    <Trash2 size={15} />
-                  </button>
+                  <button onClick={() => removeAttribute(i)} className="text-zinc-300 hover:text-red-400 transition-colors mt-6 flex-shrink-0"><Trash2 size={15} /></button>
                 </div>
                 {attr.type === 'select' && (
                   <div>
@@ -338,7 +274,7 @@ export default function TiendaPage() {
           </button>
         </div>
 
-        {/* ── MercadoPago ── */}
+        {/* MercadoPago */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-700">MercadoPago</h2>
@@ -366,7 +302,7 @@ export default function TiendaPage() {
           )}
         </div>
 
-        {/* ── Transferencia ── */}
+        {/* Transferencia */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
           <h2 className="text-sm font-semibold text-zinc-700 mb-4">Transferencia bancaria</h2>
           <ToggleRow label="Habilitar transferencia" desc="El cliente transfiere y vos confirmás el pago manualmente" checked={Boolean(config?.transfer_enabled)} onChange={v => update('transfer_enabled', v)} />
@@ -384,7 +320,7 @@ export default function TiendaPage() {
           )}
         </div>
 
-        {/* ── Métodos de envío ── */}
+        {/* Métodos de envío */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -411,10 +347,10 @@ export default function TiendaPage() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos (ej: Retiro en local). Guardá arriba para aplicar.</p>
+          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos. Guardá arriba para aplicar.</p>
         </div>
 
-        {/* ── PDF ── */}
+        {/* PDF */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
