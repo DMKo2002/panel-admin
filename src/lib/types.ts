@@ -76,6 +76,7 @@ export interface StoreConfig {
   panel_accent_color: string | null
   terms_and_conditions: string | null
   privacy_policy: string | null
+  cookies_policy: string | null
 }
 
 export interface Customer {

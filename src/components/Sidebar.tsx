@@ -7,7 +7,6 @@ import {
   LayoutDashboard, ShoppingCart, Shirt,
   Bell, Settings, LogOut, Store, FolderOpen, Palette
 } from 'lucide-react'
-import clsx from 'clsx'
 
 const navItems = [
   { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard },
@@ -40,8 +39,8 @@ export default function Sidebar({ storeName, storeDomain }: SidebarProps) {
       {/* Marca del local */}
       <div className="px-4 py-4 border-b border-zinc-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-            <Store size={16} className="text-violet-600" />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--pa-accent) 15%, white)' }}>
+            <Store size={16} style={{ color: 'var(--pa-accent)' }} />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-zinc-900 truncate">{storeName}</p>
@@ -52,23 +51,17 @@ export default function Sidebar({ storeName, storeDomain }: SidebarProps) {
 
       {/* Navegación */}
       <nav className="flex-1 px-3 py-3 space-y-0.5">
-        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">
-          General
-        </p>
+        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">General</p>
         {navItems.slice(0, 2).map(item => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
 
-        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">
-          Catálogo
-        </p>
+        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Catálogo</p>
         {navItems.slice(2, 4).map(item => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
 
-        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">
-          Configuración
-        </p>
+        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración</p>
         {navItems.slice(4).map(item => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
@@ -92,17 +85,25 @@ function NavLink({ item, pathname }: { item: typeof navItems[0]; pathname: strin
   const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
   const Icon = item.icon
 
+  if (active) {
+    return (
+      <Link
+        href={item.href}
+        className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-medium transition-colors"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--pa-accent) 10%, white)', color: 'var(--pa-accent)' }}
+      >
+        <Icon size={16} style={{ color: 'var(--pa-accent)' }} />
+        {item.label}
+      </Link>
+    )
+  }
+
   return (
     <Link
       href={item.href}
-      className={clsx(
-        'flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm transition-colors',
-        active
-          ? 'bg-violet-50 text-violet-700 font-medium'
-          : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
-      )}
+      className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
     >
-      <Icon size={16} className={active ? 'text-violet-600' : 'text-zinc-400'} />
+      <Icon size={16} className="text-zinc-400" />
       {item.label}
     </Link>
   )

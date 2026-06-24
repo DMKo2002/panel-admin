@@ -38,6 +38,27 @@ const groupLabels: Record<string, string> = {
 }
 
 // Textos predeterminados legales
+const DEFAULT_COOKIES = `POLÍTICA DE COOKIES
+
+Este sitio web utiliza cookies para mejorar la experiencia del usuario.
+
+1. QUÉ SON LAS COOKIES
+Las cookies son pequeños archivos de texto que los sitios web guardan en tu dispositivo cuando los visitás.
+
+2. QUÉ COOKIES USAMOS
+- Cookies técnicas: necesarias para el funcionamiento del sitio (sesión, carrito de compras).
+- Cookies de análisis: nos permiten entender cómo se usa el sitio para mejorarlo.
+- Cookies de preferencias: recuerdan tus opciones (idioma, moneda, etc.).
+
+3. CÓMO GESTIONAR LAS COOKIES
+Podés configurar tu navegador para rechazar cookies, aunque esto puede afectar la funcionalidad del sitio.
+
+4. COOKIES DE TERCEROS
+Podemos utilizar servicios de terceros (Google Analytics, MercadoPago) que instalan sus propias cookies. Estos servicios tienen sus propias políticas de privacidad.
+
+5. CONSENTIMIENTO
+Al continuar usando este sitio, aceptás el uso de cookies según esta política.`
+
 const DEFAULT_TERMS = `TÉRMINOS Y CONDICIONES
 
 Al realizar una compra en esta tienda, el cliente acepta los siguientes términos y condiciones.
@@ -165,6 +186,7 @@ export default function PersonalizacionPage() {
   const [tiktok, setTiktok] = useState('')
   const [terms, setTerms] = useState('')
   const [privacy, setPrivacy] = useState('')
+  const [cookies, setCookies] = useState('')
 
   const [savingName, setSavingName] = useState(false)
   const [savedName, setSavedName] = useState(false)
@@ -201,6 +223,7 @@ export default function PersonalizacionPage() {
         setBranches((cfg as any).branches ?? [])
         setTerms((cfg as any).terms_and_conditions ?? '')
         setPrivacy((cfg as any).privacy_policy ?? '')
+        setCookies((cfg as any).cookies_policy ?? '')
       }
 
       const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
@@ -275,6 +298,7 @@ export default function PersonalizacionPage() {
     await supabase.from('store_config').update({
       terms_and_conditions: terms || null,
       privacy_policy: privacy || null,
+      cookies_policy: cookies || null,
     }).eq('id', configId)
     setSavingLegal(false); setSavedLegal(true); setTimeout(() => setSavedLegal(false), 2000)
   }
@@ -484,6 +508,22 @@ export default function PersonalizacionPage() {
                 value={privacy}
                 onChange={e => setPrivacy(e.target.value)}
                 placeholder="Escribí acá la política de privacidad de tu tienda..."
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-zinc-600">Política de cookies</label>
+                {!cookies && (
+                  <button onClick={() => setCookies(DEFAULT_COOKIES)} className="text-xs text-violet-600 hover:text-violet-700">
+                    Usar texto predeterminado
+                  </button>
+                )}
+              </div>
+              <textarea
+                className="input min-h-[160px] font-mono text-xs leading-relaxed resize-y"
+                value={cookies}
+                onChange={e => setCookies(e.target.value)}
+                placeholder="Política de cookies de tu tienda..."
               />
             </div>
           </div>
