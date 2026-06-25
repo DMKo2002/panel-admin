@@ -8,8 +8,8 @@ import { Store, Check } from 'lucide-react'
 const TEMPLATES = [
   {
     id: 'default',
-    name: 'Clásico',
-    description: 'Elegante y minimalista. Tipografía serif, paleta neutra, hero de pantalla completa.',
+    name: 'Minimalista',
+    description: 'Elegante y limpio. Tipografía serif, paleta neutra, hero de pantalla completa.',
     accent: '#1a1a1a',
     preview: {
       bg: '#EDE8E1',
@@ -19,21 +19,21 @@ const TEMPLATES = [
     },
   },
   {
-    id: 'template-a',
-    name: 'Template A',
-    description: 'Moderno y bold. Tipografía sans-serif, colores vibrantes, layout asimétrico.',
-    accent: '#2563EB',
+    id: 'mono',
+    name: 'Mono',
+    description: 'Tipografía monoespaciada, estética cruda y directa. Ideal para marcas con actitud.',
+    accent: '#000000',
     preview: {
-      bg: '#EFF6FF',
-      text: '#1e3a8a',
+      bg: '#F5F5F5',
+      text: '#000000',
       badge: 'Próximamente',
-      colors: ['#2563EB', '#1e3a8a', '#93c5fd'],
+      colors: ['#000000', '#333333', '#cccccc'],
     },
   },
   {
-    id: 'template-b',
-    name: 'Template B',
-    description: 'Oscuro y editorial. Fondo negro, tipografía blanca, estética luxury.',
+    id: 'atelier',
+    name: 'Atelier',
+    description: 'Oscuro y editorial. Fondo negro, detalles dorados, estética luxury de alta costura.',
     accent: '#d4af37',
     preview: {
       bg: '#111111',
@@ -43,15 +43,15 @@ const TEMPLATES = [
     },
   },
   {
-    id: 'template-c',
-    name: 'Template C',
-    description: 'Fresco y colorido. Paleta pastel, formas redondeadas, estilo lifestyle.',
-    accent: '#16a34a',
+    id: 'axis',
+    name: 'Axis',
+    description: 'Geométrico y contemporáneo. Grillas asimétricas, tipografía bold, ritmo visual fuerte.',
+    accent: '#dc2626',
     preview: {
-      bg: '#f0fdf4',
-      text: '#14532d',
+      bg: '#fafafa',
+      text: '#111111',
       badge: 'Próximamente',
-      colors: ['#16a34a', '#86efac', '#dcfce7'],
+      colors: ['#dc2626', '#111111', '#e5e5e5'],
     },
   },
 ]
@@ -190,12 +190,12 @@ export default function OnboardingPage() {
             {TEMPLATES.map(t => (
               <button
                 key={t.id}
-                onClick={() => t.id === 'default' && setTemplate(t.id)}
+                onClick={() => t.preview.badge !== 'Próximamente' && setTemplate(t.id)}
                 className={`relative text-left rounded-xl border-2 overflow-hidden transition-all ${
                   template === t.id
                     ? 'border-violet-500 ring-2 ring-violet-200'
                     : 'border-zinc-200 hover:border-zinc-300'
-                } ${t.id !== 'default' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${t.preview.badge === 'Próximamente' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {/* Preview visual */}
                 <div
