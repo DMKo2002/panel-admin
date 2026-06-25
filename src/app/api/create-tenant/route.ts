@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendEmail, emailBienvenidaTenant } from '@/lib/email'
 
 export async function POST(req: Request) {
   // Verificar que el usuario está autenticado
@@ -8,7 +9,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { name, domain } = await req.json()
+  const { name, domain, template } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
 
   // Usar service role para bypass de RLS
@@ -25,9 +26,12 @@ export async function POST(req: Request) {
     .replace(/(^-|-$)/g, '')
     + '-' + Date.now().toString().slice(-4)
 
+  const validTemplates = ['default', 'template-a', 'template-b', 'template-c']
+  const chosenTemplate = validTemplates.includes(template) ? template : 'default'
+
   const { data: tenant, error: tenantError } = await serviceClient
     .from('tenants')
-    .insert({ slug, name: name.trim(), domain: domain?.trim() || null, plan: 'basic', status: 'pending' })
+    .insert({ slug, name: name.trim(), domain: domain?.trim() || null, plan: 'basic', status: 'pending', template: chosenTemplate })
     .select()
     .single()
 
@@ -84,6 +88,16 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     console.warn('notify failed:', e)
+  }
+
+  // Email de bienvenida al tenant (no bloqueante)
+  if (user.email) {
+    const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.creart.com'
+    sendEmail({
+      to: user.email,
+      subject: `¡Tu tienda ${name.trim()} está lista! — CreArt`,
+      html: emailBienvenidaTenant({ tenantName: name.trim(), email: user.email, panelUrl }),
+    }).catch(() => {})
   }
 
   return NextResponse.json({ ok: true, tenantId: tenant.id })
