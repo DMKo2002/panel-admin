@@ -7,7 +7,7 @@ import { ImageIcon, Upload, X, Loader2, Plus, Trash2, Check } from 'lucide-react
 // ─── Slots de imágenes por template ──────────────────────────────────────────
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
   default: [
-    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG, fondo transparente', aspect: '3/1' },
+    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
     { key: 'hero_main',    label: 'Hero principal',     hint: '1400 × 850 px',                 aspect: '16/9' },
     { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
     { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
@@ -15,7 +15,7 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
   ],
   mykonoslove: [
-    { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG, fondo transparente', aspect: '3/1'   },
+    { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
     { key: 'hero_main',    label: 'Hero principal',      hint: '1400 × 850 px recomendado',     aspect: '16/10' },
     { key: 'hero_thumb_1', label: 'Thumbnail Hero 1',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
     { key: 'hero_thumb_2', label: 'Thumbnail Hero 2',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
@@ -135,14 +135,15 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
       </div>
       <div
         className="relative overflow-hidden rounded-lg border-2 border-dashed border-zinc-200 bg-zinc-50 cursor-pointer hover:border-violet-400 hover:bg-violet-50/30 transition-colors group"
-        style={{ aspectRatio: slotDef.aspect }}
+        style={slotDef.aspect === 'logo' ? { height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' } : { aspectRatio: slotDef.aspect }}
         onClick={() => !state.uploading && inputRef.current?.click()}
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
       >
         {state.url ? (
           <>
-            <img src={state.url} alt={slotDef.label} className="w-full h-full object-cover" />
+            <img src={state.url} alt={slotDef.label}
+              className={slotDef.aspect === 'logo' ? 'max-h-full w-auto object-contain' : 'w-full h-full object-cover'} />
             {state.saved && (
               <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
                 <Check size={10} /> Guardado
@@ -644,7 +645,4 @@ export default function PersonalizacionPage() {
           </div>
         </div>
 
-      </section>
-    </div>
-  )
-}
+   
