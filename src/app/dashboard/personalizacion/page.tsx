@@ -645,4 +645,8 @@ export default function PersonalizacionPage() {
           </div>
         </div>
 
-   
+         </section>
+
+    </div>
+  )
+}
