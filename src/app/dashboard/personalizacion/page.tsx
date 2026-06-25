@@ -278,11 +278,14 @@ export default function PersonalizacionPage() {
     const { error: uploadError } = await supabase.storage.from('store-assets').upload(path, file, { upsert: true })
     if (uploadError) { setSlotState(slotKey, { uploading: false, error: `Error al subir: ${uploadError.message}` }); return }
     const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(path)
-    const { error: dbError } = await supabase.from('store_assets').upsert({ tenant_id: tenantId, slot: slotKey, url: publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,slot' })
+    // Cache-buster: el CDN de Supabase sirve la versión vieja si la URL no cambia.
+    // Al guardar con ?t=timestamp la tienda siempre pide la imagen nueva.
+    const freshUrl = `${publicUrl}?t=${Date.now()}`
+    const { error: dbError } = await supabase.from('store_assets').upsert({ tenant_id: tenantId, slot: slotKey, url: freshUrl, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,slot' })
     if (dbError) { setSlotState(slotKey, { uploading: false, error: `Error al guardar: ${dbError.message}` }); return }
     const configField = SYNC_TO_STORE_CONFIG[slotKey]
-    if (configField) await supabase.from('store_config').update({ [configField]: publicUrl }).eq('tenant_id', tenantId)
-    setSlotState(slotKey, { url: publicUrl, uploading: false, error: null, saved: true })
+    if (configField) await supabase.from('store_config').update({ [configField]: freshUrl }).eq('tenant_id', tenantId)
+    setSlotState(slotKey, { url: freshUrl, uploading: false, error: null, saved: true })
     setTimeout(() => setSlotState(slotKey, { saved: false }), 2500)
   }
 
