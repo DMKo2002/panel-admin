@@ -7,8 +7,12 @@ import { ImageIcon, Upload, X, Loader2, Plus, Trash2 } from 'lucide-react'
 // ─── Slots de imágenes por template ──────────────────────────────────────────
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
   default: [
-    { key: 'logo',      label: 'Logo',           hint: 'PNG o SVG, fondo transparente', aspect: '3/1'  },
-    { key: 'hero_main', label: 'Hero principal', hint: '1400 × 850 px',                 aspect: '16/9' },
+    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG, fondo transparente', aspect: '3/1' },
+    { key: 'hero_main',    label: 'Hero principal',     hint: '1400 × 850 px',                 aspect: '16/9' },
+    { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+    { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+    { key: 'moodboard_3',  label: 'MoodBoard — Foto 3', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+    { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
   ],
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG, fondo transparente', aspect: '3/1'   },
@@ -35,6 +39,7 @@ const groupLabels: Record<string, string> = {
   collection: 'Colecciones',
   blog:       'Blog',
   banner:     'Banners',
+  moodboard:  'MoodBoard',
 }
 
 // Textos predeterminados legales
@@ -188,6 +193,15 @@ export default function PersonalizacionPage() {
   const [privacy, setPrivacy] = useState('')
   const [cookies, setCookies] = useState('')
 
+  // ── Hero texts
+  const [heroEyebrow, setHeroEyebrow] = useState('Nueva temporada')
+  const [heroLine1, setHeroLine1] = useState('Estilo que')
+  const [heroItalic, setHeroItalic] = useState('trasciende')
+  const [heroLine3, setHeroLine3] = useState('tendencia')
+  const [heroSeason, setHeroSeason] = useState('AW')
+  const [savingHero, setSavingHero] = useState(false)
+  const [savedHero, setSavedHero] = useState(false)
+
   const [savingName, setSavingName] = useState(false)
   const [savedName, setSavedName] = useState(false)
   const [savingFooter, setSavingFooter] = useState(false)
@@ -224,6 +238,11 @@ export default function PersonalizacionPage() {
         setTerms((cfg as any).terms_and_conditions ?? '')
         setPrivacy((cfg as any).privacy_policy ?? '')
         setCookies((cfg as any).cookies_policy ?? '')
+        setHeroEyebrow((cfg as any).hero_eyebrow ?? 'Nueva temporada')
+        setHeroLine1((cfg as any).hero_title_line1 ?? 'Estilo que')
+        setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
+        setHeroLine3((cfg as any).hero_title_line3 ?? 'tendencia')
+        setHeroSeason((cfg as any).hero_season ?? 'AW')
       }
 
       const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
@@ -265,6 +284,19 @@ export default function PersonalizacionPage() {
     const configField = SYNC_TO_STORE_CONFIG[slotKey]
     if (configField) await supabase.from('store_config').update({ [configField]: null }).eq('tenant_id', tenantId)
     setSlotState(slotKey, { url: null, uploading: false, error: null })
+  }
+
+  async function handleSaveHero() {
+    if (!configId) return
+    setSavingHero(true)
+    await supabase.from('store_config').update({
+      hero_eyebrow:      heroEyebrow  || null,
+      hero_title_line1:  heroLine1    || null,
+      hero_title_italic: heroItalic   || null,
+      hero_title_line3:  heroLine3    || null,
+      hero_season:       heroSeason   || null,
+    }).eq('id', configId)
+    setSavingHero(false); setSavedHero(true); setTimeout(() => setSavedHero(false), 2000)
   }
 
   async function handleSaveName() {
@@ -356,6 +388,47 @@ export default function PersonalizacionPage() {
             </div>
           </div>
         ))}
+      </section>
+
+      {/* ── Textos del Hero ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Textos del Hero
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Texto principal de portada</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Editá el título y la temporada que se muestran en el hero</p>
+            </div>
+            <button onClick={handleSaveHero} disabled={savingHero} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedHero ? '✓ Guardado' : savingHero ? 'Guardando...' : 'Guardar hero'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Código de temporada</label>
+              <input className="input text-sm font-mono" value={heroSeason} onChange={e => setHeroSeason(e.target.value)} placeholder="AW2026" />
+              <p className="text-xs text-zinc-400 mt-1">Aparece como texto decorativo en el fondo (ej: AW2026, SS2027)</p>
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Texto pequeño (sobre el título)</label>
+              <input className="input text-sm" value={heroEyebrow} onChange={e => setHeroEyebrow(e.target.value)} placeholder="Nueva temporada" />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 1</label>
+              <input className="input text-sm" value={heroLine1} onChange={e => setHeroLine1(e.target.value)} placeholder="Estilo que" />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 2 <span className="italic">(itálica)</span></label>
+              <input className="input text-sm italic" value={heroItalic} onChange={e => setHeroItalic(e.target.value)} placeholder="trasciende" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 3</label>
+              <input className="input text-sm" value={heroLine3} onChange={e => setHeroLine3(e.target.value)} placeholder="tendencia" />
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ── Footer ── */}
