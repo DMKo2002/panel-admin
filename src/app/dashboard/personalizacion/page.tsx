@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { ImageIcon, Upload, X, Loader2, Plus, Trash2 } from 'lucide-react'
+import { ImageIcon, Upload, X, Loader2, Plus, Trash2, Check } from 'lucide-react'
 
 // ─── Slots de imágenes por template ──────────────────────────────────────────
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
@@ -110,6 +110,7 @@ interface SlotState {
   url: string | null
   uploading: boolean
   error: string | null
+  saved?: boolean
 }
 
 // ─── Componente de slot de imagen ─────────────────────────────────────────────
@@ -142,6 +143,11 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
         {state.url ? (
           <>
             <img src={state.url} alt={slotDef.label} className="w-full h-full object-cover" />
+            {state.saved && (
+              <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
+                <Check size={10} /> Guardado
+              </div>
+            )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
               <button onClick={e => { e.stopPropagation(); inputRef.current?.click() }} className="flex items-center gap-1.5 bg-white text-zinc-800 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-zinc-100">
                 <Upload size={12} /> Cambiar
@@ -194,6 +200,7 @@ export default function PersonalizacionPage() {
   const [cookies, setCookies] = useState('')
 
   // ── Hero texts
+  const [heroTextColor, setHeroTextColor] = useState('#FFFFFF')
   const [heroEyebrow, setHeroEyebrow] = useState('Nueva temporada')
   const [heroLine1, setHeroLine1] = useState('Estilo que')
   const [heroItalic, setHeroItalic] = useState('trasciende')
@@ -238,6 +245,7 @@ export default function PersonalizacionPage() {
         setTerms((cfg as any).terms_and_conditions ?? '')
         setPrivacy((cfg as any).privacy_policy ?? '')
         setCookies((cfg as any).cookies_policy ?? '')
+        setHeroTextColor((cfg as any).hero_text_color ?? '#FFFFFF')
         setHeroEyebrow((cfg as any).hero_eyebrow ?? 'Nueva temporada')
         setHeroLine1((cfg as any).hero_title_line1 ?? 'Estilo que')
         setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
@@ -274,7 +282,8 @@ export default function PersonalizacionPage() {
     if (dbError) { setSlotState(slotKey, { uploading: false, error: `Error al guardar: ${dbError.message}` }); return }
     const configField = SYNC_TO_STORE_CONFIG[slotKey]
     if (configField) await supabase.from('store_config').update({ [configField]: publicUrl }).eq('tenant_id', tenantId)
-    setSlotState(slotKey, { url: publicUrl, uploading: false, error: null })
+    setSlotState(slotKey, { url: publicUrl, uploading: false, error: null, saved: true })
+    setTimeout(() => setSlotState(slotKey, { saved: false }), 2500)
   }
 
   async function handleRemove(slotKey: string) {
@@ -290,11 +299,12 @@ export default function PersonalizacionPage() {
     if (!configId) return
     setSavingHero(true)
     await supabase.from('store_config').update({
-      hero_eyebrow:      heroEyebrow  || null,
-      hero_title_line1:  heroLine1    || null,
-      hero_title_italic: heroItalic   || null,
-      hero_title_line3:  heroLine3    || null,
-      hero_season:       heroSeason   || null,
+      hero_eyebrow:      heroEyebrow    || null,
+      hero_title_line1:  heroLine1      || null,
+      hero_title_italic: heroItalic     || null,
+      hero_title_line3:  heroLine3      || null,
+      hero_season:       heroSeason     || null,
+      hero_text_color:   heroTextColor  || null,
     }).eq('id', configId)
     setSavingHero(false); setSavedHero(true); setTimeout(() => setSavedHero(false), 2000)
   }
@@ -426,6 +436,35 @@ export default function PersonalizacionPage() {
             <div className="col-span-2">
               <label className="block text-xs text-zinc-500 mb-1">Título — Línea 3</label>
               <input className="input text-sm" value={heroLine3} onChange={e => setHeroLine3(e.target.value)} placeholder="tendencia" />
+            </div>
+            <div className="col-span-2 pt-2 border-t border-zinc-100">
+              <label className="block text-xs text-zinc-500 mb-2">Color del texto</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={heroTextColor}
+                  onChange={e => setHeroTextColor(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-zinc-200 p-0.5 bg-white"
+                />
+                <input
+                  className="input text-sm font-mono w-32"
+                  value={heroTextColor}
+                  onChange={e => setHeroTextColor(e.target.value)}
+                  placeholder="#FFFFFF"
+                />
+                <div className="flex gap-2">
+                  {['#FFFFFF', '#1A1A1A', '#F5F0EB', '#8B7355'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setHeroTextColor(c)}
+                      className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                      style={{ backgroundColor: c, borderColor: heroTextColor === c ? '#7C3AED' : '#E5E7EB' }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-400">Usá blanco para fotos oscuras, negro para fotos claras</p>
+              </div>
             </div>
           </div>
         </div>
