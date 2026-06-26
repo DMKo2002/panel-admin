@@ -17,7 +17,18 @@ const MINIMALISTA_SLOTS = [
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
   default:     MINIMALISTA_SLOTS,
   minimalista: MINIMALISTA_SLOTS,
-  atelier:     MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
+  atelier: [
+    { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
+    { key: 'hero_main',    label: 'Hero principal',      hint: '1400 × 850 px recomendado',     aspect: '16/10' },
+    { key: 'hero_thumb_1', label: 'Thumbnail Hero 1',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
+    { key: 'hero_thumb_2', label: 'Thumbnail Hero 2',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
+    { key: 'collection_1', label: 'Colección — Banner 1', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'collection_2', label: 'Colección — Banner 2', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'collection_3', label: 'Colección — Banner 3', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'blog_1',       label: 'Blog — Foto 1',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
+    { key: 'blog_2',       label: 'Blog — Foto 2',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
+    { key: 'blog_3',       label: 'Blog — Foto 3',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
+  ],
   mono:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
   axis:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
 
