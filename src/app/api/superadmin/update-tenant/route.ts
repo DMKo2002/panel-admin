@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
-
-const SUPERADMIN_EMAIL = 'dmko2002@gmail.com'
+import { isSuperAdmin } from '@/lib/superadmin'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== SUPERADMIN_EMAIL) {
+  if (!user || !isSuperAdmin(user.email)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

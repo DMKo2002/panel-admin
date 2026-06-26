@@ -11,18 +11,20 @@ export default function AuthConfirmPage() {
 
   useEffect(() => {
     const supabase = createClient()
+    const hash = window.location.hash
+    const hasMagicToken = hash.includes('access_token=')
 
-    // onAuthStateChange detecta el token del hash automáticamente
+    if (!hasMagicToken) {
+      // Sin token de magic link: usar sesión existente o ir al login
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        router.replace(session ? '/dashboard' : '/login')
+      })
+      return
+    }
+
+    // Hay token de magic link: esperar el SIGNED_IN con el usuario nuevo
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        subscription.unsubscribe()
-        router.replace('/dashboard')
-      }
-    })
-
-    // Fallback: si ya hay sesión activa, redirigir de inmediato
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
         subscription.unsubscribe()
         router.replace('/dashboard')
       }

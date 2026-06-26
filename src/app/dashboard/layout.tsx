@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/Sidebar'
 import ThemeProvider from '@/components/ThemeProvider'
+import { isSuperAdmin } from '@/lib/superadmin'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -9,7 +10,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const isSuperAdmin = user.email === 'dmko2002@gmail.com'
+  const superAdmin = isSuperAdmin(user.email)
 
   const { data: userRow } = await supabase
     .from('users')
@@ -78,7 +79,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
       <ThemeProvider />
-      <Sidebar storeName={storeName} storeDomain={storeDomain} isSuperAdmin={isSuperAdmin} />
+      <Sidebar storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

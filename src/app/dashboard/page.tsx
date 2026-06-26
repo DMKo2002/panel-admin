@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { isSuperAdmin } from '@/lib/superadmin'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react'
 import DashboardRefresher from '@/components/DashboardRefresher'
@@ -22,7 +23,7 @@ export default async function DashboardPage() {
 
   const tenantId = userRow?.tenant_id
   if (!tenantId) {
-    if (user.email === 'dmko2002@gmail.com') redirect('/superadmin')
+    if (isSuperAdmin(user.email)) redirect('/superadmin')
     return <div className="p-8 text-zinc-500">Tenant no encontrado.</div>
   }
 
