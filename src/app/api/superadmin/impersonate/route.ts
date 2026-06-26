@@ -23,11 +23,16 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Siempre redirigir a la URL de producción — nunca localhost
+  const panelUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith('http://localhost')
+    ? 'https://panel.creart.com'
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.creart.com')
+
   const { data, error } = await serviceClient.auth.admin.generateLink({
     type: 'magiclink',
     email: tenantOwnerEmail,
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.creart.com'}/dashboard`,
+      redirectTo: `${panelUrl}/auth/confirm`,
     },
   })
 
