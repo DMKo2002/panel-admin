@@ -4,42 +4,33 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-// Página intermediaria que procesa el hash token del magic link
-// y redirige al dashboard una vez establecida la sesión
 export default function AuthConfirmPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const supabase = createClient()
-    const hash = window.location.hash
-    const hasMagicToken = hash.includes('access_token=')
+    const hash = window.location.hash.slice(1) // quitar el #
+    const params = new URLSearchParams(hash)
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
 
-    if (!hasMagicToken) {
-      // Sin token de magic link: usar sesión existente o ir al login
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        router.replace(session ? '/dashboard' : '/login')
+    if (access_token && refresh_token) {
+      // Tenemos tokens del magic link — los enviamos al servidor directamente
+      // sin pasar por onAuthStateChange (que puede dispararse con sesión vieja)
+      fetch('/api/auth/set-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token, refresh_token }),
+      }).then(() => {
+        window.location.href = '/dashboard'
       })
       return
     }
 
-    // Hay token de magic link: esperar el SIGNED_IN con el usuario nuevo
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        subscription.unsubscribe()
-        // Escribir la sesión server-side para que el SSR la lea correctamente
-        await fetch('/api/auth/set-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-          }),
-        })
-        window.location.href = '/dashboard'
-      }
+    // Sin tokens en el hash: usar sesión existente o ir al login
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      router.replace(session ? '/dashboard' : '/login')
     })
-
-    return () => subscription.unsubscribe()
   }, [router])
 
   return (

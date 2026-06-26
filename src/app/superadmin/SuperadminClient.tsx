@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut } from 'lucide-react'
 
 export type TenantRow = {
   id: string
@@ -87,9 +87,20 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Tenants</h1>
-        <p className="text-sm text-zinc-400 mt-1">{tenants.length} tiendas registradas</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100">Tenants</h1>
+          <p className="text-sm text-zinc-400 mt-1">{tenants.length} tiendas registradas</p>
+        </div>
+        <form action="/api/auth/signout" method="post">
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 text-xs transition-colors"
+          >
+            <LogOut size={13} />
+            Cerrar sesión
+          </button>
+        </form>
       </div>
 
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
