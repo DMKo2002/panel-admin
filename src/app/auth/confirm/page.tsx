@@ -26,7 +26,8 @@ export default function AuthConfirmPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         subscription.unsubscribe()
-        router.replace('/dashboard')
+        // Full page reload para que el server lea las cookies nuevas (no SPA navigation)
+        window.location.href = '/dashboard'
       }
     })
 
