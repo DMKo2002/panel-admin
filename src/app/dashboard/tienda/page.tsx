@@ -35,6 +35,11 @@ export default function TiendaPage() {
   const [panelTheme, setPanelTheme] = useState<'default' | 'dark'>('default')
   const [savingPdf, setSavingPdf] = useState(false)
   const [savedPdf, setSavedPdf] = useState(false)
+  const [emailFromName, setEmailFromName] = useState('')
+  const [notificationEmail, setNotificationEmail] = useState('')
+  const [replyTo, setReplyTo] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [savedEmail, setSavedEmail] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -44,8 +49,11 @@ export default function TiendaPage() {
       if (!userRow) return
       const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
       setConfig(data)
-      if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token as string)
+      if ((data as any)?.mp_access_token)    setMpToken((data as any).mp_access_token as string)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
+      if ((data as any)?.email_from_name)    setEmailFromName((data as any).email_from_name)
+      if ((data as any)?.notification_email) setNotificationEmail((data as any).notification_email)
+      if ((data as any)?.reply_to)           setReplyTo((data as any).reply_to)
       const cs = (data as any)?.custom_shipping
       setCustomShipping(cs?.length ? cs : [
         { name: 'Retiro en local', price: 0, active: true },
@@ -99,6 +107,17 @@ export default function TiendaPage() {
     setSavingAttrs(true)
     await supabase.from('store_config').update({ variant_attributes: attributes }).eq('id', config.id)
     setSavingAttrs(false); setSavedAttrs(true); setTimeout(() => setSavedAttrs(false), 2000)
+  }
+
+  async function handleSaveEmail() {
+    if (!config) return
+    setSavingEmail(true)
+    await supabase.from('store_config').update({
+      email_from_name:    emailFromName.trim()    || null,
+      notification_email: notificationEmail.trim() || null,
+      reply_to:           replyTo.trim()           || null,
+    }).eq('id', config.id)
+    setSavingEmail(false); setSavedEmail(true); setTimeout(() => setSavedEmail(false), 2000)
   }
 
   async function handleSavePdf() {
@@ -366,6 +385,75 @@ export default function TiendaPage() {
             <ToggleRow label="Mostrar tipo de precio" desc="Badge Minorista / Mayorista en cada ítem" checked={Boolean((config as any)?.pdf_show_pricetype ?? true)} onChange={v => update('pdf_show_pricetype' as any, v)} />
             <ToggleRow label="Mostrar dirección" desc="Dirección del comprador y dirección de envío" checked={Boolean((config as any)?.pdf_show_address ?? true)} onChange={v => update('pdf_show_address' as any, v)} />
             <ToggleRow label="Mostrar notas del pedido" desc="El campo de notas que ingresó el cliente" checked={Boolean((config as any)?.pdf_show_notes ?? true)} onChange={v => update('pdf_show_notes' as any, v)} />
+          </div>
+        </div>
+
+        {/* Emails */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Emails de tu tienda</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Configurá cómo aparecen y a dónde llegan los correos de tu tienda
+              </p>
+            </div>
+            <button onClick={handleSaveEmail} disabled={savingEmail} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedEmail ? '✓ Guardado' : savingEmail ? 'Guardando...' : 'Guardar emails'}
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">
+                Nombre del remitente
+              </label>
+              <input
+                className="input"
+                value={emailFromName}
+                onChange={e => setEmailFromName(e.target.value)}
+                placeholder="Ej: Connors Store, Iruda, Moda Caro..."
+              />
+              <p className="text-xs text-zinc-400 mt-1">
+                El nombre que ven tus clientes en "De:" al recibir un mail de tu tienda.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">
+                Email de notificaciones de pedidos
+              </label>
+              <input
+                className="input"
+                type="email"
+                value={notificationEmail}
+                onChange={e => setNotificationEmail(e.target.value)}
+                placeholder="Ej: ventas@mitienda.com o tu@gmail.com"
+              />
+              <p className="text-xs text-zinc-400 mt-1">
+                A esta dirección te llega un aviso cada vez que entra un pedido nuevo.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">
+                Email de respuesta (reply-to)
+              </label>
+              <input
+                className="input"
+                type="email"
+                value={replyTo}
+                onChange={e => setReplyTo(e.target.value)}
+                placeholder="Ej: contacto@mitienda.com"
+              />
+              <p className="text-xs text-zinc-400 mt-1">
+                Si un cliente responde un mail de tu tienda, la respuesta llega acá.
+              </p>
+            </div>
+
+            <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-500 space-y-0.5">
+              <p>📨 Los mails salen desde <strong>noreply@creart.com</strong> pero con tu nombre de remitente.</p>
+              <p>💬 Si querés un dominio propio (ej: @connors.com), contactá a soporte para verificarlo.</p>
+            </div>
           </div>
         </div>
 
