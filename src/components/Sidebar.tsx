@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen, Palette
+  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -22,9 +22,10 @@ const navItems = [
 interface SidebarProps {
   storeName: string
   storeDomain: string
+  isSuperAdmin?: boolean
 }
 
-export default function Sidebar({ storeName, storeDomain }: SidebarProps) {
+export default function Sidebar({ storeName, storeDomain, isSuperAdmin }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -59,7 +60,16 @@ export default function Sidebar({ storeName, storeDomain }: SidebarProps) {
         {navItems.slice(4).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
       </nav>
 
-      <div className="px-3 py-3 border-t border-zinc-100">
+      <div className="px-3 py-3 border-t border-zinc-100 space-y-0.5">
+        {isSuperAdmin && (
+          <Link
+            href="/superadmin"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors font-medium"
+          >
+            <ShieldCheck size={16} />
+            Superadmin
+          </Link>
+        )}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors"

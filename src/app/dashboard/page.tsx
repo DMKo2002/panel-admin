@@ -21,7 +21,10 @@ export default async function DashboardPage() {
     .single()
 
   const tenantId = userRow?.tenant_id
-  if (!tenantId) return <div className="p-8 text-zinc-500">Tenant no encontrado.</div>
+  if (!tenantId) {
+    if (user.email === 'dmko2002@gmail.com') redirect('/superadmin')
+    return <div className="p-8 text-zinc-500">Tenant no encontrado.</div>
+  }
 
   // Queries paralelas para las stats
   const today = new Date()

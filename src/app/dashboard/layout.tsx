@@ -9,6 +9,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const isSuperAdmin = user.email === 'dmko2002@gmail.com'
+
   const { data: userRow } = await supabase
     .from('users')
     .select('tenant_id, role')
@@ -76,7 +78,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
       <ThemeProvider />
-      <Sidebar storeName={storeName} storeDomain={storeDomain} />
+      <Sidebar storeName={storeName} storeDomain={storeDomain} isSuperAdmin={isSuperAdmin} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
