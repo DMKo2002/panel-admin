@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export type TenantRow = {
   id: string
@@ -43,6 +44,52 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [savingId, setSavingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Guardar tokens del superadmin para restaurarlos después de impersonar
+  const myTokensRef = useRef<{ access_token: string; refresh_token: string } | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    // Guardar nuestra sesión actual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        myTokensRef.current = {
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        }
+      }
+    })
+
+    // Escuchar cuando una pestaña de impersonación termina
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('creart_session_restore')
+      bc.onmessage = async (e) => {
+        if (e.data?.type === 'impersonation_done' && myTokensRef.current) {
+          // Pequeño delay para que la pestaña nueva termine de navegar con sus cookies
+          setTimeout(async () => {
+            await fetch('/api/auth/set-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(myTokensRef.current),
+            })
+            // Actualizar tokens (pueden haber expirado)
+            const supabase2 = createClient()
+            const { data: { session } } = await supabase2.auth.getSession()
+            if (session) {
+              myTokensRef.current = {
+                access_token: session.access_token,
+                refresh_token: session.refresh_token,
+              }
+            }
+          }, 800)
+        }
+      }
+    } catch {}
+
+    return () => { try { bc?.close() } catch {} }
+  }, [])
 
   async function handleRename(tenant: TenantRow) {
     if (!editName.trim() || editName.trim() === tenant.name) {
