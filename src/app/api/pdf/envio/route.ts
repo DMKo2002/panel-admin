@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { renderToBuffer } from '@react-pdf/renderer'
-import { ReciboPDF } from '@/components/ReciboPDF'
+import { EtiquetaEnvioPDF } from '@/components/EtiquetaEnvioPDF'
 import React from 'react'
 
 export async function GET(req: NextRequest) {
@@ -15,14 +15,9 @@ export async function GET(req: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // Cargar orden completa con items y cliente
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select(`
-        *,
-        customers (full_name, email, phone, address_street, address_city, address_province, address_zip),
-        order_items (*)
-      `)
+      .select(`*, customers (*), order_items (*)`)
       .eq('id', orderId)
       .single()
 
@@ -30,7 +25,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
     }
 
-    // Cargar datos de la tienda
     const { data: tenant } = await supabase
       .from('tenants')
       .select('name')
@@ -39,33 +33,25 @@ export async function GET(req: NextRequest) {
 
     const { data: config } = await supabase
       .from('store_config')
-      .select('logo_url, notification_email, whatsapp_number, transfer_cbu, transfer_alias, store_address, pdf_show_variant, pdf_show_pricetype, pdf_show_address, pdf_show_notes')
+      .select('store_address, whatsapp_number')
       .eq('tenant_id', order.tenant_id)
       .single()
 
     const cfg = config as any
 
-    // Generar PDF
     const pdfBuffer = await renderToBuffer(
-      React.createElement(ReciboPDF, {
+      React.createElement(EtiquetaEnvioPDF, {
         order,
-        storeName: tenant?.name ?? 'Tienda',
-        storeEmail: cfg?.notification_email ?? '',
-        storeWhatsapp: cfg?.whatsapp_number ?? '',
-        storeCbu: cfg?.transfer_cbu ?? '',
-        storeAlias: cfg?.transfer_alias ?? '',
-        storeAddress: cfg?.store_address ?? '',
-        pdfShowVariant:   cfg?.pdf_show_variant   ?? true,
-        pdfShowPricetype: cfg?.pdf_show_pricetype ?? true,
-        pdfShowAddress:   cfg?.pdf_show_address   ?? true,
-        pdfShowNotes:     cfg?.pdf_show_notes     ?? true,
+        storeName:      tenant?.name ?? 'Tienda',
+        storeAddress:   cfg?.store_address   ?? '',
+        storeWhatsapp:  cfg?.whatsapp_number ?? '',
       }) as any
     )
 
     const mode = searchParams.get('mode') ?? 'inline'
     const disposition = mode === 'download'
-      ? `attachment; filename="recibo-${orderId.slice(0, 6)}.pdf"`
-      : `inline; filename="recibo-${orderId.slice(0, 6)}.pdf"`
+      ? `attachment; filename="envio-${orderId.slice(0, 6)}.pdf"`
+      : `inline; filename="envio-${orderId.slice(0, 6)}.pdf"`
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
@@ -75,7 +61,7 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Error generando PDF:', error)
+    console.error('Error generando etiqueta:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

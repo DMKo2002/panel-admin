@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
 
   // Siempre redirigir a la URL de producción — nunca localhost
   const panelUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith('http://localhost')
-    ? 'https://panel.creart.com'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.creart.com')
+    ? 'https://panel-admin-tawny.vercel.app'
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel-admin-tawny.vercel.app')
 
   const { data, error } = await serviceClient.auth.admin.generateLink({
     type: 'magiclink',

@@ -38,6 +38,8 @@ export default function TiendaPage() {
   const [emailFromName, setEmailFromName] = useState('')
   const [notificationEmail, setNotificationEmail] = useState('')
   const [replyTo, setReplyTo] = useState('')
+  const [emailIntroPedidoRecibido, setEmailIntroPedidoRecibido] = useState('')
+  const [emailIntroPedidoEnviado, setEmailIntroPedidoEnviado] = useState('')
   const [savingEmail, setSavingEmail] = useState(false)
   const [savedEmail, setSavedEmail] = useState(false)
 
@@ -54,6 +56,8 @@ export default function TiendaPage() {
       if ((data as any)?.email_from_name)    setEmailFromName((data as any).email_from_name)
       if ((data as any)?.notification_email) setNotificationEmail((data as any).notification_email)
       if ((data as any)?.reply_to)           setReplyTo((data as any).reply_to)
+      if ((data as any)?.email_intro_pedido_recibido) setEmailIntroPedidoRecibido((data as any).email_intro_pedido_recibido)
+      if ((data as any)?.email_intro_pedido_enviado)  setEmailIntroPedidoEnviado((data as any).email_intro_pedido_enviado)
       const cs = (data as any)?.custom_shipping
       setCustomShipping(cs?.length ? cs : [
         { name: 'Retiro en local', price: 0, active: true },
@@ -116,6 +120,8 @@ export default function TiendaPage() {
       email_from_name:    emailFromName.trim()    || null,
       notification_email: notificationEmail.trim() || null,
       reply_to:           replyTo.trim()           || null,
+      email_intro_pedido_recibido: emailIntroPedidoRecibido.trim() || null,
+      email_intro_pedido_enviado:  emailIntroPedidoEnviado.trim()  || null,
     }).eq('id', config.id)
     setSavingEmail(false); setSavedEmail(true); setTimeout(() => setSavedEmail(false), 2000)
   }
@@ -448,6 +454,33 @@ export default function TiendaPage() {
               <p className="text-xs text-zinc-400 mt-1">
                 Si un cliente responde un mail de tu tienda, la respuesta llega acá.
               </p>
+            </div>
+
+            {/* Mensajes personalizados */}
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">
+                Mensaje en mail de pedido recibido
+              </label>
+              <textarea
+                className="input min-h-[72px] resize-y text-sm"
+                value={emailIntroPedidoRecibido}
+                onChange={e => setEmailIntroPedidoRecibido(e.target.value)}
+                placeholder="Ej: Recibimos tu pedido y lo estamos preparando con cariño. Te avisamos en cuanto esté listo."
+              />
+              <p className="text-xs text-zinc-400 mt-1">Aparece debajo del saludo en el mail de confirmación de compra.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">
+                Mensaje en mail de pedido enviado / listo para retirar
+              </label>
+              <textarea
+                className="input min-h-[72px] resize-y text-sm"
+                value={emailIntroPedidoEnviado}
+                onChange={e => setEmailIntroPedidoEnviado(e.target.value)}
+                placeholder="Ej: Tu pedido ya está en camino. Gracias por elegirnos, esperamos que te encante."
+              />
+              <p className="text-xs text-zinc-400 mt-1">Aparece en el mail que se envía al marcar un pedido como enviado o listo para retirar.</p>
             </div>
 
             <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-500 space-y-0.5">
