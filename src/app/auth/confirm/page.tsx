@@ -23,10 +23,18 @@ export default function AuthConfirmPage() {
     }
 
     // Hay token de magic link: esperar el SIGNED_IN con el usuario nuevo
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         subscription.unsubscribe()
-        // Full page reload para que el server lea las cookies nuevas (no SPA navigation)
+        // Escribir la sesión server-side para que el SSR la lea correctamente
+        await fetch('/api/auth/set-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }),
+        })
         window.location.href = '/dashboard'
       }
     })
