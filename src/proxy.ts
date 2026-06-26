@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isSuperAdmin } from '@/lib/superadmin'
 
 function serviceClient() {
   return createClient(
@@ -72,7 +73,10 @@ export async function proxy(request: NextRequest) {
 
     const hasTenant = !!userRow?.tenant_id
 
-    if (!hasTenant && path.startsWith('/dashboard')) return redirectTo(request, '/onboarding')
+    if (!hasTenant && path.startsWith('/dashboard')) {
+      // Superadmins sin tenant van a /superadmin, no a onboarding
+      return redirectTo(request, isSuperAdmin(user.email) ? '/superadmin' : '/onboarding')
+    }
     if (hasTenant && path === '/onboarding') return redirectTo(request, '/dashboard')
   }
 
@@ -80,5 +84,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding', '/login', '/registro', '/reset-password', '/update-password'],
+  matcher: ['/dashboard/:path*', '/superadmin/:path*', '/superadmin', '/onboarding', '/login', '/registro', '/reset-password', '/update-password'],
 }
