@@ -5,15 +5,22 @@ import { createClient } from '@/lib/supabase/client'
 import { ImageIcon, Upload, X, Loader2, Plus, Trash2, Check } from 'lucide-react'
 
 // ─── Slots de imágenes por template ──────────────────────────────────────────
+const MINIMALISTA_SLOTS = [
+  { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
+  { key: 'hero_main',    label: 'Hero principal',     hint: '1400 × 850 px',                 aspect: '16/9' },
+  { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+  { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+  { key: 'moodboard_3',  label: 'MoodBoard — Foto 3', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+  { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
+]
+
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
-  default: [
-    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
-    { key: 'hero_main',    label: 'Hero principal',     hint: '1400 × 850 px',                 aspect: '16/9' },
-    { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
-    { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
-    { key: 'moodboard_3',  label: 'MoodBoard — Foto 3', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
-    { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
-  ],
+  default:     MINIMALISTA_SLOTS,
+  minimalista: MINIMALISTA_SLOTS,
+  atelier:     MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
+  mono:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
+  axis:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
+
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
     { key: 'hero_main',    label: 'Hero principal',      hint: '1400 × 850 px recomendado',     aspect: '16/10' },
