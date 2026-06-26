@@ -2,71 +2,150 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Store, Check } from 'lucide-react'
+import { Store, Check, ExternalLink, Loader2 } from 'lucide-react'
 
-// ── Definición de templates disponibles ─────────────────────────────────────
+// ── Templates — URLs vienen de env vars del Panel Admin ──────────────────────
 const TEMPLATES = [
   {
     id: 'default',
     name: 'Minimalista',
     description: 'Elegante y limpio. Tipografía serif, paleta neutra, hero de pantalla completa.',
-    accent: '#1a1a1a',
-    preview: {
-      bg: '#EDE8E1',
-      text: '#1a1a1a',
-      badge: 'Más popular',
-      colors: ['#1a1a1a', '#8B7355', '#D4C5A9'],
-    },
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? '',
+    available: true,
   },
   {
     id: 'mono',
     name: 'Mono',
     description: 'Tipografía monoespaciada, estética cruda y directa. Ideal para marcas con actitud.',
-    accent: '#000000',
-    preview: {
-      bg: '#F5F5F5',
-      text: '#000000',
-      badge: 'Próximamente',
-      colors: ['#000000', '#333333', '#cccccc'],
-    },
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MONO ?? '',
+    available: false,
   },
   {
     id: 'atelier',
     name: 'Atelier',
     description: 'Oscuro y editorial. Fondo negro, detalles dorados, estética luxury de alta costura.',
-    accent: '#d4af37',
-    preview: {
-      bg: '#111111',
-      text: '#ffffff',
-      badge: 'Próximamente',
-      colors: ['#d4af37', '#ffffff', '#888888'],
-    },
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_ATELIER ?? '',
+    available: false,
   },
   {
     id: 'axis',
     name: 'Axis',
     description: 'Geométrico y contemporáneo. Grillas asimétricas, tipografía bold, ritmo visual fuerte.',
-    accent: '#dc2626',
-    preview: {
-      bg: '#fafafa',
-      text: '#111111',
-      badge: 'Próximamente',
-      colors: ['#dc2626', '#111111', '#e5e5e5'],
-    },
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_AXIS ?? '',
+    available: false,
   },
 ]
 
-// ── Pasos del onboarding ──────────────────────────────────────────────────────
+// ── Componente de preview con iframe escalado ─────────────────────────────────
+function TemplatePreview({
+  template,
+  selected,
+  onSelect,
+}: {
+  template: typeof TEMPLATES[0]
+  selected: boolean
+  onSelect: () => void
+}) {
+  const [loaded, setLoaded] = useState(false)
+  const hasUrl = !!template.previewUrl
+
+  return (
+    <button
+      onClick={template.available ? onSelect : undefined}
+      className={`relative text-left rounded-xl border-2 overflow-hidden transition-all w-full ${
+        selected ? 'border-violet-500 ring-2 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300'
+      } ${!template.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      {/* Zona de preview */}
+      <div className="relative bg-zinc-100 overflow-hidden" style={{ height: 200 }}>
+        {hasUrl ? (
+          <>
+            {/* iframe escalado — desktop (1280px) comprimido a ancho del card */}
+            {!loaded && (
+              <div className="absolute inset-0 flex items-center justify-center text-zinc-400">
+                <Loader2 size={20} className="animate-spin" />
+              </div>
+            )}
+            <iframe
+              src={template.previewUrl}
+              title={`Preview ${template.name}`}
+              scrolling="no"
+              onLoad={() => setLoaded(true)}
+              style={{
+                width: 1280,
+                height: 900,
+                transform: 'scale(0.234)',   // 1280 * 0.234 ≈ 300 (ancho aprox del card)
+                transformOrigin: 'top left',
+                pointerEvents: 'none',
+                border: 'none',
+                opacity: loaded ? 1 : 0,
+                transition: 'opacity 0.3s',
+              }}
+            />
+          </>
+        ) : (
+          /* Placeholder mientras no hay URL configurada */
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400">
+            <div className="w-12 h-12 rounded-lg bg-zinc-200 flex items-center justify-center text-lg">
+              🎨
+            </div>
+            <p className="text-xs font-medium">Preview próximamente</p>
+          </div>
+        )}
+
+        {/* Badge disponibilidad */}
+        <div className="absolute top-3 right-3 z-10">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            template.available
+              ? 'bg-violet-600 text-white'
+              : 'bg-zinc-200 text-zinc-500'
+          }`}>
+            {template.available ? 'Disponible' : 'Próximamente'}
+          </span>
+        </div>
+
+        {/* Check de selección */}
+        {selected && (
+          <div className="absolute top-3 left-3 z-10 w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center shadow">
+            <Check size={13} className="text-white" />
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-4 bg-white flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-zinc-900 mb-0.5">{template.name}</p>
+          <p className="text-xs text-zinc-500 leading-relaxed">{template.description}</p>
+        </div>
+        {hasUrl && (
+          <a
+            href={template.previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="flex-shrink-0 text-zinc-400 hover:text-violet-600 transition-colors mt-0.5"
+            title="Ver demo completa"
+          >
+            <ExternalLink size={14} />
+          </a>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
 type Step = 'nombre' | 'template'
 
 export default function OnboardingPage() {
   const supabase = createClient()
-  const [step, setStep] = useState<Step>('nombre')
-  const [name, setName]           = useState('')
-  const [domain, setDomain]       = useState('')
-  const [template, setTemplate]   = useState('default')
-  const [saving, setSaving]       = useState(false)
-  const [error, setError]         = useState<string | null>(null)
+  const [step, setStep]         = useState<Step>('nombre')
+  const [name, setName]         = useState('')
+  const [domain, setDomain]     = useState('')
+  const [template, setTemplate] = useState('default')
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState<string | null>(null)
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -82,20 +161,17 @@ export default function OnboardingPage() {
 
   async function handleFinalSubmit() {
     setSaving(true); setError(null)
-
     const res = await fetch('/api/create-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim(), domain: domain.trim() || null, template }),
     })
-
     const json = await res.json()
     if (!res.ok || json.error) {
       setError(json.error ?? 'Error al crear la tienda')
       setSaving(false)
       return
     }
-
     window.location.href = '/dashboard'
   }
 
@@ -106,7 +182,7 @@ export default function OnboardingPage() {
 
       {/* Header */}
       <div className="bg-white border-b border-zinc-200 px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
               <Store size={16} className="text-white" />
@@ -114,10 +190,9 @@ export default function OnboardingPage() {
             <span className="font-semibold text-zinc-900">CreArt</span>
           </div>
           <div className="flex items-center gap-6">
-            {/* Progress */}
             <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
-              <span className={step === 'nombre' ? 'text-violet-600 font-medium' : 'text-zinc-400'}>1. Tu tienda</span>
-              <span>→</span>
+              <span className={step === 'nombre' ? 'text-violet-600 font-medium' : 'text-zinc-300'}>1. Tu tienda</span>
+              <span className="text-zinc-200">→</span>
               <span className={step === 'template' ? 'text-violet-600 font-medium' : 'text-zinc-400'}>2. Diseño</span>
             </div>
             <button onClick={handleLogout} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
@@ -150,7 +225,6 @@ export default function OnboardingPage() {
                 required
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">
                 Dominio propio <span className="text-zinc-400 font-normal">(opcional)</span>
@@ -163,13 +237,11 @@ export default function OnboardingPage() {
               />
               <p className="text-xs text-zinc-400 mt-1">Lo podés configurar después desde el panel</p>
             </div>
-
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}
-
             <button type="submit" className="w-full btn-primary justify-center py-3">
               Continuar →
             </button>
@@ -179,69 +251,24 @@ export default function OnboardingPage() {
 
       {/* ── PASO 2: Template ── */}
       {step === 'template' && (
-        <div className="max-w-3xl mx-auto px-6 py-12">
+        <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="mb-8">
             <p className="text-xs font-medium text-violet-600 uppercase tracking-wider mb-2">Paso 2 de 2</p>
             <h1 className="text-2xl font-semibold text-zinc-900">Elegí el diseño de tu tienda</h1>
-            <p className="text-sm text-zinc-500 mt-1">Podés cambiarlo después desde Personalización</p>
+            <p className="text-sm text-zinc-500 mt-1">
+              Podés cambiarlo después desde Personalización. Hacé click en{' '}
+              <ExternalLink size={11} className="inline" /> para ver la demo completa.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
             {TEMPLATES.map(t => (
-              <button
+              <TemplatePreview
                 key={t.id}
-                onClick={() => t.preview.badge !== 'Próximamente' && setTemplate(t.id)}
-                className={`relative text-left rounded-xl border-2 overflow-hidden transition-all ${
-                  template === t.id
-                    ? 'border-violet-500 ring-2 ring-violet-200'
-                    : 'border-zinc-200 hover:border-zinc-300'
-                } ${t.preview.badge === 'Próximamente' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                {/* Preview visual */}
-                <div
-                  className="h-36 relative flex flex-col justify-end p-4"
-                  style={{ backgroundColor: t.preview.bg }}
-                >
-                  {/* Simulated layout */}
-                  <div className="absolute top-4 left-4 right-4">
-                    <div className="flex gap-1 mb-2">
-                      {t.preview.colors.map((c, i) => (
-                        <div key={i} className="rounded-full" style={{ width: 10, height: 10, backgroundColor: c }} />
-                      ))}
-                    </div>
-                    <div className="h-1.5 rounded-full mb-1.5 w-3/4" style={{ backgroundColor: t.preview.text, opacity: 0.8 }} />
-                    <div className="h-1 rounded-full mb-1 w-1/2" style={{ backgroundColor: t.preview.text, opacity: 0.3 }} />
-                    <div className="h-1 rounded-full w-2/3" style={{ backgroundColor: t.preview.text, opacity: 0.2 }} />
-                  </div>
-                  <div className="grid grid-cols-3 gap-1">
-                    {[0.7, 0.5, 0.6].map((op, i) => (
-                      <div key={i} className="h-10 rounded" style={{ backgroundColor: t.preview.text, opacity: op * 0.15 }} />
-                    ))}
-                  </div>
-                  {/* Badge */}
-                  <div
-                    className="absolute top-3 right-3 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{
-                      backgroundColor: t.id === 'default' ? t.accent : '#e5e7eb',
-                      color: t.id === 'default' ? '#fff' : '#6b7280'
-                    }}
-                  >
-                    {t.preview.badge}
-                  </div>
-                  {/* Check */}
-                  {template === t.id && (
-                    <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center">
-                      <Check size={11} className="text-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="p-4 bg-white">
-                  <p className="text-sm font-semibold text-zinc-900 mb-1">{t.name}</p>
-                  <p className="text-xs text-zinc-500 leading-relaxed">{t.description}</p>
-                </div>
-              </button>
+                template={t}
+                selected={template === t.id}
+                onSelect={() => setTemplate(t.id)}
+              />
             ))}
           </div>
 
@@ -252,10 +279,7 @@ export default function OnboardingPage() {
           )}
 
           <div className="flex gap-3">
-            <button
-              onClick={() => setStep('nombre')}
-              className="btn-secondary py-3 px-6"
-            >
+            <button onClick={() => setStep('nombre')} className="btn-secondary py-3 px-6">
               ← Volver
             </button>
             <button
@@ -263,7 +287,9 @@ export default function OnboardingPage() {
               disabled={saving}
               className="flex-1 btn-primary justify-center py-3 disabled:opacity-60"
             >
-              {saving ? 'Creando tu tienda...' : `Crear mi tienda con "${selectedTemplate.name}" →`}
+              {saving
+                ? 'Creando tu tienda...'
+                : `Crear mi tienda con "${selectedTemplate.name}" →`}
             </button>
           </div>
         </div>
