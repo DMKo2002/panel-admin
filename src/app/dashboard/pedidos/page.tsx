@@ -81,7 +81,7 @@ export default async function PedidosPage({
       </div>
 
       <div className="px-8 py-6">
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-zinc-200">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100">
