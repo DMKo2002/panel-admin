@@ -135,6 +135,7 @@ export function EtiquetaEnvioPDF({
             {shipStreet    && <Text style={styles.address}>{shipStreet}</Text>}
             {addressLine2.trim() && <Text style={styles.address}>{addressLine2}</Text>}
             {customer?.phone && <Text style={styles.phone}>Tel: {customer.phone}</Text>}
+            {customer?.cuit && <Text style={styles.phone}>CUIL/CUIT: {customer.cuit}</Text>}
           </View>
         </View>
 

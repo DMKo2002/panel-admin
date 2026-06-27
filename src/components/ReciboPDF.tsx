@@ -165,12 +165,13 @@ export function ReciboPDF({
               <Text style={styles.dispatchLabel}>Remitente</Text>
               <Text style={styles.dispatchName}>{storeName}</Text>
               {storeAddress ? <Text style={styles.dispatchAddress}>{storeAddress}</Text> : null}
-              {storeWhatsapp ? <Text style={styles.dispatchSmall}>Tel: {storeWhatsapp}</Text> : null}
             </View>
             {/* To */}
             <View style={styles.dispatchTo}>
               <Text style={styles.dispatchLabel}>Destinatario</Text>
-              <Text style={styles.dispatchName}>{customer?.full_name ?? 'Sin nombre'}</Text>
+              <Text style={styles.dispatchName}>
+                {[customer?.full_name, customer?.last_name].filter(Boolean).join(' ') || 'Sin nombre'}
+              </Text>
               {shipStreet   && <Text style={styles.dispatchAddress}>{shipStreet}</Text>}
               {(shipCity || shipProvince) && (
                 <Text style={styles.dispatchAddress}>
@@ -200,16 +201,31 @@ export function ReciboPDF({
           {/* Comprador */}
           <View style={styles.col}>
             <Text style={styles.colLabel}>Datos del comprador</Text>
-            {customer?.full_name
-              ? <Text style={styles.colValue}>{customer.full_name}</Text>
+            {/* Nombre completo */}
+            {(customer?.full_name || customer?.last_name)
+              ? <Text style={styles.colValue}>
+                  {[customer?.full_name, customer?.last_name].filter(Boolean).join(' ')}
+                </Text>
               : <Text style={[styles.colValue, { color: '#AAA' }]}>Sin datos de cliente</Text>
             }
+            {/* Email */}
             {customer?.email && <Text style={styles.colSmall}>{customer.email}</Text>}
-            {customer?.phone && <Text style={styles.colSmall}>{customer.phone}</Text>}
-            {pdfShowAddress && customer?.address_street && (
-              <Text style={[styles.colSmall, { marginTop: 4 }]}>
-                {[customer.address_street, customer.address_city, customer.address_province, customer.address_zip && `(${customer.address_zip})`].filter(Boolean).join(', ')}
-              </Text>
+            {/* Tel */}
+            {customer?.phone && <Text style={styles.colSmall}>Tel: {customer.phone}</Text>}
+            {/* CUIL/CUIT */}
+            {customer?.cuit && <Text style={styles.colSmall}>CUIL/CUIT: {customer.cuit}</Text>}
+            {/* Dirección de entrega (del pedido) */}
+            {pdfShowAddress && hasShipAddr && (
+              <View style={{ marginTop: 5 }}>
+                {shipStreet    && <Text style={styles.colSmall}>{shipStreet}</Text>}
+                {(shipCity || shipProvince) && (
+                  <Text style={styles.colSmall}>
+                    {[shipCity, shipProvince].filter(Boolean).join(', ')}
+                    {shipZip ? `  CP ${shipZip}` : ''}
+                  </Text>
+                )}
+                <Text style={styles.colSmall}>Argentina</Text>
+              </View>
             )}
           </View>
 
@@ -219,8 +235,6 @@ export function ReciboPDF({
             <Text style={styles.colValue}>
               {order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia bancaria'}
             </Text>
-            {order.payment_method === 'transfer' && storeCbu  && <Text style={[styles.colSmall, { marginTop: 3 }]}>CBU: {storeCbu}</Text>}
-            {order.payment_method === 'transfer' && storeAlias && <Text style={styles.colSmall}>Alias: {storeAlias}</Text>}
             {order.mp_payment_id && <Text style={[styles.colSmall, { color: '#AAA', marginTop: 3 }]}>ID MP: {order.mp_payment_id}</Text>}
             {order.shipping_method && (
               <>
