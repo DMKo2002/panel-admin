@@ -90,19 +90,28 @@ export async function POST(req: NextRequest) {
 
   if (customerEmail) {
     const tipo = status === 'shipped' ? 'enviado' : 'listo_retiro'
+    const subject = tipo === 'enviado'
+      ? `Tu pedido está en camino — ${storeName}`
+      : `Tu pedido está listo para retirar — ${storeName}`
     const html = emailEnviado({
       storeName, orderId, customerName, tipo,
       trackingCode: trackingCode ?? null,
       customIntro: cfg?.email_intro_pedido_enviado ?? null,
     })
-    await sendEmail({
+    const { ok: emailOk } = await sendEmail({
       to: customerEmail,
-      subject: tipo === 'enviado'
-        ? `Tu pedido está en camino — ${storeName}`
-        : `Tu pedido está listo para retirar — ${storeName}`,
+      subject,
       html,
       fromName: cfg?.email_from_name ?? storeName,
     })
+    await service.from('notifications_log').insert({
+      tenant_id: order.tenant_id,
+      order_id: orderId,
+      channel: 'email',
+      recipient: customerEmail,
+      subject,
+      status: emailOk ? 'sent' : 'failed',
+    }).catch(() => {})
   }
 
   return NextResponse.json({ ok: true })
