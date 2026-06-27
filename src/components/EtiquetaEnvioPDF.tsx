@@ -63,12 +63,12 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 5,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-  itemName: { fontSize: 9, color: '#333', flex: 1 },
-  itemVariant: { fontSize: 8, color: '#888', flex: 1, marginTop: 2 },
+  itemName: { fontSize: 9, color: '#333', flex: 1, marginBottom: 3 },
+  itemVariant: { fontSize: 8, color: '#888', flex: 1, marginTop: 1 },
   itemQty: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1C1C1C', textAlign: 'right' },
 
   // Footer
