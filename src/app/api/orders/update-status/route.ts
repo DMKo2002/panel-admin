@@ -4,15 +4,20 @@ import { createServiceClient } from '@/lib/supabase/service'
 
 const RESEND_API_URL = 'https://api.resend.com/emails'
 
-async function sendEmail({ to, subject, html, fromName }: { to: string; subject: string; html: string; fromName?: string }) {
+async function sendEmail({ to, subject, html, fromName }: { to: string; subject: string; html: string; fromName?: string }): Promise<{ ok: boolean }> {
   const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) return
+  if (!apiKey) return { ok: false }
   const sender = fromName ? `${fromName} <${process.env.EMAIL_FROM ?? 'onboarding@resend.dev'}>` : (process.env.EMAIL_FROM ?? 'onboarding@resend.dev')
-  await fetch(RESEND_API_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: sender, to, subject, html }),
-  }).catch(console.error)
+  try {
+    const res = await fetch(RESEND_API_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: sender, to, subject, html }),
+    })
+    return { ok: res.ok }
+  } catch {
+    return { ok: false }
+  }
 }
 
 function emailEnviado({ storeName, orderId, customerName, tipo, trackingCode, customIntro }: {
@@ -111,7 +116,7 @@ export async function POST(req: NextRequest) {
       recipient: customerEmail,
       subject,
       status: emailOk ? 'sent' : 'failed',
-    }).catch(() => {})
+    })
   }
 
   return NextResponse.json({ ok: true })
