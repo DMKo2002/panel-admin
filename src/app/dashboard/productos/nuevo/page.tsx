@@ -65,7 +65,7 @@ export default function NuevoProductoPage() {
   // Custom tenant attributes (non-size, non-color) to show below the matrix
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
   const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
-  const [initialSizes, setInitialSizes] = useState<string[]>(['XS', 'S', 'M', 'L', 'XL'])
+  const [initialSizes, setInitialSizes] = useState<string[] | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
@@ -88,9 +88,8 @@ export default function NuevoProductoPage() {
 
       // Sizes from tenant config
       const sizeAttr = allAttrs.find(a => SIZE_KEYS.includes(a.key))
-      if (sizeAttr?.options && sizeAttr.options.length > 0) {
-        setInitialSizes(sizeAttr.options)
-      }
+      const sizes = sizeAttr?.options?.length ? sizeAttr.options : ['XS', 'S', 'M', 'L', 'XL']
+      setInitialSizes(sizes)
     }
     load()
   }, [])
@@ -265,7 +264,7 @@ export default function NuevoProductoPage() {
         </div>
 
         {/* Variantes */}
-        <VariantMatrix ref={matrixRef} mode="create" initialSizes={initialSizes} />
+        {initialSizes && <VariantMatrix ref={matrixRef} mode="create" initialSizes={initialSizes} />}
 
         {/* Atributos extra del tenant */}
         {extraAttrs.length > 0 && (
