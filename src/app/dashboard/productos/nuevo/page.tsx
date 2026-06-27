@@ -65,6 +65,8 @@ export default function NuevoProductoPage() {
   // Custom tenant attributes (non-size, non-color) to show below the matrix
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
   const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
+  const [initialSizes, setInitialSizes] = useState<string[]>(['XS', 'S', 'M', 'L', 'XL'])
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -83,6 +85,12 @@ export default function NuevoProductoPage() {
       const allAttrs: AttrConfig[] = configData?.variant_attributes ?? []
       const extra = allAttrs.filter(a => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
       setExtraAttrs(extra)
+
+      // Sizes from tenant config
+      const sizeAttr = allAttrs.find(a => SIZE_KEYS.includes(a.key))
+      if (sizeAttr?.options && sizeAttr.options.length > 0) {
+        setInitialSizes(sizeAttr.options)
+      }
     }
     load()
   }, [])
@@ -93,6 +101,16 @@ export default function NuevoProductoPage() {
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
     e.target.value = ''
+  }
+
+  async function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault()
+    setIsDragging(false)
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    if (!files.length) return
+    const resized = await Promise.all(files.map(resizeImageTo600x900))
+    setImageFiles(prev => [...prev, ...resized])
+    setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
   }
 
   function removeImage(idx: number) {
@@ -210,9 +228,14 @@ export default function NuevoProductoPage() {
         {/* Imágenes */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
-          <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 hover:bg-violet-50 transition-colors">
+          <label
+            className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-violet-500 bg-violet-50' : 'border-zinc-200 hover:border-violet-300 hover:bg-violet-50'}`}
+            onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+          >
             <Upload size={20} className="text-zinc-400 mb-1" />
-            <span className="text-sm text-zinc-500">Subir fotos del producto</span>
+            <span className="text-sm text-zinc-500">{isDragging ? 'Soltá las imágenes acá' : 'Arrastrá o hacé click para subir fotos'}</span>
             <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a 600×900</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
@@ -242,7 +265,7 @@ export default function NuevoProductoPage() {
         </div>
 
         {/* Variantes */}
-        <VariantMatrix ref={matrixRef} mode="create" />
+        <VariantMatrix ref={matrixRef} mode="create" initialSizes={initialSizes} />
 
         {/* Atributos extra del tenant */}
         {extraAttrs.length > 0 && (
