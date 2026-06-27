@@ -42,6 +42,14 @@ export default function TiendaPage() {
   const [emailIntroPedidoEnviado, setEmailIntroPedidoEnviado] = useState('')
   const [savingEmail, setSavingEmail] = useState(false)
   const [savedEmail, setSavedEmail] = useState(false)
+  const [whatsapp, setWhatsapp] = useState('')
+  const [instagramUrl, setInstagramUrl] = useState('')
+  const [facebookUrl, setFacebookUrl] = useState('')
+  const [tiktokUrl, setTiktokUrl] = useState('')
+  const [storeAddress, setStoreAddress] = useState('')
+  const [pickupAddress, setPickupAddress] = useState('')
+  const [savingContact, setSavingContact] = useState(false)
+  const [savedContact, setSavedContact] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -58,6 +66,12 @@ export default function TiendaPage() {
       if ((data as any)?.reply_to)           setReplyTo((data as any).reply_to)
       if ((data as any)?.email_intro_pedido_recibido) setEmailIntroPedidoRecibido((data as any).email_intro_pedido_recibido)
       if ((data as any)?.email_intro_pedido_enviado)  setEmailIntroPedidoEnviado((data as any).email_intro_pedido_enviado)
+      if ((data as any)?.whatsapp_number)  setWhatsapp((data as any).whatsapp_number)
+      if ((data as any)?.instagram_url)    setInstagramUrl((data as any).instagram_url)
+      if ((data as any)?.facebook_url)     setFacebookUrl((data as any).facebook_url)
+      if ((data as any)?.tiktok_url)       setTiktokUrl((data as any).tiktok_url)
+      if ((data as any)?.store_address)    setStoreAddress((data as any).store_address)
+      if ((data as any)?.pickup_address)   setPickupAddress((data as any).pickup_address)
       const cs = (data as any)?.custom_shipping
       setCustomShipping(cs?.length ? cs : [
         { name: 'Retiro en local', price: 0, active: true },
@@ -124,6 +138,20 @@ export default function TiendaPage() {
       email_intro_pedido_enviado:  emailIntroPedidoEnviado.trim()  || null,
     }).eq('id', config.id)
     setSavingEmail(false); setSavedEmail(true); setTimeout(() => setSavedEmail(false), 2000)
+  }
+
+  async function handleSaveContact() {
+    if (!config) return
+    setSavingContact(true)
+    await supabase.from('store_config').update({
+      whatsapp_number: whatsapp.trim()    || null,
+      instagram_url:   instagramUrl.trim() || null,
+      facebook_url:    facebookUrl.trim()  || null,
+      tiktok_url:      tiktokUrl.trim()    || null,
+      store_address:   storeAddress.trim()  || null,
+      pickup_address:  pickupAddress.trim() || null,
+    }).eq('id', config.id)
+    setSavingContact(false); setSavedContact(true); setTimeout(() => setSavedContact(false), 2000)
   }
 
   async function handleSavePdf() {
@@ -297,6 +325,45 @@ export default function TiendaPage() {
           <button onClick={addAttribute} className="flex items-center gap-2 text-sm text-violet-600 hover:text-violet-700 transition-colors">
             <Plus size={14} /> Agregar atributo
           </button>
+        </div>
+
+        {/* Contacto y Redes Sociales */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Contacto y redes sociales</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Se muestran en el footer y la página de contacto de tu tienda</p>
+            </div>
+            <button onClick={handleSaveContact} disabled={savingContact} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedContact ? '✓ Guardado' : savingContact ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">WhatsApp</label>
+              <input className="input text-sm" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="5491112345678 (sin + ni espacios)" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Instagram</label>
+              <input className="input text-sm" value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/tutienda" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Facebook</label>
+              <input className="input text-sm" value={facebookUrl} onChange={e => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/tutienda" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">TikTok</label>
+              <input className="input text-sm" value={tiktokUrl} onChange={e => setTiktokUrl(e.target.value)} placeholder="https://tiktok.com/@tutienda" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Dirección de retiro (visible en la tienda)</label>
+              <input className="input text-sm" value={pickupAddress} onChange={e => setPickupAddress(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Dirección de despacho (aparece en PDFs)</label>
+              <input className="input text-sm" value={storeAddress} onChange={e => setStoreAddress(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
+            </div>
+          </div>
         </div>
 
         {/* MercadoPago */}
