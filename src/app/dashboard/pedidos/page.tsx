@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
-import { Download, FileText } from 'lucide-react'
+import { Download } from 'lucide-react'
 import MarkPaidButton from '@/components/MarkPaidButton'
 import UpdateOrderStatusButton from '@/components/UpdateOrderStatusButton'
+import OrderPreviewModal from '@/components/OrderPreviewModal'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -113,28 +114,8 @@ export default async function PedidosPage({
                   <td className="px-4 py-3 text-zinc-400 text-xs">{formatDate(order.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      {/* Ver recibo (inline) */}
-                      <a
-                        href={`/api/pdf?order_id=${order.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Ver recibo"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
-                      >
-                        <FileText size={13} />
-                        Recibo
-                      </a>
-                      {/* Etiqueta de envío (inline) */}
-                      <a
-                        href={`/api/pdf/envio?order_id=${order.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Ver etiqueta de envío"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
-                      >
-                        <FileText size={13} />
-                        Envío
-                      </a>
+                      <OrderPreviewModal orderId={order.id} mode="recibo" label="Recibo" />
+                      <OrderPreviewModal orderId={order.id} mode="envio" label="Envío" />
                     </div>
                   </td>
                   <td className="px-4 py-3">

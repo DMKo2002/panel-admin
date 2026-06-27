@@ -5,13 +5,14 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck
+  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
   { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard },
   { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart },
+  { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users },
   { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt },
   { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen },
   { label: 'Notificaciones',   href: '/dashboard/notificaciones',  icon: Bell },
@@ -51,13 +52,13 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin }: Sideba
 
       <nav className="flex-1 px-3 py-3 space-y-0.5">
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">General</p>
-        {navItems.slice(0, 2).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        {navItems.slice(0, 3).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
 
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Catálogo</p>
-        {navItems.slice(2, 4).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        {navItems.slice(3, 5).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
 
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración</p>
-        {navItems.slice(4).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        {navItems.slice(5).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
       </nav>
 
       <div className="px-3 py-3 border-t border-zinc-100 space-y-0.5">
