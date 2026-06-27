@@ -107,6 +107,7 @@ export default function TiendaPage() {
       min_order_amount: config.min_order_amount ?? null,
       price_visibility: config.price_visibility ?? 'all',
       custom_shipping:  customShipping,
+      ignore_stock:     (config as any).ignore_stock ?? false,
     }).eq('id', config.id)
     setSaving(false)
     setSaved(true)
@@ -245,6 +246,20 @@ export default function TiendaPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Stock */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Gestión de stock</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Útil para mayoristas que manejan disponibilidad por WhatsApp</p>
+          </div>
+          <ToggleRow
+            label="Modo sin stock"
+            desc="Todos los productos aparecen como disponibles sin importar el stock cargado"
+            checked={Boolean((config as any)?.ignore_stock)}
+            onChange={v => update('ignore_stock' as any, v)}
+          />
         </div>
 
         {/* Pedido mínimo */}
