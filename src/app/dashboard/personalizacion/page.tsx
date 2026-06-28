@@ -242,9 +242,10 @@ export default function PersonalizacionPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+        const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
         if (!userRow?.tenant_id) return
-        setTenantId(userRow.tenant_id)
+        setTenantId(userRow?.tenant_id)
 
         const { data: tenant } = await supabase.from('tenants').select('name, template').eq('id', userRow.tenant_id).single()
         const tmpl = (tenant as any)?.template ?? 'default'

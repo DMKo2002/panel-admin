@@ -55,7 +55,8 @@ export default function TiendaPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+      const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
       if (!userRow) return
       const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
       setConfig(data)

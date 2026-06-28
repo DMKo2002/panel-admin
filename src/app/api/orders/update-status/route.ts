@@ -69,7 +69,8 @@ export async function POST(req: NextRequest) {
   const service = createServiceClient()
 
   // Verificar que el pedido pertenece al tenant del usuario
-  const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+  const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
   const { data: order } = await service.from('orders')
     .select('*, customers(full_name, email)')
     .eq('id', orderId).eq('tenant_id', userRow?.tenant_id).single()

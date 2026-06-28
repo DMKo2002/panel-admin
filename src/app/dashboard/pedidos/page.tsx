@@ -31,8 +31,9 @@ export default async function PedidosPage({
   try {
     const service = createServiceClient()
 
-    const { data: userRow, error: userError } = await service
-      .from('users').select('tenant_id').eq('id', user.id).single()
+    const { data: _userRows, error: userError } = await service
+      .from('users').select('tenant_id').eq('id', user.id).limit(1)
+    const userRow = _userRows?.[0]
     if (userError) throw new Error('Error leyendo usuario: ' + userError.message + ' (' + userError.code + ')')
     tenantId = userRow?.tenant_id ?? null
     if (!tenantId) throw new Error('El usuario ' + user.email + ' no tiene tenant_id asignado')

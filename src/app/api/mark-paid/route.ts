@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-    const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+    const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
     if (!userRow?.tenant_id) return NextResponse.json({ error: 'Sin tenant' }, { status: 403 })
 
     const { order_id } = await req.json()

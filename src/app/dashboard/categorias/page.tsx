@@ -47,9 +47,10 @@ export default function CategoriasPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { setLoading(false); return }
-        const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+        const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
         if (!userRow) { setLoading(false); return }
-        setTenantId(userRow.tenant_id)
+        setTenantId(userRow?.tenant_id)
         const { data } = await supabase
           .from('categories')
           .select('id, name, slug, active, sort_order, parent_id')

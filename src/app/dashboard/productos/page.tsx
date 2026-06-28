@@ -9,7 +9,8 @@ export default async function ProductosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+  const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
   const tenantId = userRow?.tenant_id
   if (!tenantId) return null
 

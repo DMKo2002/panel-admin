@@ -19,9 +19,10 @@ export default function TestMPPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+      const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
       if (!userRow) return
-      setTenantId(userRow.tenant_id)
+      setTenantId(userRow?.tenant_id)
 
       const { data: prods } = await supabase
         .from('products')

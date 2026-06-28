@@ -19,7 +19,8 @@ export default function ThemeProvider() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+      const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
       if (!userRow?.tenant_id) return
       const { data: cfg } = await supabase
         .from('store_config')

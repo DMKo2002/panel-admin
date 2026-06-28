@@ -104,9 +104,10 @@ export default function EditarProductoPage() {
       }))
 
       if (user) {
-        const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+        const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
+  const userRow = _userRows?.[0]
         if (userRow) {
-          setTenantId(userRow.tenant_id)
+          setTenantId(userRow?.tenant_id)
           const [{ data: cats }, { data: configData }] = await Promise.all([
             supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
             supabase.from('store_config').select('variant_attributes').eq('tenant_id', userRow.tenant_id).single(),
