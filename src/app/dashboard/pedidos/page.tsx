@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
+import { isSuperAdmin } from '@/lib/superadmin'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { Download, FileText, Package } from 'lucide-react'
 import MarkPaidButton from '@/components/MarkPaidButton'
@@ -24,19 +25,26 @@ export default async function PedidosPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Todo lo demas con service client para bypassear RLS
+  // Obtener tenant_id con service client
   let tenantId: string | null = null
   let orders: any[] = []
   let serviceError: string | null = null
   try {
     const service = createServiceClient()
-
-    const { data: _userRows, error: userError } = await service
+    const { data: _userRows } = await service
       .from('users').select('tenant_id').eq('id', user.id).limit(1)
-    const userRow = _userRows?.[0]
-    if (userError) throw new Error('Error leyendo usuario: ' + userError.message + ' (' + userError.code + ')')
-    tenantId = userRow?.tenant_id ?? null
-    if (!tenantId) throw new Error('El usuario ' + user.email + ' no tiene tenant_id asignado')
+    tenantId = _userRows?.[0]?.tenant_id ?? null
+  } catch (e: any) {
+    serviceError = e.message
+  }
+
+  if (!tenantId && !serviceError) {
+    if (isSuperAdmin(user.email)) redirect('/superadmin')
+    return <div className="p-8 text-zinc-500 text-sm">No se encontro tenant para este usuario.</div>
+  }
+
+  if (!serviceError && tenantId) try {
+    const service = createServiceClient()
 
     let query = service
       .from('orders')

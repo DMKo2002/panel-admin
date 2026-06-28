@@ -58,20 +58,19 @@ export async function proxy(request: NextRequest) {
       return supabaseResponse
     }
 
-    const { data: userRow, error: queryError } = await serviceClient()
+    const { data: _userRows, error: queryError } = await serviceClient()
       .from('users')
       .select('tenant_id')
       .eq('id', user.id)
-      .single()
+      .limit(1)
 
     // Si la query falló (key mal configurada, red, etc.) dejamos pasar
-    // Es mejor que dejar al usuario atrapado en onboarding
     if (queryError) {
       console.error('[middleware] Error consultando users:', queryError.message)
       return supabaseResponse
     }
 
-    const hasTenant = !!userRow?.tenant_id
+    const hasTenant = !!_userRows?.[0]?.tenant_id
 
     if (!hasTenant && path.startsWith('/dashboard')) {
       // Superadmins sin tenant van a /superadmin, no a onboarding
