@@ -29,22 +29,38 @@ export default async function ClientesPage() {
   const { data: userRow } = await supabase
     .from('users').select('tenant_id').eq('id', user.id).single()
   const tenantId = userRow?.tenant_id
-  if (!tenantId) return null
+  if (!tenantId) return <div className="p-8 text-zinc-400 text-sm">No se encontró el tenant.</div>
 
-  const service = createServiceClient()
+  let customers: any[] = []
+  let orders: any[] = []
+  try {
+    const service = createServiceClient()
 
-  // Traer clientes del tenant
-  const { data: customers } = await service
-    .from('customers')
-    .select('id, full_name, last_name, email, phone, type, company_name, created_at, active')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
+    // Traer clientes del tenant
+    const { data: customersData } = await service
+      .from('customers')
+      .select('id, full_name, last_name, email, phone, type, company_name, created_at, active')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+    customers = customersData ?? []
 
-  // Traer pedidos del tenant para agregar stats por cliente
-  const { data: orders } = await service
-    .from('orders')
-    .select('id, customer_id, total, payment_status, status, created_at')
-    .eq('tenant_id', tenantId)
+    // Traer pedidos del tenant para agregar stats por cliente
+    const { data: ordersData } = await service
+      .from('orders')
+      .select('id, customer_id, total, payment_status, status, created_at')
+      .eq('tenant_id', tenantId)
+    orders = ordersData ?? []
+  } catch (e: any) {
+    return (
+      <div className="p-8">
+        <h1 className="text-xl font-semibold text-zinc-900 mb-2">Clientes</h1>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          <strong>Error de configuración:</strong> {e.message}
+          <p className="mt-1 text-red-600">Agregá <code className="bg-red-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> en Vercel → Settings → Environment Variables y redesplegá.</p>
+        </div>
+      </div>
+    )
+  }
 
   // Calcular stats por cliente
   type CustomerStats = {
@@ -56,7 +72,7 @@ export default async function ClientesPage() {
 
   const statsMap = new Map<string, CustomerStats>()
 
-  for (const order of orders ?? []) {
+  for (const order of orders) {
     const cid = order.customer_id
     if (!cid) continue
     const existing = statsMap.get(cid) ?? { totalSpent: 0, orderCount: 0, pendingCount: 0, lastOrderDate: null }
@@ -69,7 +85,7 @@ export default async function ClientesPage() {
     statsMap.set(cid, existing)
   }
 
-  const totalClients = customers?.length ?? 0
+  const totalClients = customers.length
   const totalRevenue = Array.from(statsMap.values()).reduce((s, c) => s + c.totalSpent, 0)
   const withPending = Array.from(statsMap.values()).filter(c => c.pendingCount > 0).length
 

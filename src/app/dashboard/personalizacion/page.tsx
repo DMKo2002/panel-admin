@@ -238,49 +238,56 @@ export default function PersonalizacionPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
 
-      const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
-      if (!userRow?.tenant_id) return
-      setTenantId(userRow.tenant_id)
+        const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+        if (!userRow?.tenant_id) return
+        setTenantId(userRow.tenant_id)
 
-      const { data: tenant } = await supabase.from('tenants').select('name, template').eq('id', userRow.tenant_id).single()
-      const tmpl = (tenant as any)?.template ?? 'default'
-      setTemplate(tmpl)
-      setStoreName((tenant as any)?.name ?? '')
+        const { data: tenant } = await supabase.from('tenants').select('name, template').eq('id', userRow.tenant_id).single()
+        const tmpl = (tenant as any)?.template ?? 'default'
+        setTemplate(tmpl)
+        setStoreName((tenant as any)?.name ?? '')
 
-      const { data: cfg } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
-      if (cfg) {
-        setConfigId(cfg.id)
-        setWhatsapp((cfg as any).whatsapp_number ?? '')
-        setEmail((cfg as any).notification_email ?? '')
-        setStoreAddress((cfg as any).store_address ?? '')
-        setPickupAddress((cfg as any).pickup_address ?? '')
-        setInstagram((cfg as any).instagram_url ?? '')
-        setFacebook((cfg as any).facebook_url ?? '')
-        setTiktok((cfg as any).tiktok_url ?? '')
-        setBranches((cfg as any).branches ?? [])
-        setTerms((cfg as any).terms_and_conditions ?? '')
-        setPrivacy((cfg as any).privacy_policy ?? '')
-        setCookies((cfg as any).cookies_policy ?? '')
-        setHeroTextColor((cfg as any).hero_text_color ?? '#FFFFFF')
-        setHeroEyebrow((cfg as any).hero_eyebrow ?? 'Nueva temporada')
-        setHeroLine1((cfg as any).hero_title_line1 ?? 'Estilo que')
-        setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
-        setHeroLine3((cfg as any).hero_title_line3 ?? 'tendencia')
-        setHeroSeason((cfg as any).hero_season ?? 'AW')
+        const { data: cfg } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+        if (cfg) {
+          setConfigId(cfg.id)
+          setWhatsapp((cfg as any).whatsapp_number ?? '')
+          setEmail((cfg as any).notification_email ?? '')
+          setStoreAddress((cfg as any).store_address ?? '')
+          setPickupAddress((cfg as any).pickup_address ?? '')
+          setInstagram((cfg as any).instagram_url ?? '')
+          setFacebook((cfg as any).facebook_url ?? '')
+          setTiktok((cfg as any).tiktok_url ?? '')
+          // branches debe ser siempre un array — proteger contra valores inválidos
+          const rawBranches = (cfg as any).branches
+          setBranches(Array.isArray(rawBranches) ? rawBranches : [])
+          setTerms((cfg as any).terms_and_conditions ?? '')
+          setPrivacy((cfg as any).privacy_policy ?? '')
+          setCookies((cfg as any).cookies_policy ?? '')
+          setHeroTextColor((cfg as any).hero_text_color ?? '#FFFFFF')
+          setHeroEyebrow((cfg as any).hero_eyebrow ?? 'Nueva temporada')
+          setHeroLine1((cfg as any).hero_title_line1 ?? 'Estilo que')
+          setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
+          setHeroLine3((cfg as any).hero_title_line3 ?? 'tendencia')
+          setHeroSeason((cfg as any).hero_season ?? 'AW')
+        }
+
+        const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
+        const slotDefs = TEMPLATE_SLOTS[tmpl] ?? TEMPLATE_SLOTS['default']
+        const initial: Record<string, SlotState> = {}
+        for (const s of slotDefs) {
+          const existing = assets?.find(a => a.slot === s.key)
+          initial[s.key] = { url: existing?.url ?? null, uploading: false, error: null }
+        }
+        setSlots(initial)
+      } catch (e) {
+        console.error('[Personalizacion] Error al cargar:', e)
+      } finally {
+        setLoading(false)
       }
-
-      const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
-      const slotDefs = TEMPLATE_SLOTS[tmpl] ?? TEMPLATE_SLOTS['default']
-      const initial: Record<string, SlotState> = {}
-      for (const s of slotDefs) {
-        const existing = assets?.find(a => a.slot === s.key)
-        initial[s.key] = { url: existing?.url ?? null, uploading: false, error: null }
-      }
-      setSlots(initial)
-      setLoading(false)
     }
     load()
   }, [])

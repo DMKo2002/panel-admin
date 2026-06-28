@@ -26,20 +26,27 @@ export default async function PedidosPage({
 
   const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
   const tenantId = userRow?.tenant_id
-  if (!tenantId) return null
+  if (!tenantId) return <div className="p-8 text-zinc-400 text-sm">No se encontró el tenant.</div>
 
   // Datos con service role para bypassear RLS en customers
-  const service = createServiceClient()
-  let query = service
-    .from('orders')
-    .select('*, customers(full_name, type, email)')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
+  let orders: any[] = []
+  let serviceError: string | null = null
+  try {
+    const service = createServiceClient()
+    let query = service
+      .from('orders')
+      .select('*, customers(full_name, type, email)')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
 
-  if (searchParams.status) query = query.eq('status', searchParams.status)
-  if (searchParams.payment) query = query.eq('payment_status', searchParams.payment)
+    if (searchParams.status) query = query.eq('status', searchParams.status)
+    if (searchParams.payment) query = query.eq('payment_status', searchParams.payment)
 
-  const { data: orders } = await query
+    const { data } = await query
+    orders = data ?? []
+  } catch (e: any) {
+    serviceError = e.message ?? 'Error cargando pedidos'
+  }
 
   const statusOptions = [
     { value: '', label: 'Todos' },
@@ -50,12 +57,24 @@ export default async function PedidosPage({
     { value: 'cancelled', label: 'Cancelado' },
   ]
 
+  if (serviceError) {
+    return (
+      <div className="p-8">
+        <h1 className="text-xl font-semibold text-zinc-900 mb-2">Pedidos</h1>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          <strong>Error de configuración:</strong> {serviceError}
+          <p className="mt-1 text-red-600">Agregá <code className="bg-red-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> en Vercel → Settings → Environment Variables y redesplegá.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Pedidos</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{orders?.length ?? 0} pedidos encontrados</p>
+          <p className="text-sm text-zinc-500 mt-0.5">{orders.length} pedidos encontrados</p>
         </div>
         <button className="btn-secondary">
           <Download size={15} />

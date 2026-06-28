@@ -44,18 +44,23 @@ export default function CategoriasPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
-      if (!userRow) return
-      setTenantId(userRow.tenant_id)
-      const { data } = await supabase
-        .from('categories')
-        .select('id, name, slug, active, sort_order, parent_id')
-        .eq('tenant_id', userRow.tenant_id)
-        .order('sort_order')
-      setAllCats(data ?? [])
-      setLoading(false)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+        const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
+        if (!userRow) { setLoading(false); return }
+        setTenantId(userRow.tenant_id)
+        const { data } = await supabase
+          .from('categories')
+          .select('id, name, slug, active, sort_order, parent_id')
+          .eq('tenant_id', userRow.tenant_id)
+          .order('sort_order')
+        setAllCats(data ?? [])
+      } catch (e) {
+        console.error('[Categorias] Error al cargar:', e)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
