@@ -24,15 +24,19 @@ export default async function PedidosPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userRow } = await supabase.from('users').select('tenant_id').eq('id', user.id).single()
-  const tenantId = userRow?.tenant_id
-  if (!tenantId) return <div className="p-8 text-zinc-400 text-sm">No se encontró el tenant.</div>
-
-  // Datos con service role para bypassear RLS en customers
+  // Todo lo demas con service client para bypassear RLS
+  let tenantId: string | null = null
   let orders: any[] = []
   let serviceError: string | null = null
   try {
     const service = createServiceClient()
+
+    const { data: userRow, error: userError } = await service
+      .from('users').select('tenant_id').eq('id', user.id).single()
+    if (userError) throw new Error('Error leyendo usuario: ' + userError.message + ' (' + userError.code + ')')
+    tenantId = userRow?.tenant_id ?? null
+    if (!tenantId) throw new Error('El usuario ' + user.email + ' no tiene tenant_id asignado')
+
     let query = service
       .from('orders')
       .select('*, customers(full_name, type, email)')
