@@ -135,7 +135,17 @@ export default function EditarProductoPage() {
       const dbVariants: any[] = product.variants ?? []
       const sizes = [...new Set(dbVariants.map((v: any) => v.size ?? '').filter(Boolean))]
       const colors = [...new Set(dbVariants.map((v: any) => v.color ?? '').filter(Boolean))]
-      if (sizes.length === 0) sizes.push('')
+
+      // Fallback to Mi Tienda configured sizes when the product has no sizes yet
+      if (sizes.length === 0) {
+        const allAttrsForSizes: AttrConfig[] = configData?.variant_attributes ?? []
+        const sizeAttr = allAttrsForSizes.find((a: AttrConfig) => SIZE_KEYS.includes(a.key))
+        if (sizeAttr?.options?.length) {
+          sizes.push(...sizeAttr.options)
+        } else {
+          sizes.push('')
+        }
+      }
       if (colors.length === 0) colors.push('')
 
       const cells: Record<string, CellData> = {}
