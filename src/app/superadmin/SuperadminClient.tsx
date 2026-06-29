@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -45,51 +45,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  // Guardar tokens del superadmin para restaurarlos después de impersonar
-  const myTokensRef = useRef<{ access_token: string; refresh_token: string } | null>(null)
-
-  useEffect(() => {
-    const supabase = createClient()
-
-    // Guardar nuestra sesión actual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        myTokensRef.current = {
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        }
-      }
-    })
-
-    // Escuchar cuando una pestaña de impersonación termina
-    let bc: BroadcastChannel | null = null
-    try {
-      bc = new BroadcastChannel('creart_session_restore')
-      bc.onmessage = async (e) => {
-        if (e.data?.type === 'impersonation_done' && myTokensRef.current) {
-          // Pequeño delay para que la pestaña nueva termine de navegar con sus cookies
-          setTimeout(async () => {
-            await fetch('/api/auth/set-session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(myTokensRef.current),
-            })
-            // Actualizar tokens (pueden haber expirado)
-            const supabase2 = createClient()
-            const { data: { session } } = await supabase2.auth.getSession()
-            if (session) {
-              myTokensRef.current = {
-                access_token: session.access_token,
-                refresh_token: session.refresh_token,
-              }
-            }
-          }, 800)
-        }
-      }
-    } catch {}
-
-    return () => { try { bc?.close() } catch {} }
-  }, [])
+  // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
   async function handleRename(tenant: TenantRow) {
     if (!editName.trim() || editName.trim() === tenant.name) {
@@ -112,6 +68,17 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   async function handleImpersonate(tenant: TenantRow) {
     if (!tenant.ownerEmail) return
     setImpersonatingId(tenant.id)
+
+    // Guardar tokens del superadmin ANTES de navegar (en la misma tab)
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      sessionStorage.setItem('superadmin_tokens', JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }))
+    }
+
     const res = await fetch('/api/superadmin/impersonate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -120,8 +87,10 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     const data = await res.json()
     setImpersonatingId(null)
     if (data.url) {
-      window.open(data.url, '_blank')
+      // Navegar en la MISMA tab — sin BroadcastChannel, sin race condition
+      window.location.href = data.url
     } else {
+      sessionStorage.removeItem('superadmin_tokens')
       alert('Error: ' + (data.error ?? 'No se pudo generar el link'))
     }
   }
@@ -296,8 +265,8 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
       </div>
 
       <p className="mt-4 text-xs text-zinc-600">
-        "Acceder" abre el Panel Admin en una nueva tab logueado como el owner del tenant.
-        Para mantener tu sesion activa en paralelo, usa una ventana de incognito.
+        "Acceder" navega al Panel Admin logueado como el owner del tenant.
+        Usa el botón "Volver al Superadmin" del sidebar para regresar a tu sesión.
       </p>
     </div>
   )

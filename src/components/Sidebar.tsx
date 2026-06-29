@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users
+  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users, ArrowLeft
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -30,10 +31,28 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin }: Sideba
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [hasSuperadminTokens, setHasSuperadminTokens] = useState(false)
+
+  useEffect(() => {
+    setHasSuperadminTokens(!!sessionStorage.getItem('superadmin_tokens'))
+  }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  async function handleReturnToSuperadmin() {
+    const raw = sessionStorage.getItem('superadmin_tokens')
+    if (!raw) { router.push('/superadmin'); return }
+    const tokens = JSON.parse(raw)
+    sessionStorage.removeItem('superadmin_tokens')
+    await fetch('/api/auth/set-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tokens),
+    })
+    window.location.href = '/superadmin'
   }
 
   return (
@@ -62,7 +81,16 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin }: Sideba
       </nav>
 
       <div className="px-3 py-3 border-t border-zinc-100 space-y-0.5">
-        {isSuperAdmin && (
+        {hasSuperadminTokens && (
+          <button
+            onClick={handleReturnToSuperadmin}
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors font-medium"
+          >
+            <ArrowLeft size={16} />
+            Volver al Superadmin
+          </button>
+        )}
+        {isSuperAdmin && !hasSuperadminTokens && (
           <Link
             href="/superadmin"
             className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors font-medium"

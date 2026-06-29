@@ -21,12 +21,6 @@ export default function AuthConfirmPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token, refresh_token }),
       }).then(() => {
-        // Avisar al superadmin (otras pestañas) que restaure su sesión
-        try {
-          const bc = new BroadcastChannel('creart_session_restore')
-          bc.postMessage({ type: 'impersonation_done' })
-          bc.close()
-        } catch {}
         window.location.href = '/dashboard'
       })
       return
