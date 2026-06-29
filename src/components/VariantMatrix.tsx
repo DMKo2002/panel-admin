@@ -17,21 +17,8 @@ const COLOR_MAP: Record<string, string> = {
   camel: '#C19A6B', tabaco: '#8B6355', chocolate: '#5C3A1E', tiza: '#E8E4DC',
   arena: '#C8B89A', caqui: '#A89870',
 }
-function hexToRgb(hex: string) {
-  const n = parseInt(hex.replace('#', ''), 16)
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
-}
-function findNearestColorName(hex: string): string {
-  const { r, g, b } = hexToRgb(hex)
-  let minDist = Infinity, nearest = 'negro'
-  for (const [name, h] of Object.entries(COLOR_MAP)) {
-    const c = hexToRgb(h)
-    const d = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2)
-    if (d < minDist) { minDist = d; nearest = name }
-  }
-  return nearest
-}
 function colorToHex(name: string): string {
+  if (/^#[0-9A-Fa-f]{3,6}$/.test(name.trim())) return name.trim()
   return COLOR_MAP[name.toLowerCase().trim()] ?? '#CCCCCC'
 }
 
@@ -223,7 +210,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   }
 
   function applyPickerColor(colIdx: number) {
-    renameColor(colIdx, findNearestColorName(pickerHex))
+    renameColor(colIdx, pickerHex)
     setPickerForCol(null)
   }
 
@@ -231,8 +218,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     try {
       // @ts-ignore
       const result = await new window.EyeDropper().open()
-      setPickerHex(result.sRGBHex)
-      renameColor(colIdx, findNearestColorName(result.sRGBHex))
+      renameColor(colIdx, result.sRGBHex)
       setPickerForCol(null)
     } catch { }
   }
@@ -348,8 +334,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                             className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
                           <div>
                             <p className="text-xs text-zinc-500 mb-0.5">Seleccionado</p>
-                            <p className="text-sm font-semibold text-zinc-800 capitalize">{findNearestColorName(pickerHex)}</p>
-                            <p className="text-xs text-zinc-400 font-mono">{pickerHex}</p>
+                            <p className="text-sm font-semibold text-zinc-800 font-mono">{pickerHex}</p>
                           </div>
                         </div>
                         {'EyeDropper' in window && (
@@ -368,7 +353,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                         </div>
                         <button type="button" onClick={() => applyPickerColor(ci)}
                           className="w-full btn-primary text-xs py-2 justify-center">
-                          Aplicar — {findNearestColorName(pickerHex)}
+                          Aplicar — {pickerHex}
                         </button>
                       </div>
                     )}
