@@ -44,7 +44,7 @@ export default async function ClientesPage() {
     // Traer clientes del tenant
     const { data: customersData } = await service
       .from('customers')
-      .select('id, full_name, last_name, email, phone, type, company_name, created_at, active')
+      .select('id, full_name, last_name, email, phone, type, company_name, created_at, active, woo_orders_count, woo_total_spent')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     customers = customersData ?? []
@@ -150,12 +150,28 @@ export default async function ClientesPage() {
                     <td className="px-4 py-3"><TypeBadge type={c.type ?? 'retail'} /></td>
                     <td className="px-4 py-3 text-xs text-zinc-500">{c.company_name ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <span className="text-sm font-semibold text-zinc-900">{stats.orderCount}</span>
+                      {stats.orderCount > 0 ? (
+                        <span className="text-sm font-semibold text-zinc-900">{stats.orderCount}</span>
+                      ) : c.woo_orders_count > 0 ? (
+                        <span className="text-sm font-semibold text-zinc-400" title="Historial WooCommerce">
+                          {c.woo_orders_count}
+                          <span className="ml-1 text-[10px] font-normal text-zinc-300">woo</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-zinc-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-sm font-semibold ${stats.totalSpent > 0 ? 'text-emerald-600' : 'text-zinc-400'}`}>
-                        {stats.totalSpent > 0 ? fmt(stats.totalSpent) : '—'}
-                      </span>
+                      {stats.totalSpent > 0 ? (
+                        <span className="text-sm font-semibold text-emerald-600">{fmt(stats.totalSpent)}</span>
+                      ) : c.woo_total_spent > 0 ? (
+                        <span className="text-sm font-semibold text-zinc-400" title="Historial WooCommerce">
+                          {fmt(c.woo_total_spent)}
+                          <span className="ml-1 text-[10px] font-normal text-zinc-300">woo</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-zinc-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {stats.pendingCount > 0 ? (
