@@ -14,7 +14,7 @@ export default async function ProductosPage() {
   const tenantId = userRow?.tenant_id
   if (!tenantId) return null
 
-  const [{ data: rawProducts }, { data: categories }] = await Promise.all([
+  const [{ data: rawProducts }, { data: categories }, { data: storeConfig }] = await Promise.all([
     supabase
       .from('products')
       .select('id, name, sku, active, category_id, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty))')
@@ -26,6 +26,11 @@ export default async function ProductosPage() {
       .eq('tenant_id', tenantId)
       .eq('active', true)
       .order('sort_order'),
+    supabase
+      .from('store_config')
+      .select('ignore_stock')
+      .eq('tenant_id', tenantId)
+      .single(),
   ])
 
   // Build category slug lookup
@@ -70,7 +75,7 @@ export default async function ProductosPage() {
         </Link>
       </div>
 
-      <ProductosGrid products={products} categories={categories ?? []} />
+      <ProductosGrid products={products} categories={categories ?? []} ignoreStock={Boolean((storeConfig as any)?.ignore_stock)} />
     </div>
   )
 }

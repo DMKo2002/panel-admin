@@ -24,6 +24,7 @@ interface ProductItem {
 interface ProductosGridProps {
   products: ProductItem[]
   categories: { id: string; name: string; slug: string }[]
+  ignoreStock?: boolean
 }
 
 const formatPrice = (n: number) =>
@@ -40,7 +41,7 @@ async function deleteProduct(supabase: ReturnType<typeof createClient>, id: stri
   await supabase.from('products').delete().eq('id', id)
 }
 
-export default function ProductosGrid({ products, categories }: ProductosGridProps) {
+export default function ProductosGrid({ products, categories, ignoreStock = false }: ProductosGridProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -350,7 +351,9 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
                           )}
                         </div>
                         <div className="mt-3">
-                          {product.totalStock === 0
+                          {ignoreStock
+                            ? <Badge variant="green">Disponible</Badge>
+                            : product.totalStock === 0
                             ? <Badge variant="red">Sin stock</Badge>
                             : product.totalStock <= 3
                             ? <Badge variant="amber">Stock bajo: {product.totalStock}</Badge>
@@ -437,7 +440,9 @@ export default function ProductosGrid({ products, categories }: ProductosGridPro
                           }
                         </td>
                         <td className="px-4 py-2">
-                          {product.totalStock === 0
+                          {ignoreStock
+                            ? <Badge variant="green">Disponible</Badge>
+                            : product.totalStock === 0
                             ? <Badge variant="red">Sin stock</Badge>
                             : product.totalStock <= 3
                             ? <Badge variant="amber">{product.totalStock}</Badge>
