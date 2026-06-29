@@ -68,6 +68,7 @@ interface Props {
 }
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
+const DEFAULT_COLORS = ['nuevo']
 
 // Key separator — chosen to be unlikely in real size/color names
 export const SEP = '\x00'
@@ -78,7 +79,7 @@ const emptyCell = (): CellData => ({ stock: 0, retailPrice: 0, retailCompareAt: 
 const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   mode,
   initialSizes = DEFAULT_SIZES,
-  initialColors = [''],
+  initialColors = DEFAULT_COLORS,
   initialCells = {},
 }, ref) => {
   const [sizes, setSizes] = useState<string[]>(initialSizes)
@@ -171,7 +172,13 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
   // ── Color (column) management ──────────────────────────────────────────────
   function addColor() {
-    const newColor = ''
+    // Generate a unique placeholder so it never collides with an existing color name
+    const base = 'nuevo'
+    const existing = new Set(colors)
+    let candidate = base
+    let n = 2
+    while (existing.has(candidate)) { candidate = `${base}-${n++}` }
+    const newColor = candidate
     setColors(prev => [...prev, newColor])
     setCells(prev => {
       const next = { ...prev }
@@ -193,12 +200,13 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   function renameColor(idx: number, newName: string) {
     const oldName = colors[idx]
     setColors(prev => prev.map((c, i) => i === idx ? newName : c))
+    if (oldName === newName) return
     setCells(prev => {
       const next = { ...prev }
       for (const s of sizes) {
         const old = cellKey(s, oldName)
         const nk = cellKey(s, newName)
-        if (next[old]) { next[nk] = next[old]; delete next[old] }
+        if (old in next) { next[nk] = next[old]; delete next[old] }
       }
       return next
     })
