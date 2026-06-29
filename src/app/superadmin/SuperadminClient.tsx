@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export type TenantRow = {
@@ -44,6 +44,9 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [savingId, setSavingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
@@ -99,6 +102,25 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     await navigator.clipboard.writeText(text)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 1500)
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeletingId(deleteTarget.id)
+    const res = await fetch('/api/superadmin/delete-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId: deleteTarget.id }),
+    })
+    if (res.ok) {
+      setTenants(prev => prev.filter(t => t.id !== deleteTarget.id))
+    } else {
+      const data = await res.json()
+      alert('Error: ' + (data.error ?? 'No se pudo borrar'))
+    }
+    setDeletingId(null)
+    setDeleteTarget(null)
+    setDeleteConfirmText('')
   }
 
   return (
@@ -250,6 +272,15 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                         {impersonatingId === tenant.id ? 'Generando...' : 'Acceder'}
                       </button>
                     )}
+
+                    {/* Borrar tenant */}
+                    <button
+                      onClick={() => { setDeleteTarget(tenant); setDeleteConfirmText('') }}
+                      title="Borrar tienda"
+                      className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-950 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -268,6 +299,58 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
         "Acceder" navega al Panel Admin logueado como el owner del tenant.
         Usa el botón "Volver al Superadmin" del sidebar para regresar a tu sesión.
       </p>
+
+      {/* Modal confirmación borrar */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-950 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-zinc-100 font-semibold text-base">Borrar tienda</h2>
+                <p className="text-zinc-400 text-sm">Esta acción es irreversible</p>
+              </div>
+            </div>
+
+            <p className="text-zinc-300 text-sm mb-2">
+              Se van a eliminar permanentemente todos los datos de{' '}
+              <span className="font-semibold text-white">{deleteTarget.name}</span>:
+              productos, pedidos, clientes, imágenes y configuración.
+            </p>
+
+            <p className="text-zinc-400 text-xs mb-4">
+              Para confirmar, escribí el slug de la tienda:{' '}
+              <span className="font-mono text-red-400">{deleteTarget.slug}</span>
+            </p>
+
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder={deleteTarget.slug}
+              className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-red-500 mb-4"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteConfirmText('') }}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:border-zinc-500 text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteConfirmText !== deleteTarget.slug || !!deletingId}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deletingId ? 'Borrando...' : 'Borrar para siempre'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
