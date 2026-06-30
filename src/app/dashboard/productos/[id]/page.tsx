@@ -53,6 +53,18 @@ export default function EditarProductoPage() {
   const id = params.id as string
   const supabase = createClient()
   const matrixRef = useRef<VariantMatrixHandle>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  // Prevent browser from navigating when files are dropped outside the upload zone
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault()
+    window.addEventListener('dragover', prevent)
+    window.addEventListener('drop', prevent)
+    return () => {
+      window.removeEventListener('dragover', prevent)
+      window.removeEventListener('drop', prevent)
+    }
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -180,6 +192,17 @@ export default function EditarProductoPage() {
     setNewImageFiles(prev => [...prev, ...resized])
     setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
     e.target.value = ''
+  }
+
+  async function handleImageDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    if (files.length === 0) return
+    const resized = await Promise.all(files.map(resizeImageTo600x900))
+    setNewImageFiles(prev => [...prev, ...resized])
+    setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
   }
 
   function removeNewImage(idx: number) {
@@ -445,10 +468,16 @@ export default function EditarProductoPage() {
               ))}
             </div>
           )}
-          <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-violet-300 hover:bg-violet-50 transition-colors">
-            <Upload size={20} className="text-zinc-400 mb-1" />
-            <span className="text-sm text-zinc-500">Agregar más imágenes</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a 600×900</span>
+          <label
+            className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${dragOver ? 'border-violet-400 bg-violet-50' : 'border-zinc-200 hover:border-violet-300 hover:bg-violet-50'}`}
+            onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+            onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+            onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
+            onDrop={handleImageDrop}
+          >
+            <Upload size={20} className={`mb-1 ${dragOver ? 'text-violet-400' : 'text-zinc-400'}`} />
+            <span className="text-sm text-zinc-500">{dragOver ? 'Soltar imágenes aquí' : 'Agregar más imágenes'}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a 600×900</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
         </div>
