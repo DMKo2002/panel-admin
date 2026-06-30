@@ -103,6 +103,14 @@ export default function EditarProductoPage() {
         return (a.sort_order ?? 0) - (b.sort_order ?? 0)
       }))
 
+      // Build matrix from existing variants
+      const dbVariants: any[] = product.variants ?? []
+      const sizes = [...new Set(dbVariants.map((v: any) => v.size ?? '').filter(Boolean))]
+      const colors = [...new Set(dbVariants.map((v: any) => v.color ?? '').filter(Boolean))]
+      if (colors.length === 0) colors.push('')
+
+      let storeAttrs: AttrConfig[] = []
+
       if (user) {
         const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
   const userRow = _userRows?.[0]
@@ -114,9 +122,8 @@ export default function EditarProductoPage() {
           ])
           setCategories(cats ?? [])
 
-          // Extra attrs (non-size, non-color)
-          const allAttrs: AttrConfig[] = configData?.variant_attributes ?? []
-          const extra = allAttrs.filter(a => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
+          storeAttrs = configData?.variant_attributes ?? []
+          const extra = storeAttrs.filter((a: AttrConfig) => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
           setExtraAttrs(extra)
 
           // Load existing extra attr values from the first variant's attributes JSONB
@@ -131,22 +138,15 @@ export default function EditarProductoPage() {
         }
       }
 
-      // Build matrix from existing variants
-      const dbVariants: any[] = product.variants ?? []
-      const sizes = [...new Set(dbVariants.map((v: any) => v.size ?? '').filter(Boolean))]
-      const colors = [...new Set(dbVariants.map((v: any) => v.color ?? '').filter(Boolean))]
-
       // Fallback to Mi Tienda configured sizes when the product has no sizes yet
       if (sizes.length === 0) {
-        const allAttrsForSizes: AttrConfig[] = configData?.variant_attributes ?? []
-        const sizeAttr = allAttrsForSizes.find((a: AttrConfig) => SIZE_KEYS.includes(a.key))
+        const sizeAttr = storeAttrs.find((a: AttrConfig) => SIZE_KEYS.includes(a.key))
         if (sizeAttr?.options?.length) {
           sizes.push(...sizeAttr.options)
         } else {
           sizes.push('')
         }
       }
-      if (colors.length === 0) colors.push('')
 
       const cells: Record<string, CellData> = {}
       for (const v of dbVariants) {
