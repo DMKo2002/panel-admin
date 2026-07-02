@@ -227,6 +227,12 @@ export default function PersonalizacionPage() {
   const [savingHero, setSavingHero] = useState(false)
   const [savedHero, setSavedHero] = useState(false)
 
+  // ── Color de texto sobre imágenes (Menú y Colecciones)
+  const [navTextColor, setNavTextColor] = useState('#FFFFFF')
+  const [collectionTextColor, setCollectionTextColor] = useState('') // '' = automático
+  const [savingColors, setSavingColors] = useState(false)
+  const [savedColors, setSavedColors] = useState(false)
+
   const [savingName, setSavingName] = useState(false)
   const [savedName, setSavedName] = useState(false)
   const [savingFooter, setSavingFooter] = useState(false)
@@ -277,6 +283,8 @@ export default function PersonalizacionPage() {
           const rawLine3 = (cfg as any).hero_title_line3 ?? ''
           setHeroItalic(rawLine3 ? `${rawItalic} ${rawLine3}`.trim() : rawItalic)
           setHeroSeason((cfg as any).hero_season ?? 'AW')
+          setNavTextColor((cfg as any).nav_text_color ?? '#FFFFFF')
+          setCollectionTextColor((cfg as any).collection_text_color ?? '')
         }
 
         const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
@@ -340,6 +348,16 @@ export default function PersonalizacionPage() {
       hero_text_color:   heroTextColor  || null,
     }).eq('id', configId)
     setSavingHero(false); setSavedHero(true); setTimeout(() => setSavedHero(false), 2000)
+  }
+
+  async function handleSaveColors() {
+    if (!configId) return
+    setSavingColors(true)
+    await supabase.from('store_config').update({
+      nav_text_color:        navTextColor        || null,
+      collection_text_color: collectionTextColor || null,
+    }).eq('id', configId)
+    setSavingColors(false); setSavedColors(true); setTimeout(() => setSavedColors(false), 2000)
   }
 
   async function handleSaveName() {
@@ -496,6 +514,91 @@ export default function PersonalizacionPage() {
                 <p className="text-xs text-zinc-400">Usá blanco para fotos oscuras, negro para fotos claras</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Color de texto sobre imágenes ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Color de texto sobre imágenes
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Menú y banners de Colecciones</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Elegí blanco o negro según el contraste de cada imagen de fondo</p>
+            </div>
+            <button onClick={handleSaveColors} disabled={savingColors} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedColors ? '✓ Guardado' : savingColors ? 'Guardando...' : 'Guardar colores'}
+            </button>
+          </div>
+
+          {/* Menú */}
+          <div className="pt-1">
+            <label className="block text-xs text-zinc-500 mb-2">Texto del menú (siempre sobre el hero)</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={navTextColor}
+                onChange={e => setNavTextColor(e.target.value)}
+                className="w-10 h-10 rounded cursor-pointer border border-zinc-200 p-0.5 bg-white"
+              />
+              <input
+                className="input text-sm font-mono w-32"
+                value={navTextColor}
+                onChange={e => setNavTextColor(e.target.value)}
+                placeholder="#FFFFFF"
+              />
+              <div className="flex gap-2">
+                {['#FFFFFF', '#1A1A1A'].map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setNavTextColor(c)}
+                    className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                    style={{ backgroundColor: c, borderColor: navTextColor === c ? '#7C3AED' : '#E5E7EB' }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Colecciones */}
+          <div className="pt-3 border-t border-zinc-100">
+            <label className="block text-xs text-zinc-500 mb-2">Texto de los banners de Colecciones</label>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCollectionTextColor('')}
+                className={`text-xs px-3 py-2 rounded-lg border ${collectionTextColor === '' ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-zinc-200 text-zinc-500'}`}
+              >
+                Automático
+              </button>
+              <input
+                type="color"
+                value={collectionTextColor || '#FFFFFF'}
+                onChange={e => setCollectionTextColor(e.target.value)}
+                className="w-10 h-10 rounded cursor-pointer border border-zinc-200 p-0.5 bg-white"
+              />
+              <input
+                className="input text-sm font-mono w-32"
+                value={collectionTextColor}
+                onChange={e => setCollectionTextColor(e.target.value)}
+                placeholder="Automático"
+              />
+              <div className="flex gap-2">
+                {['#FFFFFF', '#1A1A1A'].map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setCollectionTextColor(c)}
+                    className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                    style={{ backgroundColor: c, borderColor: collectionTextColor === c ? '#7C3AED' : '#E5E7EB' }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-zinc-400 mt-2">"Automático" usa blanco cuando el banner tiene imagen y negro cuando no</p>
           </div>
         </div>
       </section>
