@@ -245,6 +245,11 @@ export default function PersonalizacionPage() {
   const [savingBlog, setSavingBlog] = useState(false)
   const [savedBlog, setSavedBlog] = useState(false)
 
+  // ── Newsletter
+  const [newsletterBgColor, setNewsletterBgColor] = useState('#1A1A1A')
+  const [savingNewsletter, setSavingNewsletter] = useState(false)
+  const [savedNewsletter, setSavedNewsletter] = useState(false)
+
   const [savingName, setSavingName] = useState(false)
   const [savedName, setSavedName] = useState(false)
   const [savingFooter, setSavingFooter] = useState(false)
@@ -304,6 +309,7 @@ export default function PersonalizacionPage() {
           if (Array.isArray(rawBlogPosts) && rawBlogPosts.length === 3) {
             setBlogPosts(rawBlogPosts.map((p: any) => ({ title: p?.title ?? '', excerpt: p?.excerpt ?? '' })))
           }
+          setNewsletterBgColor((cfg as any).newsletter_bg_color ?? '#1A1A1A')
         }
 
         const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
@@ -389,6 +395,15 @@ export default function PersonalizacionPage() {
       blog_posts:      blogPosts,
     }).eq('id', configId)
     setSavingBlog(false); setSavedBlog(true); setTimeout(() => setSavedBlog(false), 2000)
+  }
+
+  async function handleSaveNewsletter() {
+    if (!configId) return
+    setSavingNewsletter(true)
+    await supabase.from('store_config').update({
+      newsletter_bg_color: newsletterBgColor || null,
+    }).eq('id', configId)
+    setSavingNewsletter(false); setSavedNewsletter(true); setTimeout(() => setSavedNewsletter(false), 2000)
   }
 
   async function handleSaveName() {
@@ -695,6 +710,50 @@ export default function PersonalizacionPage() {
             ))}
           </div>
           <p className="text-xs text-zinc-400">La fecha se genera sola con el día de hoy. Las fotos se cargan arriba, en Imágenes → Blog</p>
+        </div>
+      </section>
+
+      {/* ── Newsletter ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Newsletter
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Color de fondo del bloque "Recibí las últimas novedades"</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Es el bloque oscuro casi al final de la home, antes del footer</p>
+            </div>
+            <button onClick={handleSaveNewsletter} disabled={savingNewsletter} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedNewsletter ? '✓ Guardado' : savingNewsletter ? 'Guardando...' : 'Guardar color'}
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={newsletterBgColor}
+              onChange={e => setNewsletterBgColor(e.target.value)}
+              className="w-10 h-10 rounded cursor-pointer border border-zinc-200 p-0.5 bg-white"
+            />
+            <input
+              className="input text-sm font-mono w-32"
+              value={newsletterBgColor}
+              onChange={e => setNewsletterBgColor(e.target.value)}
+              placeholder="#1A1A1A"
+            />
+            <div className="flex gap-2">
+              {['#1A1A1A', '#7C3AED', '#0F3D2E', '#8B7355', '#1A2E3D'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setNewsletterBgColor(c)}
+                  className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                  style={{ backgroundColor: c, borderColor: newsletterBgColor === c ? '#7C3AED' : '#E5E7EB' }}
+                  title={c}
+                />
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-zinc-400">El texto de ese bloque es siempre blanco, así que conviene elegir un color oscuro</p>
         </div>
       </section>
 
