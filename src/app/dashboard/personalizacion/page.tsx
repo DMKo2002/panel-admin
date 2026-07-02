@@ -234,6 +234,17 @@ export default function PersonalizacionPage() {
   const [savingColors, setSavingColors] = useState(false)
   const [savedColors, setSavedColors] = useState(false)
 
+  // ── Blog
+  const [blogHeading, setBlogHeading] = useState('Fashion news & tips')
+  const [blogSubheading, setBlogSubheading] = useState('Todo sobre moda, tendencias y cuidado de prendas')
+  const [blogPosts, setBlogPosts] = useState([
+    { title: 'Tendencias de temporada', excerpt: 'Descubrí las piezas clave que definen la moda de esta temporada y cómo combinarlas para crear looks únicos.' },
+    { title: 'Guía de talles y ajuste', excerpt: 'Todo lo que necesitás saber para elegir el talle perfecto y conseguir el ajuste ideal en cada prenda.' },
+    { title: 'Cuidado de prendas', excerpt: 'Consejos esenciales para mantener tus prendas favoritas en perfecto estado temporada tras temporada.' },
+  ])
+  const [savingBlog, setSavingBlog] = useState(false)
+  const [savedBlog, setSavedBlog] = useState(false)
+
   const [savingName, setSavingName] = useState(false)
   const [savedName, setSavedName] = useState(false)
   const [savingFooter, setSavingFooter] = useState(false)
@@ -287,6 +298,12 @@ export default function PersonalizacionPage() {
           setHeroSubtitle((cfg as any).hero_subtitle ?? 'Piezas únicas diseñadas para\nquienes buscan estilo y distinción.')
           setNavTextColor((cfg as any).nav_text_color ?? '#FFFFFF')
           setCollectionTextColor((cfg as any).collection_text_color ?? '')
+          setBlogHeading((cfg as any).blog_heading ?? 'Fashion news & tips')
+          setBlogSubheading((cfg as any).blog_subheading ?? 'Todo sobre moda, tendencias y cuidado de prendas')
+          const rawBlogPosts = (cfg as any).blog_posts
+          if (Array.isArray(rawBlogPosts) && rawBlogPosts.length === 3) {
+            setBlogPosts(rawBlogPosts.map((p: any) => ({ title: p?.title ?? '', excerpt: p?.excerpt ?? '' })))
+          }
         }
 
         const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
@@ -361,6 +378,17 @@ export default function PersonalizacionPage() {
       collection_text_color: collectionTextColor || null,
     }).eq('id', configId)
     setSavingColors(false); setSavedColors(true); setTimeout(() => setSavedColors(false), 2000)
+  }
+
+  async function handleSaveBlog() {
+    if (!configId) return
+    setSavingBlog(true)
+    await supabase.from('store_config').update({
+      blog_heading:    blogHeading    || null,
+      blog_subheading: blogSubheading || null,
+      blog_posts:      blogPosts,
+    }).eq('id', configId)
+    setSavingBlog(false); setSavedBlog(true); setTimeout(() => setSavedBlog(false), 2000)
   }
 
   async function handleSaveName() {
@@ -613,6 +641,60 @@ export default function PersonalizacionPage() {
             </div>
             <p className="text-xs text-zinc-400 mt-2">"Automático" usa blanco cuando el banner tiene imagen y negro cuando no</p>
           </div>
+        </div>
+      </section>
+
+      {/* ── Blog ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Blog
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Sección "Fashion news &amp; tips"</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Título, bajada y las 3 notas que aparecen casi al pie de la home</p>
+            </div>
+            <button onClick={handleSaveBlog} disabled={savingBlog} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedBlog ? '✓ Guardado' : savingBlog ? 'Guardando...' : 'Guardar blog'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Título de la sección</label>
+              <input className="input text-sm" value={blogHeading} onChange={e => setBlogHeading(e.target.value)} placeholder="Fashion news & tips" />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Bajada</label>
+              <input className="input text-sm" value={blogSubheading} onChange={e => setBlogSubheading(e.target.value)} placeholder="Todo sobre moda, tendencias y cuidado de prendas" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-zinc-100">
+            {blogPosts.map((post, i) => (
+              <div key={i} className="space-y-2">
+                <p className="text-xs font-medium text-zinc-600">Nota {i + 1}</p>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Título</label>
+                  <input
+                    className="input text-sm"
+                    value={post.title}
+                    onChange={e => setBlogPosts(prev => prev.map((p, idx) => idx === i ? { ...p, title: e.target.value } : p))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Texto</label>
+                  <textarea
+                    className="input text-sm min-h-[80px] resize-y"
+                    value={post.excerpt}
+                    onChange={e => setBlogPosts(prev => prev.map((p, idx) => idx === i ? { ...p, excerpt: e.target.value } : p))}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-zinc-400">La fecha se genera sola con el día de hoy. Las fotos se cargan arriba, en Imágenes → Blog</p>
         </div>
       </section>
 
