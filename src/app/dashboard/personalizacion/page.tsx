@@ -223,7 +223,6 @@ export default function PersonalizacionPage() {
   const [heroEyebrow, setHeroEyebrow] = useState('Nueva temporada')
   const [heroLine1, setHeroLine1] = useState('Estilo que')
   const [heroItalic, setHeroItalic] = useState('trasciende')
-  const [heroLine3, setHeroLine3] = useState('tendencia')
   const [heroSeason, setHeroSeason] = useState('AW')
   const [savingHero, setSavingHero] = useState(false)
   const [savedHero, setSavedHero] = useState(false)
@@ -271,8 +270,12 @@ export default function PersonalizacionPage() {
           setHeroTextColor((cfg as any).hero_text_color ?? '#FFFFFF')
           setHeroEyebrow((cfg as any).hero_eyebrow ?? 'Nueva temporada')
           setHeroLine1((cfg as any).hero_title_line1 ?? 'Estilo que')
-          setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
-          setHeroLine3((cfg as any).hero_title_line3 ?? 'tendencia')
+          // Migración: la línea 2 (itálica) ahora es el renglón 2 completo.
+          // Si el tenant ya tenía texto en "línea 3" (formato viejo de 3 renglones),
+          // lo fusionamos acá una sola vez.
+          const rawItalic = (cfg as any).hero_title_italic ?? 'trasciende'
+          const rawLine3 = (cfg as any).hero_title_line3 ?? ''
+          setHeroItalic(rawLine3 ? `${rawItalic} ${rawLine3}`.trim() : rawItalic)
           setHeroSeason((cfg as any).hero_season ?? 'AW')
         }
 
@@ -332,7 +335,7 @@ export default function PersonalizacionPage() {
       hero_eyebrow:      heroEyebrow    || null,
       hero_title_line1:  heroLine1      || null,
       hero_title_italic: heroItalic     || null,
-      hero_title_line3:  heroLine3      || null,
+      hero_title_line3:  null, // deprecado: ahora la línea 2 (itálica) contiene el renglón completo
       hero_season:       heroSeason     || null,
       hero_text_color:   heroTextColor  || null,
     }).eq('id', configId)
@@ -455,17 +458,14 @@ export default function PersonalizacionPage() {
               <label className="block text-xs text-zinc-500 mb-1">Texto pequeño (sobre el título)</label>
               <input className="input text-sm" value={heroEyebrow} onChange={e => setHeroEyebrow(e.target.value)} placeholder="Nueva temporada" />
             </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 1</label>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 1 <span className="text-zinc-400">(regular)</span></label>
               <input className="input text-sm" value={heroLine1} onChange={e => setHeroLine1(e.target.value)} placeholder="Estilo que" />
             </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 2 <span className="italic">(itálica)</span></label>
-              <input className="input text-sm italic" value={heroItalic} onChange={e => setHeroItalic(e.target.value)} placeholder="trasciende" />
-            </div>
             <div className="col-span-2">
-              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 3</label>
-              <input className="input text-sm" value={heroLine3} onChange={e => setHeroLine3(e.target.value)} placeholder="tendencia" />
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 2 <span className="italic">(itálica)</span></label>
+              <input className="input text-sm italic" value={heroItalic} onChange={e => setHeroItalic(e.target.value)} placeholder="trasciende la tendencia" />
+              <p className="text-xs text-zinc-400 mt-1">Frase completa del segundo renglón — se muestra en itálica</p>
             </div>
             <div className="col-span-2 pt-2 border-t border-zinc-100">
               <label className="block text-xs text-zinc-500 mb-2">Color del texto</label>
