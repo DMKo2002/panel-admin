@@ -234,6 +234,15 @@ export default function PersonalizacionPage() {
   const [savingColors, setSavingColors] = useState(false)
   const [savedColors, setSavedColors] = useState(false)
 
+  // ── Colecciones (título + bajada de cada banner)
+  const [collectionPosts, setCollectionPosts] = useState([
+    { title: '', subtitle: '' },
+    { title: '', subtitle: '' },
+    { title: '', subtitle: '' },
+  ])
+  const [savingCollectionPosts, setSavingCollectionPosts] = useState(false)
+  const [savedCollectionPosts, setSavedCollectionPosts] = useState(false)
+
   // ── Blog
   const [blogHeading, setBlogHeading] = useState('Fashion news & tips')
   const [blogSubheading, setBlogSubheading] = useState('Todo sobre moda, tendencias y cuidado de prendas')
@@ -303,6 +312,10 @@ export default function PersonalizacionPage() {
           setHeroSubtitle((cfg as any).hero_subtitle ?? 'Piezas únicas diseñadas para\nquienes buscan estilo y distinción.')
           setNavTextColor((cfg as any).nav_text_color ?? '#FFFFFF')
           setCollectionTextColor((cfg as any).collection_text_color ?? '')
+          const rawCollectionPosts = (cfg as any).collection_posts
+          if (Array.isArray(rawCollectionPosts) && rawCollectionPosts.length === 3) {
+            setCollectionPosts(rawCollectionPosts.map((p: any) => ({ title: p?.title ?? '', subtitle: p?.subtitle ?? '' })))
+          }
           setBlogHeading((cfg as any).blog_heading ?? 'Fashion news & tips')
           setBlogSubheading((cfg as any).blog_subheading ?? 'Todo sobre moda, tendencias y cuidado de prendas')
           const rawBlogPosts = (cfg as any).blog_posts
@@ -384,6 +397,15 @@ export default function PersonalizacionPage() {
       collection_text_color: collectionTextColor || null,
     }).eq('id', configId)
     setSavingColors(false); setSavedColors(true); setTimeout(() => setSavedColors(false), 2000)
+  }
+
+  async function handleSaveCollectionPosts() {
+    if (!configId) return
+    setSavingCollectionPosts(true)
+    await supabase.from('store_config').update({
+      collection_posts: collectionPosts,
+    }).eq('id', configId)
+    setSavingCollectionPosts(false); setSavedCollectionPosts(true); setTimeout(() => setSavedCollectionPosts(false), 2000)
   }
 
   async function handleSaveBlog() {
@@ -655,6 +677,49 @@ export default function PersonalizacionPage() {
               </div>
             </div>
             <p className="text-xs text-zinc-400 mt-2">"Automático" usa blanco cuando el banner tiene imagen y negro cuando no</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Colecciones ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Colecciones
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Título y bajada de cada banner</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Si dejás un título vacío, se usa el nombre de la categoría automáticamente</p>
+            </div>
+            <button onClick={handleSaveCollectionPosts} disabled={savingCollectionPosts} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedCollectionPosts ? '✓ Guardado' : savingCollectionPosts ? 'Guardando...' : 'Guardar colecciones'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {collectionPosts.map((post, i) => (
+              <div key={i} className="space-y-2">
+                <p className="text-xs font-medium text-zinc-600">Banner {i + 1}</p>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Título</label>
+                  <input
+                    className="input text-sm"
+                    value={post.title}
+                    onChange={e => setCollectionPosts(prev => prev.map((p, idx) => idx === i ? { ...p, title: e.target.value } : p))}
+                    placeholder={['Nueva Colección', 'Accesorios', 'Ropa'][i]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Bajada</label>
+                  <input
+                    className="input text-sm"
+                    value={post.subtitle}
+                    onChange={e => setCollectionPosts(prev => prev.map((p, idx) => idx === i ? { ...p, subtitle: e.target.value } : p))}
+                    placeholder="Piezas seleccionadas para esta temporada."
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
