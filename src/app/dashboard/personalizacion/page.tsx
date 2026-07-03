@@ -246,7 +246,7 @@ export default function PersonalizacionPage() {
   const [savedBlog, setSavedBlog] = useState(false)
 
   // ── Newsletter
-  const [newsletterBgColor, setNewsletterBgColor] = useState('#1A1A1A')
+  const [newsletterBgColor, setNewsletterBgColor] = useState('#DBD1BA')
   const [savingNewsletter, setSavingNewsletter] = useState(false)
   const [savedNewsletter, setSavedNewsletter] = useState(false)
 
@@ -309,7 +309,7 @@ export default function PersonalizacionPage() {
           if (Array.isArray(rawBlogPosts) && rawBlogPosts.length === 3) {
             setBlogPosts(rawBlogPosts.map((p: any) => ({ title: p?.title ?? '', excerpt: p?.excerpt ?? '' })))
           }
-          setNewsletterBgColor((cfg as any).newsletter_bg_color ?? '#1A1A1A')
+          setNewsletterBgColor((cfg as any).newsletter_bg_color ?? '#DBD1BA')
         }
 
         const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
@@ -722,7 +722,7 @@ export default function PersonalizacionPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-zinc-700">Color de fondo del bloque "Recibí las últimas novedades"</h3>
-              <p className="text-xs text-zinc-400 mt-0.5">Es el bloque oscuro casi al final de la home, antes del footer</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Es el bloque casi al final de la home, antes del footer</p>
             </div>
             <button onClick={handleSaveNewsletter} disabled={savingNewsletter} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedNewsletter ? '✓ Guardado' : savingNewsletter ? 'Guardando...' : 'Guardar color'}
@@ -739,10 +739,10 @@ export default function PersonalizacionPage() {
               className="input text-sm font-mono w-32"
               value={newsletterBgColor}
               onChange={e => setNewsletterBgColor(e.target.value)}
-              placeholder="#1A1A1A"
+              placeholder="#DBD1BA"
             />
             <div className="flex gap-2">
-              {['#1A1A1A', '#7C3AED', '#0F3D2E', '#8B7355', '#1A2E3D'].map(c => (
+              {['#DBD1BA', '#F0EFEC', '#E8E0D8', '#D8E0E8', '#1A1A1A'].map(c => (
                 <button
                   key={c}
                   onClick={() => setNewsletterBgColor(c)}
@@ -753,7 +753,7 @@ export default function PersonalizacionPage() {
               ))}
             </div>
           </div>
-          <p className="text-xs text-zinc-400">El texto de ese bloque es siempre blanco, así que conviene elegir un color oscuro</p>
+          <p className="text-xs text-zinc-400">El texto de ese bloque es siempre oscuro, así que conviene elegir un color claro</p>
         </div>
       </section>
 
