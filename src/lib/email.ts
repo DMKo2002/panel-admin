@@ -10,7 +10,7 @@ export async function sendEmail({
 }) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) { console.warn('[email] RESEND_API_KEY no configurada'); return { ok: false } }
-  const sender = from ?? process.env.EMAIL_FROM ?? 'onboarding@resend.dev'
+  const sender = from ?? process.env.EMAIL_FROM ?? 'noreply@base153.com'
   try {
     const res = await fetch(RESEND_API_URL, {
       method: 'POST',

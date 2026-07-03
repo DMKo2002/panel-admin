@@ -126,7 +126,8 @@ export default async function PedidosPage({
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Fecha</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Recibo</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Acciones</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Pago</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Notificar</th>
               </tr>
             </thead>
             <tbody>
@@ -181,7 +182,7 @@ export default async function PedidosPage({
                 </tr>
               ))}
               {(!orders || orders.length === 0) && (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
+                <tr><td colSpan={11} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
               )}
             </tbody>
           </table>
