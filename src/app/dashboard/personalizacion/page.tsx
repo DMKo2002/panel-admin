@@ -7,6 +7,7 @@ import { ImageIcon, Upload, X, Loader2, Plus, Trash2, Check } from 'lucide-react
 // ─── Slots de imágenes por template ──────────────────────────────────────────
 const MINIMALISTA_SLOTS = [
   { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
+  { key: 'logo_favicon', label: 'Favicon',            hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'  },
   { key: 'hero_main',    label: 'Hero principal',     hint: '1400 × 850 px',                 aspect: '16/9' },
   { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
   { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
@@ -19,6 +20,7 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
   minimalista: MINIMALISTA_SLOTS,
   atelier: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
+    { key: 'logo_favicon', label: 'Favicon',              hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'   },
     { key: 'hero_main',    label: 'Hero principal',      hint: '1400 × 850 px recomendado',     aspect: '16/10' },
     { key: 'hero_thumb_1', label: 'Thumbnail Hero 1',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
     { key: 'hero_thumb_2', label: 'Thumbnail Hero 2',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
@@ -34,6 +36,7 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
 
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
+    { key: 'logo_favicon', label: 'Favicon',              hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'   },
     { key: 'hero_main',    label: 'Hero principal',      hint: '1400 × 850 px recomendado',     aspect: '16/10' },
     { key: 'hero_thumb_1', label: 'Thumbnail Hero 1',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
     { key: 'hero_thumb_2', label: 'Thumbnail Hero 2',    hint: '320 × 420 px recomendado',      aspect: '3/4'   },
@@ -47,8 +50,9 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
 }
 
 const SYNC_TO_STORE_CONFIG: Record<string, string> = {
-  logo:      'logo_url',
-  hero_main: 'hero_image_url',
+  logo:         'logo_url',
+  logo_favicon: 'favicon_url',
+  hero_main:    'hero_image_url',
 }
 
 const groupLabels: Record<string, string> = {
