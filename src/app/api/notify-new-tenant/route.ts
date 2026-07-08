@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'CreArt Panel <onboarding@resend.dev>',
+      from: 'gounuri Panel <onboarding@resend.dev>',
       to:   [ADMIN_EMAIL],
       subject: `🆕 Nuevo tenant registrado: ${tenantName}`,
       html: `

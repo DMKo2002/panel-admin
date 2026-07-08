@@ -187,7 +187,7 @@ export default function OnboardingPage() {
             <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
               <Store size={16} className="text-white" />
             </div>
-            <span className="font-semibold text-zinc-900">CreArt</span>
+            <span className="font-semibold text-zinc-900">gounuri</span>
           </div>
           <div className="flex items-center gap-6">
             <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400">

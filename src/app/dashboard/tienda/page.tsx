@@ -567,7 +567,7 @@ export default function TiendaPage() {
             </div>
 
             <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-500 space-y-0.5">
-              <p>📨 Los mails salen desde <strong>noreply@creart.com</strong> pero con tu nombre de remitente.</p>
+              <p>📨 Los mails salen desde <strong>noreply@gounuri.com</strong> pero con tu nombre de remitente.</p>
               <p>💬 Si querés un dominio propio (ej: @connors.com), contactá a soporte para verificarlo.</p>
             </div>
           </div>

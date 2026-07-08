@@ -72,7 +72,7 @@ export async function POST(req: Request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'CreArt Panel <onboarding@resend.dev>',
+          from: 'gounuri Panel <onboarding@resend.dev>',
           to: [adminEmail],
           subject: `🆕 Nuevo tenant: ${name.trim()}`,
           html: `
@@ -92,10 +92,10 @@ export async function POST(req: Request) {
 
   // Email de bienvenida al tenant (no bloqueante)
   if (user.email) {
-    const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.creart.com'
+    const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
     sendEmail({
       to: user.email,
-      subject: `¡Tu tienda ${name.trim()} está lista! — CreArt`,
+      subject: `¡Tu tienda ${name.trim()} está lista! — gounuri`,
       html: emailBienvenidaTenant({ tenantName: name.trim(), email: user.email, panelUrl }),
     }).catch(() => {})
   }

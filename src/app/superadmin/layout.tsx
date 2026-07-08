@@ -17,7 +17,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
           <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-xs font-bold">
             SA
           </div>
-          <span className="text-sm font-semibold text-zinc-100">CreArt Superadmin</span>
+          <span className="text-sm font-semibold text-zinc-100">gounuri Superadmin</span>
         </div>
         <a
           href="/dashboard"

@@ -35,7 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   inactive: 'bg-zinc-800 text-zinc-400',
 }
 
-const PANEL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.creart.com'
+const PANEL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
 
 export default function SuperadminClient({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [tenants, setTenants] = useState(initialTenants)

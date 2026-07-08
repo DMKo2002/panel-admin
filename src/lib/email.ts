@@ -10,7 +10,7 @@ export async function sendEmail({
 }) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) { console.warn('[email] RESEND_API_KEY no configurada'); return { ok: false } }
-  const sender = from ?? process.env.EMAIL_FROM ?? 'noreply@base153.com'
+  const sender = from ?? process.env.EMAIL_FROM ?? 'noreply@gounuri.com'
   try {
     const res = await fetch(RESEND_API_URL, {
       method: 'POST',
@@ -54,7 +54,7 @@ export function emailBienvenidaTenant({
   <!-- Body -->
   <tr><td style="padding:36px 40px 28px;">
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      Hola, tu tienda <strong>${tenantName}</strong> fue creada exitosamente en la plataforma CreArt.
+      Hola, tu tienda <strong>${tenantName}</strong> fue creada exitosamente en la plataforma gounuri.
     </p>
     <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.6;">
       Ya podés ingresar al panel de administración para configurar tus productos, medios de pago, envíos y personalización.
@@ -77,7 +77,7 @@ export function emailBienvenidaTenant({
   <!-- Footer -->
   <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
     <p style="margin:0;font-size:12px;color:#9ca3af;">
-      Enviado por <strong>CreArt</strong> · <a href="${panelUrl}" style="color:#7c3aed;text-decoration:none;">creart.com</a>
+      Enviado por <strong>gounuri</strong> · <a href="${panelUrl}" style="color:#7c3aed;text-decoration:none;">gounuri.com</a>
     </p>
   </td></tr>
 
