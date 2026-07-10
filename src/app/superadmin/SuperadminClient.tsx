@@ -47,6 +47,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [savingTemplateId, setSavingTemplateId] = useState<string | null>(null)
 
   // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
