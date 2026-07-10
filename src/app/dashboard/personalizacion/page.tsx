@@ -31,7 +31,20 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'blog_2',       label: 'Blog — Foto 2',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
     { key: 'blog_3',       label: 'Blog — Foto 3',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
   ],
-  mono:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
+  mono: [
+    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — se muestra en el panel izquierdo del hero, máx. 200 × 180 px', aspect: 'logo' },
+    { key: 'logo_favicon', label: 'Favicon',           hint: 'PNG cuadrado — 512 × 512 px', aspect: '1/1' },
+    { key: 'hero_main',    label: 'Hero principal',    hint: '1300 × 975 px — columna a la derecha del hero', aspect: '1300/975' },
+    // Mosaico de 4 fotos (Frame 2 del diseño): 1 grande a la izquierda + 1 ancha y 2 chicas apiladas a la derecha
+    { key: 'gallery_1',    label: 'Mosaico — Foto grande (izq.)', hint: '864 × 1117 px — ocupa toda la altura de la sección', aspect: '864/1117' },
+    { key: 'gallery_2',    label: 'Mosaico — Foto ancha (arriba der.)', hint: '864 × 559 px', aspect: '864/559' },
+    { key: 'gallery_3',    label: 'Mosaico — Foto chica 1 (abajo der.)', hint: '432 × 559 px', aspect: '432/559' },
+    { key: 'gallery_4',    label: 'Mosaico — Foto chica 2 (abajo der.)', hint: '432 × 559 px', aspect: '432/559' },
+    { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado', aspect: '1/1' },
+    { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado', aspect: '1/1' },
+    { key: 'moodboard_3',  label: 'MoodBoard — Foto 3', hint: '600 × 600 px cuadrado', aspect: '1/1' },
+    { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado', aspect: '1/1' },
+  ],
   axis:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
 
   mykonoslove: [
@@ -62,6 +75,7 @@ const groupLabels: Record<string, string> = {
   blog:       'Blog',
   banner:     'Banners',
   moodboard:  'MoodBoard',
+  gallery:    'Mosaico de fotos',
 }
 
 // Textos predeterminados legales
