@@ -24,17 +24,21 @@ export default function TiendaPage() {
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [mpToken, setMpToken] = useState('')
   const [savingMp, setSavingMp] = useState(false)
   const [savedMp, setSavedMp] = useState(false)
+  const [errorMp, setErrorMp] = useState<string | null>(null)
   const [attributes, setAttributes] = useState<VariantAttribute[]>([])
   const [savingAttrs, setSavingAttrs] = useState(false)
   const [savedAttrs, setSavedAttrs] = useState(false)
+  const [errorAttrs, setErrorAttrs] = useState<string | null>(null)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
   const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean}[]>([])
   const [panelTheme, setPanelTheme] = useState<'default' | 'dark'>('default')
   const [savingPdf, setSavingPdf] = useState(false)
   const [savedPdf, setSavedPdf] = useState(false)
+  const [errorPdf, setErrorPdf] = useState<string | null>(null)
   const [emailFromName, setEmailFromName] = useState('')
   const [notificationEmail, setNotificationEmail] = useState('')
   const [replyTo, setReplyTo] = useState('')
@@ -42,6 +46,7 @@ export default function TiendaPage() {
   const [emailIntroPedidoEnviado, setEmailIntroPedidoEnviado] = useState('')
   const [savingEmail, setSavingEmail] = useState(false)
   const [savedEmail, setSavedEmail] = useState(false)
+  const [errorEmail, setErrorEmail] = useState<string | null>(null)
   const [whatsapp, setWhatsapp] = useState('')
   const [instagramUrl, setInstagramUrl] = useState('')
   const [facebookUrl, setFacebookUrl] = useState('')
@@ -50,6 +55,7 @@ export default function TiendaPage() {
   const [pickupAddress, setPickupAddress] = useState('')
   const [savingContact, setSavingContact] = useState(false)
   const [savedContact, setSavedContact] = useState(false)
+  const [errorContact, setErrorContact] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -99,7 +105,8 @@ export default function TiendaPage() {
   async function handleSave() {
     if (!config) return
     setSaving(true)
-    await supabase.from('store_config').update({
+    setErrorGeneral(null)
+    const { error } = await supabase.from('store_config').update({
       panel_theme:      panelTheme,
       mp_enabled:       config.mp_enabled,
       transfer_enabled: config.transfer_enabled,
@@ -111,6 +118,11 @@ export default function TiendaPage() {
       ignore_stock:     (config as any).ignore_stock ?? false,
     }).eq('id', config.id)
     setSaving(false)
+    if (error) {
+      console.error('Error guardando configuracion general:', error)
+      setErrorGeneral(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -118,34 +130,56 @@ export default function TiendaPage() {
   async function handleSaveMpToken() {
     if (!config) return
     setSavingMp(true)
-    await supabase.from('store_config').update({ mp_access_token: mpToken.trim() || null }).eq('id', config.id)
-    setSavingMp(false); setSavedMp(true); setTimeout(() => setSavedMp(false), 2000)
+    setErrorMp(null)
+    const { error } = await supabase.from('store_config').update({ mp_access_token: mpToken.trim() || null }).eq('id', config.id)
+    setSavingMp(false)
+    if (error) {
+      console.error('Error guardando token MP:', error)
+      setErrorMp(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
+    setSavedMp(true); setTimeout(() => setSavedMp(false), 2000)
   }
 
   async function handleSaveAttributes() {
     if (!config) return
     setSavingAttrs(true)
-    await supabase.from('store_config').update({ variant_attributes: attributes }).eq('id', config.id)
-    setSavingAttrs(false); setSavedAttrs(true); setTimeout(() => setSavedAttrs(false), 2000)
+    setErrorAttrs(null)
+    const { error } = await supabase.from('store_config').update({ variant_attributes: attributes }).eq('id', config.id)
+    setSavingAttrs(false)
+    if (error) {
+      console.error('Error guardando atributos:', error)
+      setErrorAttrs(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
+    setSavedAttrs(true); setTimeout(() => setSavedAttrs(false), 2000)
   }
 
   async function handleSaveEmail() {
     if (!config) return
     setSavingEmail(true)
-    await supabase.from('store_config').update({
+    setErrorEmail(null)
+    const { error } = await supabase.from('store_config').update({
       email_from_name:    emailFromName.trim()    || null,
       notification_email: notificationEmail.trim() || null,
       reply_to:           replyTo.trim()           || null,
       email_intro_pedido_recibido: emailIntroPedidoRecibido.trim() || null,
       email_intro_pedido_enviado:  emailIntroPedidoEnviado.trim()  || null,
     }).eq('id', config.id)
-    setSavingEmail(false); setSavedEmail(true); setTimeout(() => setSavedEmail(false), 2000)
+    setSavingEmail(false)
+    if (error) {
+      console.error('Error guardando configuracion de emails:', error)
+      setErrorEmail(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
+    setSavedEmail(true); setTimeout(() => setSavedEmail(false), 2000)
   }
 
   async function handleSaveContact() {
     if (!config) return
     setSavingContact(true)
-    await supabase.from('store_config').update({
+    setErrorContact(null)
+    const { error } = await supabase.from('store_config').update({
       whatsapp_number: whatsapp.trim()    || null,
       instagram_url:   instagramUrl.trim() || null,
       facebook_url:    facebookUrl.trim()  || null,
@@ -153,19 +187,32 @@ export default function TiendaPage() {
       store_address:   storeAddress.trim()  || null,
       pickup_address:  pickupAddress.trim() || null,
     }).eq('id', config.id)
-    setSavingContact(false); setSavedContact(true); setTimeout(() => setSavedContact(false), 2000)
+    setSavingContact(false)
+    if (error) {
+      console.error('Error guardando datos de contacto:', error)
+      setErrorContact(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
+    setSavedContact(true); setTimeout(() => setSavedContact(false), 2000)
   }
 
   async function handleSavePdf() {
     if (!config) return
     setSavingPdf(true)
-    await supabase.from('store_config').update({
+    setErrorPdf(null)
+    const { error } = await supabase.from('store_config').update({
       pdf_show_variant:   (config as any).pdf_show_variant   ?? true,
       pdf_show_pricetype: (config as any).pdf_show_pricetype ?? true,
       pdf_show_address:   (config as any).pdf_show_address   ?? true,
       pdf_show_notes:     (config as any).pdf_show_notes     ?? true,
     }).eq('id', config.id)
-    setSavingPdf(false); setSavedPdf(true); setTimeout(() => setSavedPdf(false), 2000)
+    setSavingPdf(false)
+    if (error) {
+      console.error('Error guardando configuracion de PDF:', error)
+      setErrorPdf(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
+    setSavedPdf(true); setTimeout(() => setSavedPdf(false), 2000)
   }
 
   function addAttribute() {
@@ -205,6 +252,7 @@ export default function TiendaPage() {
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
         </button>
+            {errorGeneral && <p className="text-xs text-red-600 mt-1.5">{errorGeneral}</p>}
       </div>
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
@@ -298,6 +346,7 @@ export default function TiendaPage() {
             <button onClick={handleSaveAttributes} disabled={savingAttrs} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedAttrs ? '✓ Guardado' : savingAttrs ? 'Guardando...' : 'Guardar atributos'}
             </button>
+            {errorAttrs && <p className="text-xs text-red-600 mt-1.5">{errorAttrs}</p>}
           </div>
           <div className="space-y-3">
             {attributes.map((attr, i) => (
@@ -353,6 +402,7 @@ export default function TiendaPage() {
             <button onClick={handleSaveContact} disabled={savingContact} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedContact ? '✓ Guardado' : savingContact ? 'Guardando...' : 'Guardar'}
             </button>
+            {errorContact && <p className="text-xs text-red-600 mt-1.5">{errorContact}</p>}
           </div>
           <div className="space-y-3">
             <div>
@@ -406,6 +456,7 @@ export default function TiendaPage() {
               <button onClick={handleSaveMpToken} disabled={savingMp} className="btn-secondary text-sm disabled:opacity-60">
                 {savedMp ? '✓ Token guardado' : savingMp ? 'Guardando...' : 'Guardar token MP'}
               </button>
+            {errorMp && <p className="text-xs text-red-600 mt-1.5">{errorMp}</p>}
             </div>
           )}
         </div>
@@ -468,6 +519,7 @@ export default function TiendaPage() {
             <button onClick={handleSavePdf} disabled={savingPdf} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedPdf ? '✓ Guardado' : savingPdf ? 'Guardando...' : 'Guardar PDF'}
             </button>
+            {errorPdf && <p className="text-xs text-red-600 mt-1.5">{errorPdf}</p>}
           </div>
           <div className="space-y-1">
             <ToggleRow label="Mostrar variante" desc="Talle, color u otros atributos en la tabla del comprobante" checked={Boolean((config as any)?.pdf_show_variant ?? true)} onChange={v => update('pdf_show_variant' as any, v)} />
@@ -489,6 +541,7 @@ export default function TiendaPage() {
             <button onClick={handleSaveEmail} disabled={savingEmail} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedEmail ? '✓ Guardado' : savingEmail ? 'Guardando...' : 'Guardar emails'}
             </button>
+            {errorEmail && <p className="text-xs text-red-600 mt-1.5">{errorEmail}</p>}
           </div>
 
           <div className="space-y-4">
