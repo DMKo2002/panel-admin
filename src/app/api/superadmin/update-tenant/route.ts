@@ -10,9 +10,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const { tenantId, name } = await req.json()
-  if (!tenantId || !name?.trim()) {
+  const { tenantId, name, template } = await req.json()
+  if (!tenantId || (!name?.trim() && !template)) {
     return NextResponse.json({ error: 'Datos requeridos' }, { status: 400 })
+  }
+
+  const validTemplates = ['default', 'mono', 'atelier', 'axis']
+  if (template && !validTemplates.includes(template)) {
+    return NextResponse.json({ error: 'Template inválido' }, { status: 400 })
   }
 
   const serviceClient = createClient(
@@ -20,9 +25,13 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const patch: Record<string, string> = {}
+  if (name?.trim()) patch.name = name.trim()
+  if (template) patch.template = template
+
   const { error } = await serviceClient
     .from('tenants')
-    .update({ name: name.trim() })
+    .update(patch)
     .eq('id', tenantId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
