@@ -245,12 +245,14 @@ export default function PersonalizacionPage() {
   const [heroSeason, setHeroSeason] = useState('AW')
   const [savingHero, setSavingHero] = useState(false)
   const [savedHero, setSavedHero] = useState(false)
+  const [errorHero, setErrorHero] = useState<string | null>(null)
 
   // ── Color de texto sobre imágenes (Menú y Colecciones)
   const [navTextColor, setNavTextColor] = useState('#FFFFFF')
   const [collectionTextColor, setCollectionTextColor] = useState('') // '' = automático
   const [savingColors, setSavingColors] = useState(false)
   const [savedColors, setSavedColors] = useState(false)
+  const [errorColors, setErrorColors] = useState<string | null>(null)
 
   // ── Colecciones (título + bajada de cada banner)
   const [collectionPosts, setCollectionPosts] = useState([
@@ -260,6 +262,7 @@ export default function PersonalizacionPage() {
   ])
   const [savingCollectionPosts, setSavingCollectionPosts] = useState(false)
   const [savedCollectionPosts, setSavedCollectionPosts] = useState(false)
+  const [errorCollectionPosts, setErrorCollectionPosts] = useState<string | null>(null)
 
   // ── Blog
   const [blogHeading, setBlogHeading] = useState('Fashion news & tips')
@@ -271,19 +274,23 @@ export default function PersonalizacionPage() {
   ])
   const [savingBlog, setSavingBlog] = useState(false)
   const [savedBlog, setSavedBlog] = useState(false)
+  const [errorBlog, setErrorBlog] = useState<string | null>(null)
 
   // ── Newsletter
   const [newsletterBgColor, setNewsletterBgColor] = useState('#DBD1BA')
   const [savingNewsletter, setSavingNewsletter] = useState(false)
   const [savedNewsletter, setSavedNewsletter] = useState(false)
+  const [errorNewsletter, setErrorNewsletter] = useState<string | null>(null)
 
   const [savingName, setSavingName] = useState(false)
   const [savedName, setSavedName] = useState(false)
+  const [errorName, setErrorName] = useState<string | null>(null)
   const [savingFooter, setSavingFooter] = useState(false)
   const [savedFooter, setSavedFooter] = useState(false)
   const [footerError, setFooterError] = useState<string | null>(null)
   const [savingLegal, setSavingLegal] = useState(false)
   const [savedLegal, setSavedLegal] = useState(false)
+  const [errorLegal, setErrorLegal] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -378,7 +385,13 @@ export default function PersonalizacionPage() {
     const { error: dbError } = await supabase.from('store_assets').upsert({ tenant_id: tenantId, slot: slotKey, url: freshUrl, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,slot' })
     if (dbError) { setSlotState(slotKey, { uploading: false, error: `Error al guardar: ${dbError.message}` }); return }
     const configField = SYNC_TO_STORE_CONFIG[slotKey]
-    if (configField) await supabase.from('store_config').update({ [configField]: freshUrl }).eq('tenant_id', tenantId)
+    if (configField) {
+      const { error: syncError } = await supabase.from('store_config').update({ [configField]: freshUrl }).eq('tenant_id', tenantId)
+      if (syncError) {
+        setSlotState(slotKey, { uploading: false, error: `La imagen se subió pero no se pudo guardar en la config: ${syncError.message}` })
+        return
+      }
+    }
     setSlotState(slotKey, { url: freshUrl, uploading: false, error: null, saved: true })
     setTimeout(() => setSlotState(slotKey, { saved: false }), 2500)
   }
@@ -386,16 +399,26 @@ export default function PersonalizacionPage() {
   async function handleRemove(slotKey: string) {
     if (!tenantId) return
     setSlotState(slotKey, { uploading: true, error: null })
-    await supabase.from('store_assets').delete().eq('tenant_id', tenantId).eq('slot', slotKey)
+    const { error: delError } = await supabase.from('store_assets').delete().eq('tenant_id', tenantId).eq('slot', slotKey)
+    if (delError) {
+      setSlotState(slotKey, { uploading: false, error: `No se pudo quitar la imagen: ${delError.message}` })
+      return
+    }
     const configField = SYNC_TO_STORE_CONFIG[slotKey]
-    if (configField) await supabase.from('store_config').update({ [configField]: null }).eq('tenant_id', tenantId)
+    if (configField) {
+      const { error: syncError } = await supabase.from('store_config').update({ [configField]: null }).eq('tenant_id', tenantId)
+      if (syncError) {
+        setSlotState(slotKey, { uploading: false, error: `Se quitó la imagen pero no se pudo actualizar la config: ${syncError.message}` })
+        return
+      }
+    }
     setSlotState(slotKey, { url: null, uploading: false, error: null })
   }
 
   async function handleSaveHero() {
     if (!configId) return
-    setSavingHero(true)
-    await supabase.from('store_config').update({
+    setSavingHero(true); setErrorHero(null)
+    const { error } = await supabase.from('store_config').update({
       hero_eyebrow:      heroEyebrow    || null,
       hero_title_line1:  heroLine1      || null,
       hero_title_italic: heroItalic     || null,
@@ -404,53 +427,65 @@ export default function PersonalizacionPage() {
       hero_season:       heroSeason     || null,
       hero_text_color:   heroTextColor  || null,
     }).eq('id', configId)
-    setSavingHero(false); setSavedHero(true); setTimeout(() => setSavedHero(false), 2000)
+    setSavingHero(false)
+    if (error) { setErrorHero('Error al guardar: ' + error.message); return }
+    setSavedHero(true); setTimeout(() => setSavedHero(false), 2000)
   }
 
   async function handleSaveColors() {
     if (!configId) return
-    setSavingColors(true)
-    await supabase.from('store_config').update({
+    setSavingColors(true); setErrorColors(null)
+    const { error } = await supabase.from('store_config').update({
       nav_text_color:        navTextColor        || null,
       collection_text_color: collectionTextColor || null,
     }).eq('id', configId)
-    setSavingColors(false); setSavedColors(true); setTimeout(() => setSavedColors(false), 2000)
+    setSavingColors(false)
+    if (error) { setErrorColors('Error al guardar: ' + error.message); return }
+    setSavedColors(true); setTimeout(() => setSavedColors(false), 2000)
   }
 
   async function handleSaveCollectionPosts() {
     if (!configId) return
-    setSavingCollectionPosts(true)
-    await supabase.from('store_config').update({
+    setSavingCollectionPosts(true); setErrorCollectionPosts(null)
+    const { error } = await supabase.from('store_config').update({
       collection_posts: collectionPosts,
     }).eq('id', configId)
-    setSavingCollectionPosts(false); setSavedCollectionPosts(true); setTimeout(() => setSavedCollectionPosts(false), 2000)
+    setSavingCollectionPosts(false)
+    if (error) { setErrorCollectionPosts('Error al guardar: ' + error.message); return }
+    setSavedCollectionPosts(true); setTimeout(() => setSavedCollectionPosts(false), 2000)
   }
 
   async function handleSaveBlog() {
     if (!configId) return
-    setSavingBlog(true)
-    await supabase.from('store_config').update({
+    setSavingBlog(true); setErrorBlog(null)
+    const { error } = await supabase.from('store_config').update({
       blog_heading:    blogHeading    || null,
       blog_subheading: blogSubheading || null,
       blog_posts:      blogPosts,
     }).eq('id', configId)
-    setSavingBlog(false); setSavedBlog(true); setTimeout(() => setSavedBlog(false), 2000)
+    setSavingBlog(false)
+    if (error) { setErrorBlog('Error al guardar: ' + error.message); return }
+    setSavedBlog(true); setTimeout(() => setSavedBlog(false), 2000)
   }
 
   async function handleSaveNewsletter() {
     if (!configId) return
-    setSavingNewsletter(true)
-    await supabase.from('store_config').update({
+    setSavingNewsletter(true); setErrorNewsletter(null)
+    const { error } = await supabase.from('store_config').update({
       newsletter_bg_color: newsletterBgColor || null,
     }).eq('id', configId)
-    setSavingNewsletter(false); setSavedNewsletter(true); setTimeout(() => setSavedNewsletter(false), 2000)
+    setSavingNewsletter(false)
+    if (error) { setErrorNewsletter('Error al guardar: ' + error.message); return }
+    setSavedNewsletter(true); setTimeout(() => setSavedNewsletter(false), 2000)
   }
 
   async function handleSaveName() {
     if (!tenantId) return
-    setSavingName(true)
-    await supabase.from('tenants').update({ name: storeName.trim() }).eq('id', tenantId)
-    setSavingName(false); setSavedName(true); setTimeout(() => setSavedName(false), 2000)
+    setSavingName(true); setErrorName(null)
+    const { error } = await supabase.from('tenants').update({ name: storeName.trim() }).eq('id', tenantId)
+    setSavingName(false)
+    if (error) { setErrorName('Error al guardar: ' + error.message); return }
+    setSavedName(true); setTimeout(() => setSavedName(false), 2000)
   }
 
   async function handleSaveFooter() {
@@ -473,13 +508,15 @@ export default function PersonalizacionPage() {
 
   async function handleSaveLegal() {
     if (!configId) return
-    setSavingLegal(true)
-    await supabase.from('store_config').update({
+    setSavingLegal(true); setErrorLegal(null)
+    const { error } = await supabase.from('store_config').update({
       terms_and_conditions: terms || null,
       privacy_policy: privacy || null,
       cookies_policy: cookies || null,
     }).eq('id', configId)
-    setSavingLegal(false); setSavedLegal(true); setTimeout(() => setSavedLegal(false), 2000)
+    setSavingLegal(false)
+    if (error) { setErrorLegal('Error al guardar: ' + error.message); return }
+    setSavedLegal(true); setTimeout(() => setSavedLegal(false), 2000)
   }
 
   const slotDefs = TEMPLATE_SLOTS[template] ?? TEMPLATE_SLOTS['default']
@@ -551,6 +588,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveHero} disabled={savingHero} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedHero ? '✓ Guardado' : savingHero ? 'Guardando...' : 'Guardar hero'}
             </button>
+            {errorHero && <p className="text-xs text-red-500 mt-1.5">{errorHero}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -628,6 +666,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveColors} disabled={savingColors} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedColors ? '✓ Guardado' : savingColors ? 'Guardando...' : 'Guardar color'}
             </button>
+            {errorColors && <p className="text-xs text-red-500 mt-1.5">{errorColors}</p>}
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -671,6 +710,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveCollectionPosts} disabled={savingCollectionPosts} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedCollectionPosts ? '✓ Guardado' : savingCollectionPosts ? 'Guardando...' : 'Guardar colecciones'}
             </button>
+            {errorCollectionPosts && <p className="text-xs text-red-500 mt-1.5">{errorCollectionPosts}</p>}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {collectionPosts.map((post, i) => (
@@ -704,6 +744,7 @@ export default function PersonalizacionPage() {
               <button onClick={handleSaveColors} disabled={savingColors} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
                 {savedColors ? '✓ Guardado' : savingColors ? 'Guardando...' : 'Guardar color'}
               </button>
+            {errorColors && <p className="text-xs text-red-500 mt-1.5">{errorColors}</p>}
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -755,6 +796,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveBlog} disabled={savingBlog} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedBlog ? '✓ Guardado' : savingBlog ? 'Guardando...' : 'Guardar blog'}
             </button>
+            {errorBlog && <p className="text-xs text-red-500 mt-1.5">{errorBlog}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -809,6 +851,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveNewsletter} disabled={savingNewsletter} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedNewsletter ? '✓ Guardado' : savingNewsletter ? 'Guardando...' : 'Guardar color'}
             </button>
+            {errorNewsletter && <p className="text-xs text-red-500 mt-1.5">{errorNewsletter}</p>}
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -855,6 +898,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveName} disabled={savingName} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedName ? '✓ Guardado' : savingName ? 'Guardando...' : 'Guardar nombre'}
             </button>
+            {errorName && <p className="text-xs text-red-500 mt-1.5">{errorName}</p>}
           </div>
           <input className="input" value={storeName} onChange={e => setStoreName(e.target.value)} placeholder="Nombre de tu marca..." />
         </div>
@@ -956,6 +1000,7 @@ export default function PersonalizacionPage() {
             <button onClick={handleSaveLegal} disabled={savingLegal} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
               {savedLegal ? '✓ Guardado' : savingLegal ? 'Guardando...' : 'Guardar textos legales'}
             </button>
+            {errorLegal && <p className="text-xs text-red-500 mt-1.5">{errorLegal}</p>}
           </div>
 
           <div className="space-y-4">
