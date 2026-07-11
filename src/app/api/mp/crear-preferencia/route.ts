@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    // Ruta de prueba (usada por dashboard/test-mp) sin ningún chequeo de auth
+    // ni de que el tenant_id pedido sea el del usuario logueado — cualquiera
+    // podía pegarle a este endpoint con el tenant_id de OTRO tenant y generar
+    // un link de pago real usando su cuenta de MercadoPago. Ahora se exige
+    // sesión activa y que el tenant_id pedido coincida con el del usuario.
+    const authClient = await createClient()
+    const { data: { user } } = await authClient.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    }
+
+    const service = createServiceClient()
+    const { data: userRows } = await service.from('users').select('tenant_id').eq('id', user.id).limit(1)
+    const myTenantId = userRows?.[0]?.tenant_id
+    if (!myTenantId || myTenantId !== tenant_id) {
+      return NextResponse.json({ error: 'No autorizado para este tenant' }, { status: 403 })
+    }
+
+    const supabase = service
     const { data: storeConfig } = await supabase
       .from('store_config')
       .select('mp_access_token, mp_enabled')
