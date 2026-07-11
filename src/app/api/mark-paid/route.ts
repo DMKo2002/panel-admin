@@ -37,22 +37,33 @@ export async function POST(req: NextRequest) {
 
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-    const { data: items } = await service
-      .from('order_items')
-      .select('variant_id, quantity')
-      .eq('order_id', order_id)
+    // Si el tenant tiene "modo sin stock" activo, no llevan el inventario en
+    // serio — no tocar los números de stock para no ensuciarlos con ventas
+    // que nunca se reflejaron ahí en primer lugar.
+    const { data: cfg } = await service
+      .from('store_config')
+      .select('ignore_stock')
+      .eq('tenant_id', order.tenant_id)
+      .single()
 
-    if (items && items.length > 0) {
-      for (const item of items) {
-        if (!item.variant_id || !item.quantity) continue
-        const { data: variant } = await service
-          .from('variants')
-          .select('stock')
-          .eq('id', item.variant_id)
-          .single()
-        if (variant != null) {
-          const newStock = Math.max(0, (variant.stock ?? 0) - item.quantity)
-          await service.from('variants').update({ stock: newStock }).eq('id', item.variant_id)
+    if (!(cfg as any)?.ignore_stock) {
+      const { data: items } = await service
+        .from('order_items')
+        .select('variant_id, quantity')
+        .eq('order_id', order_id)
+
+      if (items && items.length > 0) {
+        for (const item of items) {
+          if (!item.variant_id || !item.quantity) continue
+          const { data: variant } = await service
+            .from('variants')
+            .select('stock')
+            .eq('id', item.variant_id)
+            .single()
+          if (variant != null) {
+            const newStock = Math.max(0, (variant.stock ?? 0) - item.quantity)
+            await service.from('variants').update({ stock: newStock }).eq('id', item.variant_id)
+          }
         }
       }
     }

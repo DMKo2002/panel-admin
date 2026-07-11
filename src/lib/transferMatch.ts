@@ -121,23 +121,32 @@ export async function matchIncomingTransfer(
     })
     .eq('id', match.id)
 
-  // Descuento de stock — mismo criterio que /api/mark-paid
-  const { data: items } = await service
-    .from('order_items')
-    .select('variant_id, quantity')
-    .eq('order_id', match.id)
+  // Descuento de stock — mismo criterio que /api/mark-paid. Si el tenant tiene
+  // "modo sin stock" activo, no tocar los números de inventario.
+  const { data: cfg } = await service
+    .from('store_config')
+    .select('ignore_stock')
+    .eq('tenant_id', tenantId)
+    .single()
 
-  if (items) {
-    for (const item of items) {
-      if (!item.variant_id || !item.quantity) continue
-      const { data: variant } = await service
-        .from('variants')
-        .select('stock')
-        .eq('id', item.variant_id)
-        .single()
-      if (variant != null) {
-        const newStock = Math.max(0, (variant.stock ?? 0) - item.quantity)
-        await service.from('variants').update({ stock: newStock }).eq('id', item.variant_id)
+  if (!(cfg as any)?.ignore_stock) {
+    const { data: items } = await service
+      .from('order_items')
+      .select('variant_id, quantity')
+      .eq('order_id', match.id)
+
+    if (items) {
+      for (const item of items) {
+        if (!item.variant_id || !item.quantity) continue
+        const { data: variant } = await service
+          .from('variants')
+          .select('stock')
+          .eq('id', item.variant_id)
+          .single()
+        if (variant != null) {
+          const newStock = Math.max(0, (variant.stock ?? 0) - item.quantity)
+          await service.from('variants').update({ stock: newStock }).eq('id', item.variant_id)
+        }
       }
     }
   }
