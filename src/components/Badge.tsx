@@ -44,10 +44,11 @@ export function OrderStatusBadge({ status }: { status: string }) {
 
 export function PaymentStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: BadgeVariant }> = {
-    pending:  { label: 'Pend. pago',  variant: 'amber' },
-    paid:     { label: 'Pagado',      variant: 'green' },
-    refunded: { label: 'Reembolsado', variant: 'blue' },
-    failed:   { label: 'Fallido',     variant: 'red' },
+    pending:        { label: 'Pend. pago',         variant: 'amber' },
+    paid:           { label: 'Pagado',             variant: 'green' },
+    refund_pending: { label: 'Reembolso pendiente', variant: 'red' },
+    refunded:       { label: 'Reembolsado',        variant: 'blue' },
+    failed:         { label: 'Fallido',            variant: 'red' },
   }
   const cfg = map[status] ?? { label: status, variant: 'zinc' as BadgeVariant }
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>
