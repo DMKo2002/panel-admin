@@ -21,10 +21,13 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Siempre redirigir a la URL de producción — nunca localhost
+  // Siempre redirigir a la URL de producción — nunca localhost.
+  // Fallback apuntaba a un dominio .vercel.app viejo, de antes de configurar
+  // panel.gounuri.com — si NEXT_PUBLIC_APP_URL faltara, el link de impersonar
+  // mandaba al dueño de la tienda a una URL que ya no es la real.
   const panelUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith('http://localhost')
-    ? 'https://panel-admin-tawny.vercel.app'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel-admin-tawny.vercel.app')
+    ? 'https://panel.gounuri.com'
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com')
 
   const { data, error } = await serviceClient.auth.admin.generateLink({
     type: 'magiclink',
