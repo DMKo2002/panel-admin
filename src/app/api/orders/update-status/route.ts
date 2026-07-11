@@ -1,59 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-
-const RESEND_API_URL = 'https://api.resend.com/emails'
-
-async function sendEmail({ to, subject, html, fromName }: { to: string; subject: string; html: string; fromName?: string }): Promise<{ ok: boolean }> {
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) return { ok: false }
-  const sender = fromName ? `${fromName} <${process.env.EMAIL_FROM ?? 'onboarding@resend.dev'}>` : (process.env.EMAIL_FROM ?? 'onboarding@resend.dev')
-  try {
-    const res = await fetch(RESEND_API_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: sender, to, subject, html }),
-    })
-    return { ok: res.ok }
-  } catch {
-    return { ok: false }
-  }
-}
-
-function emailEnviado({ storeName, orderId, customerName, tipo, trackingCode, customIntro }: {
-  storeName: string; orderId: string; customerName: string
-  tipo: 'enviado' | 'listo_retiro'; trackingCode?: string | null; customIntro?: string | null
-}) {
-  const shortId = orderId.slice(0, 8).toUpperCase()
-  const isEnvio = tipo === 'enviado'
-  const titulo = isEnvio ? 'Tu pedido está en camino' : 'Tu pedido está listo para retirar'
-  const icono = isEnvio ? '📦' : '🏪'
-  const defaultIntro = isEnvio
-    ? 'Tu pedido fue despachado y está en camino. Pronto lo recibís en la dirección indicada.'
-    : 'Tu pedido ya está listo para retirar en nuestro local. Pasá cuando quieras.'
-
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f7f4f1;font-family:Georgia,serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4f1;padding:40px 16px;"><tr><td align="center">
-<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;">
-  <tr><td style="background:#1c1c1c;padding:32px;text-align:center;">
-    <p style="margin:0;color:#fff;font-size:20px;letter-spacing:5px;font-weight:300;">${storeName.toUpperCase()}</p>
-  </td></tr>
-  <tr><td style="padding:40px 40px 32px;">
-    <p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#aaa;">${icono} ${isEnvio ? 'Pedido enviado' : 'Listo para retirar'}</p>
-    <h1 style="margin:0 0 6px;font-size:28px;font-weight:300;color:#1c1c1c;">${titulo}</h1>
-    <p style="margin:0 0 28px;font-size:13px;color:#aaa;letter-spacing:1px;">Pedido #${shortId} · ${customerName.split(' ')[0]}</p>
-    <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.7;">${customIntro ?? defaultIntro}</p>
-    ${trackingCode ? `<div style="background:#f7f4f1;padding:14px 18px;margin-bottom:20px;">
-      <p style="margin:0 0 4px;font-size:11px;color:#aaa;letter-spacing:1px;text-transform:uppercase;">Código de seguimiento</p>
-      <p style="margin:0;font-size:16px;font-weight:600;color:#1c1c1c;letter-spacing:2px;">${trackingCode}</p>
-    </div>` : ''}
-  </td></tr>
-  <tr><td style="padding:24px;text-align:center;border-top:1px solid #ede8e3;">
-    <p style="margin:0;font-size:12px;color:#bbb;letter-spacing:1px;">${storeName.toUpperCase()} · GRACIAS POR TU COMPRA</p>
-  </td></tr>
-</table></td></tr></table></body></html>`
-}
+import { sendEmail, emailPedidoEnviado } from '@creart/tienda-core/email'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
@@ -99,7 +47,7 @@ export async function POST(req: NextRequest) {
     const subject = tipo === 'enviado'
       ? `Tu pedido está en camino — ${storeName}`
       : `Tu pedido está listo para retirar — ${storeName}`
-    const html = emailEnviado({
+    const html = emailPedidoEnviado({
       storeName, orderId, customerName, tipo,
       trackingCode: trackingCode ?? null,
       customIntro: cfg?.email_intro_pedido_enviado ?? null,

@@ -1,0 +1,4 @@
+{
+  "installCommand": "rm -rf node_modules/@creart/tienda-core && npm install",
+  "buildCommand": "rm -rf .next/cache && next build"
+}

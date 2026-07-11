@@ -9,6 +9,9 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  // tienda-core se instala como fuente TS/TSX sin build propio — Next.js necesita
+  // transpilarlo como si fuera parte del proyecto (mismo requisito que los templates).
+  transpilePackages: ['@creart/tienda-core'],
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },
