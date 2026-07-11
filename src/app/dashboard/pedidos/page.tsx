@@ -84,7 +84,7 @@ export default async function PedidosPage({
 
   return (
     <div>
-      <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
+      <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Pedidos</h1>
           <p className="text-sm text-zinc-500 mt-0.5">{orders.length} pedidos encontrados</p>

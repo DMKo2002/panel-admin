@@ -319,7 +319,7 @@ export default function EditarProductoPage() {
   return (
     <div>
       {/* Header */}
-      <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
+      <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/productos" className="text-zinc-400 hover:text-zinc-600 transition-colors">
             <ArrowLeft size={20} />
