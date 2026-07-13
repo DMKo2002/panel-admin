@@ -114,6 +114,7 @@ export default function TiendaPage() {
       transfer_alias:   config.transfer_alias,
       min_order_amount: config.min_order_amount ?? null,
       price_visibility: config.price_visibility ?? 'all',
+      registration_visibility: config.registration_visibility ?? 'both',
       custom_shipping:  customShipping,
       ignore_stock:     (config as any).ignore_stock ?? false,
     }).eq('id', config.id)
@@ -333,6 +334,19 @@ export default function TiendaPage() {
             <option value="all">Todos (sin login)</option>
             <option value="logged_in">Solo usuarios registrados</option>
             <option value="wholesale_only">Solo clientes mayoristas</option>
+          </select>
+        </div>
+
+        {/* Registro de cuentas */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Registro de cuentas</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Qué tipo de cuenta puede crearse desde "Crear cuenta" en tu tienda</p>
+          </div>
+          <select className="input max-w-xs" value={config?.registration_visibility ?? 'both'} onChange={e => update('registration_visibility', e.target.value as any)}>
+            <option value="both">Minorista y mayorista</option>
+            <option value="retail_only">Solo minorista</option>
+            <option value="wholesale_only">Solo mayorista</option>
           </select>
         </div>
 

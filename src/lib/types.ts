@@ -71,6 +71,7 @@ export interface StoreConfig {
   tiktok_url: string | null
   branches: Branch[]
   price_visibility: 'all' | 'logged_in' | 'wholesale_only'
+  registration_visibility: 'both' | 'retail_only' | 'wholesale_only'
   custom_shipping: CustomShippingMethod[]
   panel_theme: PanelTheme
   panel_accent_color: string | null

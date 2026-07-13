@@ -1,5 +1,28 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
+// Algunos colores se cargaron eligiendo el color con el selector visual de
+// Panel Admin (VariantMatrix), que guarda el código hex como si fuera el
+// nombre del color (ej: "#1C1C1C" en vez de "Negro"). Acá lo traducimos de
+// vuelta a un nombre legible para la etiqueta — mismo mapa de colores que usa
+// el selector visual de Panel Admin.
+const COLOR_NAME_MAP: Record<string, string> = {
+  '#1C1C1C': 'Negro', '#F5F5F0': 'Blanco', '#F0EBE1': 'Crema', '#D4C5A9': 'Beige',
+  '#FFFFF0': 'Marfil', '#9E9E9E': 'Gris', '#D0D0D0': 'Gris claro', '#555555': 'Gris oscuro',
+  '#C0392B': 'Rojo', '#7B2D42': 'Bordo', '#6B2737': 'Vino', '#E8A0B0': 'Rosa',
+  '#F2C4CE': 'Rosa pálido', '#E8957A': 'Salmón',
+  '#E8714A': 'Coral', '#E8813A': 'Naranja', '#C8A84B': 'Mostaza', '#F0CC4A': 'Amarillo',
+  '#3A7BC8': 'Azul', '#1B3A6B': 'Azul marino', '#7EB8E0': 'Azul claro', '#87CEEB': 'Celeste',
+  '#A8C8CA': 'Celeste pálido', '#B0C4DE': 'Azul pálido', '#7A9BB5': 'Azul acero',
+  '#4A9B6F': 'Verde', '#2D6A4F': 'Verde oscuro', '#7BBFB5': 'Verde agua', '#2E8B6E': 'Esmeralda', '#3AADA8': 'Turquesa',
+  '#B09BC8': 'Lila', '#8E44AD': 'Violeta', '#6C3483': 'Morado', '#C8B8DC': 'Lavanda',
+  '#C19A6B': 'Camel', '#8B6355': 'Tabaco', '#5C3A1E': 'Chocolate', '#E8E4DC': 'Tiza',
+  '#C8B89A': 'Arena', '#A89870': 'Caqui',
+}
+
+function humanizeVariantDesc(desc: string): string {
+  return desc.replace(/#[0-9A-Fa-f]{3,6}\b/g, hex => COLOR_NAME_MAP[hex.toUpperCase()] ?? hex)
+}
+
 // Etiqueta de envío A5 sin precios — 2 por hoja A4 al imprimir
 const styles = StyleSheet.create({
   page: {
@@ -147,7 +170,7 @@ export function EtiquetaEnvioPDF({
               <View key={item.id ?? i} style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{item.product_name}</Text>
-                  {item.variant_desc && <Text style={styles.itemVariant}>{item.variant_desc}</Text>}
+                  {item.variant_desc && <Text style={styles.itemVariant}>{humanizeVariantDesc(item.variant_desc)}</Text>}
                 </View>
                 <Text style={styles.itemQty}>x{item.quantity}</Text>
               </View>
