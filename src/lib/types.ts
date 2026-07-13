@@ -82,6 +82,10 @@ export interface StoreConfig {
 export interface Customer {
   id: string
   tenant_id: string
+  // Vínculo con la identidad global de Supabase Auth (auth.users.id). id (arriba)
+  // es propio de esta fila/tienda — una misma persona puede tener una fila de
+  // customer por tienda, todas con el mismo auth_user_id.
+  auth_user_id: string | null
   email: string
   full_name: string | null
   phone: string | null
