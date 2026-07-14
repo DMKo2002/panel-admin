@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
+import DeleteCustomerButton from '@/components/DeleteCustomerButton'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -135,6 +136,7 @@ export default async function ClientesPage() {
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Pend. pago</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Último pedido</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Registrado</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -188,12 +190,18 @@ export default async function ClientesPage() {
                     <td className="px-4 py-3 text-xs text-zinc-400">
                       {fmtDate(c.created_at)}
                     </td>
+                    <td className="px-4 py-3">
+                      <DeleteCustomerButton
+                        customerId={c.id}
+                        customerName={`${c.full_name}${c.last_name ? ` ${c.last_name}` : ''}`}
+                      />
+                    </td>
                   </tr>
                 )
               })}
               {(!customers || customers.length === 0) && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-zinc-400 text-sm">
+                  <td colSpan={9} className="px-4 py-12 text-center text-zinc-400 text-sm">
                     Todavía no hay clientes registrados en la tienda
                   </td>
                 </tr>
