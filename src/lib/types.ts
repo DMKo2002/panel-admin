@@ -31,6 +31,10 @@ export interface CustomShippingMethod {
   name: string
   price: number
   active: boolean
+  // Si es true, el método no tiene precio fijo — se muestra "A convenir" en
+  // vez del precio y no se suma nada al total del pedido (se coordina aparte
+  // con el cliente). `price` se ignora mientras esto esté en true.
+  priceOnRequest?: boolean
   // Lista de transportes/empresas que el cliente puede elegir al seleccionar
   // este método (ej: "Expreso / Contrareembolso" -> Vía Cargo, Cruz del Sur...).
   // Si está vacía o no existe, el método no muestra selector de transporte.

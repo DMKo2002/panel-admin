@@ -34,7 +34,7 @@ export default function TiendaPage() {
   const [savedAttrs, setSavedAttrs] = useState(false)
   const [errorAttrs, setErrorAttrs] = useState<string | null>(null)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
-  const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean;carriers?:string[]}[]>([])
+  const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean;priceOnRequest?:boolean;carriers?:string[]}[]>([])
   // Texto crudo del input de transportes por método — separado del array para
   // no perder comas/espacios mientras el usuario está escribiendo (el array
   // final se recalcula en cada cambio, pero lo que se ve es este string).
@@ -541,10 +541,21 @@ export default function TiendaPage() {
               <div key={i} className="border border-zinc-100 rounded-lg p-2.5 space-y-2">
                 <div className="flex items-center gap-2">
                   <input className="input text-sm flex-1" placeholder="Nombre (ej: OCA, Andreani...)" value={method.name} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} />
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                    <input type="number" min={0} className="input text-sm pl-6 w-28" placeholder="Precio" value={method.price || ''} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))} />
-                  </div>
+                  {method.priceOnRequest ? (
+                    <span className="input text-sm w-28 flex items-center justify-center text-zinc-400 italic select-none">A convenir</span>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                      <input type="number" min={0} className="input text-sm pl-6 w-28" placeholder="Precio" value={method.price || ''} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))} />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, priceOnRequest: !m.priceOnRequest } : m))}
+                    title="El cliente no ve un precio fijo — se coordina aparte"
+                    className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.priceOnRequest ? 'border-violet-300 text-violet-700 bg-violet-50' : 'border-zinc-200 text-zinc-400'}`}
+                  >
+                    A convenir
+                  </button>
                   <button onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))} className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}>
                     {method.active ? 'Activo' : 'Inactivo'}
                   </button>
@@ -569,7 +580,7 @@ export default function TiendaPage() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos. Si cargás transportes, el cliente va a poder elegir uno (o "Otro" y escribir el suyo) al seleccionar ese método. Guardá arriba para aplicar.</p>
+          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos, o marcá "A convenir" si no tenés un precio fijo (el cliente lo va a ver así en el checkout y se coordina aparte). Si cargás transportes, el cliente va a poder elegir uno (o "Otro" y escribir el suyo) al seleccionar ese método. Guardá arriba para aplicar.</p>
         </div>
 
         {/* PDF */}

@@ -378,7 +378,7 @@ export function ReciboPDF({
         {/* ── TOTALES ── */}
         <View style={styles.totalesSection}>
           <View style={styles.totalesBox}>
-            {order.shipping_cost > 0 && (
+            {(order.shipping_cost > 0 || order.shipping_address?.price_on_request) && (
               <View style={styles.totalesRow}>
                 <Text style={styles.totalesLabel}>Subtotal</Text>
                 <Text style={styles.totalesValue}>{formatPrice(order.subtotal ?? order.total)}</Text>
@@ -388,6 +388,12 @@ export function ReciboPDF({
               <View style={styles.totalesRow}>
                 <Text style={styles.totalesLabel}>Envío</Text>
                 <Text style={styles.totalesValue}>{formatPrice(order.shipping_cost)}</Text>
+              </View>
+            )}
+            {order.shipping_address?.price_on_request && (
+              <View style={styles.totalesRow}>
+                <Text style={styles.totalesLabel}>Envío</Text>
+                <Text style={styles.totalesValue}>A convenir</Text>
               </View>
             )}
             {order.discount_amount > 0 && (
