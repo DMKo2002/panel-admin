@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import VariantMatrix, { VariantMatrixHandle, CellData, cellKey } from '@/components/VariantMatrix'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
@@ -39,6 +39,16 @@ async function resizeImageTo600x900(file: File): Promise<File> {
     }
     img.onerror = () => resolve(file)
     img.src = url
+  })
+}
+
+// Mismo criterio de orden que usan Panel Admin y todas las tiendas: portada
+// primero, después sort_order ascendente.
+function sortImages<T extends { is_cover: boolean; sort_order: number }>(imgs: T[]): T[] {
+  return [...imgs].sort((a, b) => {
+    if (a.is_cover) return -1
+    if (b.is_cover) return 1
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0)
   })
 }
 
@@ -84,7 +94,7 @@ export default function EditarProductoPage() {
   const [active, setActive] = useState(true)
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
-  const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean }[]>([])
+  const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean; sort_order: number }[]>([])
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
 
@@ -113,11 +123,7 @@ export default function EditarProductoPage() {
       setActive(product.active ?? true)
       setCategoryId(product.category_id ?? null)
       setProductSlug(product.slug ?? '')
-      setImages((product.product_images ?? []).sort((a: any, b: any) => {
-        if (a.is_cover) return -1
-        if (b.is_cover) return 1
-        return (a.sort_order ?? 0) - (b.sort_order ?? 0)
-      }))
+      setImages(sortImages(product.product_images ?? []))
 
       // Build matrix from existing variants
       const dbVariants: any[] = product.variants ?? []
@@ -226,6 +232,22 @@ export default function EditarProductoPage() {
       await supabase.from('product_images').update({ is_cover: id2 === imgId }).eq('id', id2)
     }
     setImages(prev => prev.map(i => ({ ...i, is_cover: i.id === imgId })))
+  }
+
+  // Reordena dos imágenes adyacentes (no-portada) intercambiando su sort_order.
+  // La portada nunca se mueve por acá — su posición la fija el botón ★.
+  async function moveImage(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction
+    const a = images[index]
+    const b = images[targetIndex]
+    if (!a || !b || a.is_cover || b.is_cover) return
+    await supabase.from('product_images').update({ sort_order: b.sort_order }).eq('id', a.id)
+    await supabase.from('product_images').update({ sort_order: a.sort_order }).eq('id', b.id)
+    setImages(prev => sortImages(prev.map(img => {
+      if (img.id === a.id) return { ...img, sort_order: b.sort_order }
+      if (img.id === b.id) return { ...img, sort_order: a.sort_order }
+      return img
+    })))
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -435,11 +457,11 @@ export default function EditarProductoPage() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Click en ★ para cambiar la foto de portada. La portada es la imagen principal del producto.</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Click en ★ para cambiar la foto de portada. Usá las flechas para reordenar — el orden se refleja igual en la tienda.</p>
           </div>
           {images.length > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {images.map(img => (
+              {images.map((img, i) => (
                 <div key={img.id} className="relative group">
                   <img src={img.url} className={`w-20 h-20 object-cover rounded-lg border-2 transition-colors ${img.is_cover ? 'border-violet-500' : 'border-zinc-200'}`} />
                   {img.is_cover && (
@@ -464,6 +486,29 @@ export default function EditarProductoPage() {
                   >
                     <X size={10} />
                   </button>
+                  {/* Reorder (la portada no se mueve por acá) */}
+                  {!img.is_cover && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, -1)}
+                        disabled={i === 0 || images[i - 1]?.is_cover}
+                        title="Mover antes"
+                        className="absolute bottom-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-500 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex disabled:opacity-0 transition-colors shadow-sm"
+                      >
+                        <ChevronLeft size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, 1)}
+                        disabled={i === images.length - 1}
+                        title="Mover después"
+                        className="absolute bottom-1 right-1 w-5 h-5 bg-white/80 rounded-full text-zinc-500 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex disabled:opacity-0 transition-colors shadow-sm"
+                      >
+                        <ChevronRight size={12} />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
