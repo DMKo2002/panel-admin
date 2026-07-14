@@ -3,8 +3,13 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 // Algunos colores se cargaron eligiendo el color con el selector visual de
 // Panel Admin (VariantMatrix), que guarda el código hex como si fuera el
 // nombre del color (ej: "#1C1C1C" en vez de "Negro"). Acá lo traducimos de
-// vuelta a un nombre legible para la etiqueta — mismo mapa de colores que usa
-// el selector visual de Panel Admin.
+// vuelta a un nombre legible para la etiqueta.
+//
+// Primero probamos con el mapa exacto de los colores que carga el selector de
+// Panel Admin (nombres más específicos, ej. "Bordo" en vez de "Rojo oscuro").
+// Si el hex no está en ese mapa (colores cargados a mano, de otro origen, etc.)
+// buscamos el nombre básico más cercano por distancia de color (RGB), así
+// cualquier hex termina mostrando un nombre razonable en vez del código.
 const COLOR_NAME_MAP: Record<string, string> = {
   '#1C1C1C': 'Negro', '#F5F5F0': 'Blanco', '#F0EBE1': 'Crema', '#D4C5A9': 'Beige',
   '#FFFFF0': 'Marfil', '#9E9E9E': 'Gris', '#D0D0D0': 'Gris claro', '#555555': 'Gris oscuro',
@@ -19,8 +24,60 @@ const COLOR_NAME_MAP: Record<string, string> = {
   '#C8B89A': 'Arena', '#A89870': 'Caqui',
 }
 
+// Paleta de referencia para el fallback de "color más cercano" — nombres
+// básicos que cubren todo el espectro, no hace falta que sean exactos.
+const REFERENCE_COLORS: Array<{ name: string; rgb: [number, number, number] }> = [
+  { name: 'Negro', rgb: [10, 10, 10] },
+  { name: 'Blanco', rgb: [250, 250, 250] },
+  { name: 'Gris', rgb: [128, 128, 128] },
+  { name: 'Gris claro', rgb: [195, 195, 195] },
+  { name: 'Gris oscuro', rgb: [70, 70, 70] },
+  { name: 'Rojo', rgb: [200, 30, 30] },
+  { name: 'Bordo', rgb: [110, 40, 55] },
+  { name: 'Rosa', rgb: [232, 160, 176] },
+  { name: 'Salmón', rgb: [232, 145, 125] },
+  { name: 'Naranja', rgb: [232, 129, 58] },
+  { name: 'Amarillo', rgb: [240, 204, 74] },
+  { name: 'Mostaza', rgb: [200, 168, 75] },
+  { name: 'Marrón', rgb: [92, 58, 30] },
+  { name: 'Beige', rgb: [212, 197, 169] },
+  { name: 'Verde', rgb: [74, 155, 111] },
+  { name: 'Verde oscuro', rgb: [45, 106, 79] },
+  { name: 'Verde agua', rgb: [123, 191, 181] },
+  { name: 'Turquesa', rgb: [58, 173, 168] },
+  { name: 'Celeste', rgb: [135, 206, 235] },
+  { name: 'Azul', rgb: [58, 123, 200] },
+  { name: 'Azul marino', rgb: [27, 58, 107] },
+  { name: 'Violeta', rgb: [142, 68, 173] },
+  { name: 'Lila', rgb: [176, 155, 200] },
+  { name: 'Lavanda', rgb: [200, 184, 220] },
+  { name: 'Camel', rgb: [193, 154, 107] },
+  { name: 'Dorado', rgb: [212, 175, 55] },
+  { name: 'Plateado', rgb: [192, 192, 192] },
+]
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  if (full.length !== 6 || /[^0-9a-fA-F]/.test(full)) return null
+  const num = parseInt(full, 16)
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255]
+}
+
+function closestColorName(hex: string): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  let bestName = hex
+  let bestDist = Infinity
+  for (const c of REFERENCE_COLORS) {
+    const d = (rgb[0] - c.rgb[0]) ** 2 + (rgb[1] - c.rgb[1]) ** 2 + (rgb[2] - c.rgb[2]) ** 2
+    if (d < bestDist) { bestDist = d; bestName = c.name }
+  }
+  return bestName
+}
+
 function humanizeVariantDesc(desc: string): string {
-  return desc.replace(/#[0-9A-Fa-f]{3,6}\b/g, hex => COLOR_NAME_MAP[hex.toUpperCase()] ?? hex)
+  return desc.replace(/#[0-9A-Fa-f]{3,6}\b/g, hex => COLOR_NAME_MAP[hex.toUpperCase()] ?? closestColorName(hex))
 }
 
 // Etiqueta de envío A5 sin precios — 2 por hoja A4 al imprimir
@@ -90,8 +147,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-  itemName: { fontSize: 9, color: '#333', flex: 1, marginBottom: 3 },
-  itemVariant: { fontSize: 8, color: '#888', flex: 1, marginTop: 1 },
+  itemName: { fontSize: 9, color: '#333', flex: 1, marginBottom: 5 },
+  itemVariant: { fontSize: 8, color: '#888', flex: 1, marginTop: 3 },
   itemQty: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1C1C1C', textAlign: 'right' },
 
   // Footer
@@ -181,7 +238,7 @@ export function EtiquetaEnvioPDF({
         {/* Footer */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>{storeName}</Text>
-          <Text style={styles.footerText}>{new Date(order.created_at).toLocaleDateString('es-AR')}</Text>
+          <Text style={styles.footerText}>{new Date(order.created_at).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
         </View>
 
       </Page>
