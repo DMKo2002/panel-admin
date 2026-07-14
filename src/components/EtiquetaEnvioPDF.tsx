@@ -216,6 +216,12 @@ export function EtiquetaEnvioPDF({
             {addressLine2.trim() && <Text style={styles.address}>{addressLine2}</Text>}
             {customer?.phone && <Text style={styles.phone}>Tel: {customer.phone}</Text>}
             {customer?.cuit && <Text style={styles.phone}>CUIL/CUIT: {customer.cuit}</Text>}
+            {order.shipping_address?.method_name && (
+              <Text style={[styles.phone, { fontFamily: 'Helvetica-Bold' }]}>
+                Envío: {order.shipping_address.method_name}
+                {order.shipping_address?.carrier ? ` — ${order.shipping_address.carrier}` : ''}
+              </Text>
+            )}
           </View>
         </View>
 

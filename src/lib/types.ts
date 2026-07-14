@@ -31,6 +31,10 @@ export interface CustomShippingMethod {
   name: string
   price: number
   active: boolean
+  // Lista de transportes/empresas que el cliente puede elegir al seleccionar
+  // este método (ej: "Expreso / Contrareembolso" -> Vía Cargo, Cruz del Sur...).
+  // Si está vacía o no existe, el método no muestra selector de transporte.
+  carriers?: string[]
 }
 
 export interface StoreConfig {
@@ -48,6 +52,9 @@ export interface StoreConfig {
   transfer_cbu: string | null
   transfer_alias: string | null
   min_order_amount: number | null
+  // Mínimo global de unidades por variante (talle/color) para poder agregarla
+  // al carrito. Los productos pueden sobreescribirlo con Product.min_qty.
+  min_qty_per_variant: number
   oca_enabled: boolean
   andreani_enabled: boolean
   pickup_enabled: boolean
@@ -119,6 +126,9 @@ export interface Product {
   active: boolean
   created_at: string
   updated_at: string
+  // Mínimo de unidades por variante (talle/color) para este producto puntual.
+  // null/vacío = usa el mínimo global de la tienda (store_config.min_qty_per_variant).
+  min_qty: number | null
   product_images?: ProductImage[]
   variants?: Variant[]
   categories?: Category

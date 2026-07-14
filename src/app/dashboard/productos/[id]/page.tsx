@@ -78,6 +78,9 @@ export default function EditarProductoPage() {
   const [name, setName] = useState('')
   const [sku, setSku] = useState('')
   const [description, setDescription] = useState('')
+  // Mínimo de unidades por variante para ESTE producto. null/'' = usa el
+  // mínimo global configurado en Mi Tienda.
+  const [minQty, setMinQty] = useState<string>('')
   const [active, setActive] = useState(true)
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
@@ -106,6 +109,7 @@ export default function EditarProductoPage() {
       setName(product.name)
       setSku(product.sku ?? '')
       setDescription(product.description ?? '')
+      setMinQty(product.min_qty != null ? String(product.min_qty) : '')
       setActive(product.active ?? true)
       setCategoryId(product.category_id ?? null)
       setProductSlug(product.slug ?? '')
@@ -237,6 +241,7 @@ export default function EditarProductoPage() {
         description: description.trim() || null,
         active,
         category_id: categoryId || null,
+        min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
       }).eq('id', id)
       if (prodErr) throw prodErr
 
@@ -384,6 +389,18 @@ export default function EditarProductoPage() {
               <label className="block text-sm font-medium text-zinc-700 mb-1">SKU / Código</label>
               <input className="input" value={sku} onChange={e => setSku(e.target.value)} placeholder="Ej: CAM-001" />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Mínimo por variante (talle/color)</label>
+            <input
+              className="input max-w-[160px]"
+              type="number"
+              min={1}
+              value={minQty}
+              onChange={e => setMinQty(e.target.value)}
+              placeholder="General"
+            />
+            <p className="text-xs text-zinc-400 mt-1">Dejar vacío para usar el mínimo general de la tienda (configurable en Mi Tienda).</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>

@@ -34,7 +34,11 @@ export default function TiendaPage() {
   const [savedAttrs, setSavedAttrs] = useState(false)
   const [errorAttrs, setErrorAttrs] = useState<string | null>(null)
   const [newOption, setNewOption] = useState<Record<number, string>>({})
-  const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean}[]>([])
+  const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean;carriers?:string[]}[]>([])
+  // Texto crudo del input de transportes por método — separado del array para
+  // no perder comas/espacios mientras el usuario está escribiendo (el array
+  // final se recalcula en cada cambio, pero lo que se ve es este string).
+  const [carriersText, setCarriersText] = useState<Record<number, string>>({})
   const [panelTheme, setPanelTheme] = useState<'default' | 'dark'>('default')
   const [savingPdf, setSavingPdf] = useState(false)
   const [savedPdf, setSavedPdf] = useState(false)
@@ -85,6 +89,10 @@ export default function TiendaPage() {
         { name: 'OCA', price: 0, active: true },
         { name: 'Andreani', price: 0, active: true },
         { name: 'Moto mensajería', price: 0, active: true },
+        {
+          name: 'Expreso / Contrareembolso', price: 0, active: true,
+          carriers: ['Vía Cargo', 'Servillanita', 'Sawer', 'Pacman', 'Demonte', 'Cruz del Sur', 'Bull', 'Losa', 'Alex', 'Mostto'],
+        },
       ])
       const theme = (data as any)?.panel_theme ?? 'default'
       setPanelTheme(theme)
@@ -113,6 +121,7 @@ export default function TiendaPage() {
       transfer_cbu:     config.transfer_cbu,
       transfer_alias:   config.transfer_alias,
       min_order_amount: config.min_order_amount ?? null,
+      min_qty_per_variant: config.min_qty_per_variant ?? 1,
       price_visibility: config.price_visibility ?? 'all',
       registration_visibility: config.registration_visibility ?? 'both',
       custom_shipping:  customShipping,
@@ -324,6 +333,28 @@ export default function TiendaPage() {
           </div>
         </div>
 
+        {/* Mínimo de unidades por variante */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Mínimo de unidades por variante</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Cantidad mínima que hay que agregar de un mismo talle/color para poder sumarlo al carrito (aplica a minoristas y mayoristas). Dejá en 1 para no exigir mínimo.
+              Cada producto puede tener su propio mínimo distinto desde su ficha — esto es el valor por defecto.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 max-w-xs">
+            <span className="text-sm text-zinc-500 flex-shrink-0">Unidades</span>
+            <input
+              className="input flex-1"
+              type="number"
+              min={1}
+              step={1}
+              value={config?.min_qty_per_variant ?? 1}
+              onChange={e => update('min_qty_per_variant', Math.max(1, Number(e.target.value) || 1))}
+            />
+          </div>
+        </div>
+
         {/* Visibilidad de precios */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
@@ -505,22 +536,40 @@ export default function TiendaPage() {
             </button>
           </div>
           {customShipping.length === 0 && <p className="text-xs text-zinc-400 italic">No hay métodos configurados.</p>}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {customShipping.map((method, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input className="input text-sm flex-1" placeholder="Nombre (ej: OCA, Andreani...)" value={method.name} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} />
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                  <input type="number" min={0} className="input text-sm pl-6 w-28" placeholder="Precio" value={method.price || ''} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))} />
+              <div key={i} className="border border-zinc-100 rounded-lg p-2.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input className="input text-sm flex-1" placeholder="Nombre (ej: OCA, Andreani...)" value={method.name} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                    <input type="number" min={0} className="input text-sm pl-6 w-28" placeholder="Precio" value={method.price || ''} onChange={e => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, price: Number(e.target.value) } : m))} />
+                  </div>
+                  <button onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))} className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}>
+                    {method.active ? 'Activo' : 'Inactivo'}
+                  </button>
+                  <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 flex-shrink-0"><Trash2 size={15} /></button>
                 </div>
-                <button onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, active: !m.active } : m))} className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.active ? 'border-green-300 text-green-700 bg-green-50' : 'border-zinc-200 text-zinc-400'}`}>
-                  {method.active ? 'Activo' : 'Inactivo'}
-                </button>
-                <button onClick={() => setCustomShipping(s => s.filter((_, j) => j !== i))} className="text-zinc-300 hover:text-red-400 flex-shrink-0"><Trash2 size={15} /></button>
+                <div>
+                  <label className="block text-[10px] text-zinc-400 mb-1">
+                    Transportes para elegir (opcional, separados por coma — ej: para "Expreso / Contrareembolso")
+                  </label>
+                  <input
+                    className="input text-xs w-full"
+                    placeholder="Vía Cargo, Cruz del Sur, ..."
+                    value={carriersText[i] ?? (method.carriers ?? []).join(', ')}
+                    onChange={e => {
+                      const raw = e.target.value
+                      setCarriersText(t => ({ ...t, [i]: raw }))
+                      const list = raw.split(',').map(c => c.trim()).filter(Boolean)
+                      setCustomShipping(s => s.map((m, j) => j === i ? { ...m, carriers: list } : m))
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos. Guardá arriba para aplicar.</p>
+          <p className="text-xs text-zinc-400">Precio $0 para métodos gratuitos. Si cargás transportes, el cliente va a poder elegir uno (o "Otro" y escribir el suyo) al seleccionar ese método. Guardá arriba para aplicar.</p>
         </div>
 
         {/* PDF */}

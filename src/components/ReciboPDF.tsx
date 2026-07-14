@@ -316,14 +316,23 @@ export function ReciboPDF({
               {order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia bancaria'}
             </Text>
             {order.mp_payment_id && <Text style={[styles.colSmall, { color: '#AAA', marginTop: 3 }]}>ID MP: {order.mp_payment_id}</Text>}
-            {order.shipping_method && (
+            {(order.shipping_method || order.shipping_address?.method_name) && (
               <>
                 <Text style={[styles.colLabel, { marginTop: 10 }]}>Envío</Text>
                 <Text style={styles.colValue}>
-                  {order.shipping_method === 'oca' ? 'OCA'
-                   : order.shipping_method === 'andreani' ? 'Andreani'
-                   : 'Retiro en local'}
+                  {/* method_name: nombre resuelto guardado al crear el pedido — los
+                      métodos de envío son una lista editable por tenant (custom_shipping),
+                      así que el índice "custom_N" en shipping_method no alcanza para
+                      mostrar el nombre. Fallback a oca/andreani solo para pedidos viejos
+                      de antes de este cambio, que no tienen method_name guardado. */}
+                  {order.shipping_address?.method_name
+                    ?? (order.shipping_method === 'oca' ? 'OCA'
+                       : order.shipping_method === 'andreani' ? 'Andreani'
+                       : 'Retiro en local')}
                 </Text>
+                {order.shipping_address?.carrier && (
+                  <Text style={styles.colSmall}>Transporte: {order.shipping_address.carrier}</Text>
+                )}
                 {order.tracking_code && <Text style={styles.colSmall}>Tracking: {order.tracking_code}</Text>}
               </>
             )}
