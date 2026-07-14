@@ -95,6 +95,8 @@ export default function EditarProductoPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
   const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean; sort_order: number }[]>([])
+  const [dragImageIdx, setDragImageIdx] = useState<number | null>(null)
+  const [dragOverImageIdx, setDragOverImageIdx] = useState<number | null>(null)
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
 
@@ -248,6 +250,29 @@ export default function EditarProductoPage() {
       if (img.id === b.id) return { ...img, sort_order: a.sort_order }
       return img
     })))
+  }
+
+  // Arrastrar y soltar para reordenar (la portada queda fija, igual que con
+  // las flechas — no se puede arrastrar sobre/desde ella).
+  async function reorderImages(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return
+    const from = images[fromIndex]
+    const to = images[toIndex]
+    if (!from || !to || from.is_cover || to.is_cover) return
+
+    const next = [...images]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, moved)
+
+    let seq = 0
+    const withNewOrder = next.map(img => img.is_cover ? img : { ...img, sort_order: seq++ })
+    setImages(sortImages(withNewOrder))
+
+    await Promise.all(
+      withNewOrder
+        .filter(img => !img.is_cover)
+        .map(img => supabase.from('product_images').update({ sort_order: img.sort_order }).eq('id', img.id))
+    )
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -457,13 +482,27 @@ export default function EditarProductoPage() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Click en ★ para cambiar la foto de portada. Usá las flechas para reordenar — el orden se refleja igual en la tienda.</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Click en ★ para cambiar la foto de portada. Arrastrá las imágenes o usá las flechas para reordenar — el orden se refleja igual en la tienda.</p>
           </div>
           {images.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {images.map((img, i) => (
-                <div key={img.id} className="relative group">
-                  <img src={img.url} className={`w-20 h-20 object-cover rounded-lg border-2 transition-colors ${img.is_cover ? 'border-violet-500' : 'border-zinc-200'}`} />
+                <div
+                  key={img.id}
+                  className={`relative group transition-opacity ${dragImageIdx === i ? 'opacity-40' : ''} ${dragOverImageIdx === i && dragImageIdx !== null && dragImageIdx !== i ? 'ring-2 ring-violet-400 rounded-lg' : ''}`}
+                  draggable={!img.is_cover}
+                  onDragStart={() => setDragImageIdx(i)}
+                  onDragOver={e => { if (!img.is_cover) { e.preventDefault(); setDragOverImageIdx(i) } }}
+                  onDragLeave={() => setDragOverImageIdx(prev => prev === i ? null : prev)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    if (dragImageIdx !== null && !img.is_cover) reorderImages(dragImageIdx, i)
+                    setDragImageIdx(null)
+                    setDragOverImageIdx(null)
+                  }}
+                  onDragEnd={() => { setDragImageIdx(null); setDragOverImageIdx(null) }}
+                >
+                  <img src={img.url} className={`w-20 h-20 object-cover rounded-lg border-2 transition-colors ${img.is_cover ? 'border-violet-500' : 'border-zinc-200'} ${!img.is_cover ? 'cursor-grab active:cursor-grabbing' : ''}`} />
                   {img.is_cover && (
                     <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>
                   )}
