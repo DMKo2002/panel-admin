@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@creart/tienda-core": "github:DMKo2002/tienda-core#4aebf8349c6f5548f0344e1856d6286414355e3b",
+    "@creart/tienda-core": "github:DMKo2002/tienda-core#c12f096298d79779c8a00d0710fc91a6ef20ff9e",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/auth-ui-shared": "^0.1.8",

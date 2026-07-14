@@ -1,0 +1,49 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Trash2, Loader2 } from 'lucide-react'
+
+interface Props {
+  accountId: string
+  accountEmail: string
+}
+
+export default function DeleteAccountButton({ accountId, accountEmail }: Props) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  async function handleClick() {
+    if (!confirm(`¿Eliminar el acceso de ${accountEmail}? Esta acción no se puede deshacer — la cuenta no va a poder loguearse más.`)) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/accounts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        alert('Error: ' + (d.error ?? 'No se pudo eliminar'))
+        return
+      }
+      router.refresh()
+    } catch (err: any) {
+      alert('Error de red: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      title="Eliminar cuenta"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-40"
+    >
+      {loading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+      {loading ? 'Eliminando...' : 'Eliminar'}
+    </button>
+  )
+}

@@ -6,28 +6,37 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users, ArrowLeft
+  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users, ArrowLeft, KeyRound
 } from 'lucide-react'
 import clsx from 'clsx'
 
+// staffBlocked: true = oculto para cuentas con role='staff' (debe reflejar
+// STAFF_BLOCKED_PREFIXES en src/proxy.ts)
 const navItems = [
-  { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard },
-  { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart },
-  { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users },
-  { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt },
-  { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen },
-  { label: 'Notificaciones',   href: '/dashboard/notificaciones',  icon: Bell },
-  { label: 'Mi tienda',        href: '/dashboard/tienda',          icon: Settings },
-  { label: 'Personalización',  href: '/dashboard/personalizacion', icon: Palette },
+  { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard, staffBlocked: false },
+  { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart,     staffBlocked: false },
+  { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users,            staffBlocked: false },
+  { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt,            staffBlocked: false },
+  { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen,       staffBlocked: false },
+  { label: 'Notificaciones',   href: '/dashboard/notificaciones',  icon: Bell,            staffBlocked: true },
+  { label: 'Mi tienda',        href: '/dashboard/tienda',          icon: Settings,        staffBlocked: true },
+  { label: 'Personalización',  href: '/dashboard/personalizacion', icon: Palette,         staffBlocked: true },
+  { label: 'Cuentas',          href: '/dashboard/cuentas',         icon: KeyRound,        staffBlocked: true },
 ]
 
 interface SidebarProps {
   storeName: string
   storeDomain: string
   isSuperAdmin?: boolean
+  role?: string | null
 }
 
-export default function Sidebar({ storeName, storeDomain, isSuperAdmin }: SidebarProps) {
+export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role }: SidebarProps) {
+  const isStaff = role === 'staff'
+  const visibleItems = navItems.filter(item => !(isStaff && item.staffBlocked))
+  const general = visibleItems.filter(i => ['/dashboard', '/dashboard/pedidos', '/dashboard/clientes'].includes(i.href))
+  const catalogo = visibleItems.filter(i => ['/dashboard/productos', '/dashboard/categorias'].includes(i.href))
+  const config = visibleItems.filter(i => !general.includes(i) && !catalogo.includes(i))
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -71,13 +80,21 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin }: Sideba
 
       <nav className="flex-1 px-3 py-3 space-y-0.5">
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">General</p>
-        {navItems.slice(0, 3).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        {general.map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
 
-        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Catálogo</p>
-        {navItems.slice(3, 5).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        {catalogo.length > 0 && (
+          <>
+            <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Catálogo</p>
+            {catalogo.map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+          </>
+        )}
 
-        <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración</p>
-        {navItems.slice(5).map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        {config.length > 0 && (
+          <>
+            <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración</p>
+            {config.map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
+          </>
+        )}
       </nav>
 
       <div className="px-3 py-3 border-t border-zinc-100 space-y-0.5">

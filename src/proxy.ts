@@ -17,6 +17,16 @@ function redirectTo(request: NextRequest, pathname: string) {
   return NextResponse.redirect(url)
 }
 
+// Secciones bloqueadas para cuentas con role='staff' (empleados con acceso
+// limitado a Pedidos, Clientes, Productos, Categorias y Precios)
+const STAFF_BLOCKED_PREFIXES = [
+  '/dashboard/tienda',
+  '/dashboard/notificaciones',
+  '/dashboard/personalizacion',
+  '/dashboard/cuentas',
+  '/dashboard/test-mp',
+]
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -40,43 +50,49 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // 1. Sin sesión → login
+  // 1. Sin sesion -> login
   if (!user && path.startsWith('/dashboard')) return redirectTo(request, '/login')
-  // Rutas públicas: no redirigir si no hay sesión
+  // Rutas publicas: no redirigir si no hay sesion
   const publicPaths = ['/login', '/registro', '/reset-password', '/update-password']
   if (!user && publicPaths.some(pp => path.startsWith(pp))) return supabaseResponse
   if (!user && path === '/onboarding') return redirectTo(request, '/login')
 
-  // 2. Ya logueado → no volver al login
+  // 2. Ya logueado -> no volver al login
   if (user && ['/login', '/registro', '/reset-password'].some(pp => path.startsWith(pp))) return redirectTo(request, '/dashboard')
 
-  // 3. Con sesión → verificar tenant
+  // 3. Con sesion -> verificar tenant
   if (user && (path.startsWith('/dashboard') || path === '/onboarding')) {
     // Si no hay service role key configurada, dejamos pasar (el layout maneja auth)
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn('[middleware] SUPABASE_SERVICE_ROLE_KEY no configurada — saltando verificación de tenant')
+      console.warn('[middleware] SUPABASE_SERVICE_ROLE_KEY no configurada - saltando verificacion de tenant')
       return supabaseResponse
     }
 
     const { data: _userRows, error: queryError } = await serviceClient()
       .from('users')
-      .select('tenant_id')
+      .select('tenant_id, role')
       .eq('id', user.id)
       .limit(1)
 
-    // Si la query falló (key mal configurada, red, etc.) dejamos pasar
+    // Si la query fallo (key mal configurada, red, etc.) dejamos pasar
     if (queryError) {
       console.error('[middleware] Error consultando users:', queryError.message)
       return supabaseResponse
     }
 
-    const hasTenant = !!_userRows?.[0]?.tenant_id
+    const userRow = _userRows?.[0]
+    const hasTenant = !!userRow?.tenant_id
 
     if (!hasTenant && path.startsWith('/dashboard')) {
       // Superadmins sin tenant van a /superadmin, no a onboarding
       return redirectTo(request, isSuperAdmin(user.email) ? '/superadmin' : '/onboarding')
     }
     if (hasTenant && path === '/onboarding') return redirectTo(request, '/dashboard')
+
+    // Cuentas 'staff' (empleados) no pueden acceder a secciones sensibles
+    if (hasTenant && userRow?.role === 'staff' && STAFF_BLOCKED_PREFIXES.some(p => path.startsWith(p))) {
+      return redirectTo(request, '/dashboard')
+    }
   }
 
   return supabaseResponse
