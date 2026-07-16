@@ -107,6 +107,7 @@ export default function EditarProductoPage() {
   // Matrix initial state
   const [matrixInitialSizes, setMatrixInitialSizes] = useState<string[]>([])
   const [matrixInitialColors, setMatrixInitialColors] = useState<string[]>([])
+  const [matrixInitialColorHexes, setMatrixInitialColorHexes] = useState<string[]>([])
   const [matrixInitialCells, setMatrixInitialCells] = useState<Record<string, CellData>>({})
   const [matrixReady, setMatrixReady] = useState(false)
 
@@ -132,6 +133,14 @@ export default function EditarProductoPage() {
       const sizes = [...new Set(dbVariants.map((v: any) => v.size ?? '').filter(Boolean))]
       const colors = [...new Set(dbVariants.map((v: any) => v.color ?? '').filter(Boolean))]
       if (colors.length === 0) colors.push('')
+
+      // Hex real guardado por color (elegido con cuentagotas/selector) — se
+      // toma del primer variant que tenga ese nombre de color con color_hex seteado.
+      const colorHexByName: Record<string, string> = {}
+      for (const v of dbVariants) {
+        if (v.color && v.color_hex && !colorHexByName[v.color]) colorHexByName[v.color] = v.color_hex
+      }
+      const colorHexes = colors.map(c => colorHexByName[c] ?? '')
 
       let storeAttrs: AttrConfig[] = []
 
@@ -191,6 +200,7 @@ export default function EditarProductoPage() {
 
       setMatrixInitialSizes(sizes)
       setMatrixInitialColors(colors)
+      setMatrixInitialColorHexes(colorHexes)
       setMatrixInitialCells(cells)
       setMatrixReady(true)
       setLoading(false)
@@ -314,7 +324,7 @@ export default function EditarProductoPage() {
 
         if (v.id) {
           const { error: varErr } = await supabase.from('variants').update({
-            size: v.size, color: v.color, stock: v.stock, attributes: attrs,
+            size: v.size, color: v.color, color_hex: v.colorHex, stock: v.stock, attributes: attrs,
           }).eq('id', v.id)
           if (varErr) throw varErr
           await supabase.from('price_rules').delete().eq('variant_id', v.id)
@@ -323,7 +333,7 @@ export default function EditarProductoPage() {
           if (rules.length > 0) { const { error: rErr } = await supabase.from('price_rules').insert(rules); if (rErr) throw rErr }
         } else {
           const { data: nv, error: nvErr } = await supabase.from('variants')
-            .insert({ product_id: id, size: v.size, color: v.color, stock: v.stock, attributes: attrs })
+            .insert({ product_id: id, size: v.size, color: v.color, color_hex: v.colorHex, stock: v.stock, attributes: attrs })
             .select().single()
           if (nvErr) throw nvErr
           if (nv) {
@@ -590,6 +600,7 @@ export default function EditarProductoPage() {
             mode="edit"
             initialSizes={matrixInitialSizes}
             initialColors={matrixInitialColors}
+            initialColorHexes={matrixInitialColorHexes}
             initialCells={matrixInitialCells}
           />
         )}

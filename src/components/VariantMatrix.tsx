@@ -22,6 +22,38 @@ function colorToHex(name: string): string {
   return COLOR_MAP[name.toLowerCase().trim()] ?? '#CCCCCC'
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const clean = hex.replace('#', '').trim()
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean
+  if (!/^[0-9A-Fa-f]{6}$/.test(full)) return null
+  return { r: parseInt(full.slice(0, 2), 16), g: parseInt(full.slice(2, 4), 16), b: parseInt(full.slice(4, 6), 16) }
+}
+
+// Nombre de color más cercano en la paleta, por distancia RGB — se usa para
+// sugerir un nombre por default cuando el tenant elige un hex con el
+// cuentagotas/selector y todavía no le puso nombre propio.
+function nearestColorName(hex: string): string {
+  const target = hexToRgb(hex)
+  if (!target) return ''
+  let best = ''
+  let bestDist = Infinity
+  for (const [name, h] of Object.entries(COLOR_MAP)) {
+    const rgb = hexToRgb(h)
+    if (!rgb) continue
+    const dist = (rgb.r - target.r) ** 2 + (rgb.g - target.g) ** 2 + (rgb.b - target.b) ** 2
+    if (dist < bestDist) { bestDist = dist; best = name }
+  }
+  return best ? best.charAt(0).toUpperCase() + best.slice(1) : ''
+}
+
+// "nuevo" / "nuevo-2" son los placeholders que pone addColor() — mientras el
+// tenant no haya tipeado un nombre propio, está bien pisarlo con la sugerencia
+// automática. Apenas escribe algo, nunca más se lo tocamos automáticamente.
+function isPlaceholderName(name: string): boolean {
+  const trimmed = (name ?? '').trim()
+  return !trimmed || /^nuevo(-\d+)?$/i.test(trimmed)
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface CellData {
   variantId?: string   // defined for existing variants (edit mode)
@@ -37,6 +69,7 @@ export interface VariantForSave {
   id?: string
   size: string | null
   color: string | null
+  colorHex: string | null
   attrs: Record<string, string>
   stock: number
   retailPrice: number
@@ -54,6 +87,7 @@ interface Props {
   mode: 'create' | 'edit'
   initialSizes?: string[]
   initialColors?: string[]
+  initialColorHexes?: string[]
   initialCells?: Record<string, CellData>
 }
 
@@ -70,10 +104,16 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   mode,
   initialSizes = DEFAULT_SIZES,
   initialColors = DEFAULT_COLORS,
+  initialColorHexes = [],
   initialCells = {},
 }, ref) => {
   const [sizes, setSizes] = useState<string[]>(initialSizes)
   const [colors, setColors] = useState<string[]>(initialColors)
+  // Hex real elegido con cuentagotas/selector — paralelo a `colors` por índice,
+  // pero independiente: renombrar el color NUNCA toca este array.
+  const [colorHexes, setColorHexes] = useState<string[]>(
+    initialColors.map((_, i) => initialColorHexes[i] ?? '')
+  )
   const [cells, setCells] = useState<Record<string, CellData>>(() => {
     const init: Record<string, CellData> = {}
     for (const s of initialSizes)
@@ -104,16 +144,17 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     getVariants: () => {
       const result: VariantForSave[] = []
       for (const size of sizes) {
-        for (const color of colors) {
+        colors.forEach((color, ci) => {
           const cell = cells[cellKey(size, color)] ?? emptyCell()
           result.push({
             id: cell.variantId,
             size: size || null,
             color: color || null,
+            colorHex: colorHexes[ci] || null,
             attrs: { talle: size, color },
             ...cell,
           })
-        }
+        })
       }
       return result
     },
@@ -170,6 +211,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     while (existing.has(candidate)) { candidate = `${base}-${n++}` }
     const newColor = candidate
     setColors(prev => [...prev, newColor])
+    setColorHexes(prev => [...prev, ''])
     setCells(prev => {
       const next = { ...prev }
       for (const s of sizes) next[cellKey(s, newColor)] = emptyCell()
@@ -180,6 +222,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   function removeColor(idx: number) {
     const color = colors[idx]
     setColors(prev => prev.filter((_, i) => i !== idx))
+    setColorHexes(prev => prev.filter((_, i) => i !== idx))
     setCells(prev => {
       const next = { ...prev }
       for (const s of sizes) delete next[cellKey(s, color)]
@@ -203,14 +246,25 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   }
 
   // ── Color picker for column header ─────────────────────────────────────────
+  // El hex real vive en colorHexes, separado del nombre visible (colors).
+  // Cambiar el hex NUNCA pisa un nombre que el tenant ya haya tipeado —
+  // solo se autocompleta el nombre si todavía está en el placeholder "nuevo".
+  function setColumnHex(colIdx: number, hex: string) {
+    setColorHexes(prev => prev.map((h, i) => i === colIdx ? hex : h))
+    if (isPlaceholderName(colors[colIdx])) {
+      const suggested = nearestColorName(hex)
+      if (suggested) renameColor(colIdx, suggested)
+    }
+  }
+
   function openPicker(colIdx: number) {
-    const hex = colorToHex(colors[colIdx]) !== '#CCCCCC' ? colorToHex(colors[colIdx]) : '#1C1C1C'
-    setPickerHex(hex)
+    const existing = colorHexes[colIdx] || (colorToHex(colors[colIdx]) !== '#CCCCCC' ? colorToHex(colors[colIdx]) : '#1C1C1C')
+    setPickerHex(existing)
     setPickerForCol(colIdx)
   }
 
   function applyPickerColor(colIdx: number) {
-    renameColor(colIdx, pickerHex)
+    setColumnHex(colIdx, pickerHex)
     setPickerForCol(null)
   }
 
@@ -218,7 +272,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     try {
       // @ts-ignore
       const result = await new window.EyeDropper().open()
-      renameColor(colIdx, result.sRGBHex)
+      setColumnHex(colIdx, result.sRGBHex)
       setPickerForCol(null)
     } catch { }
   }
@@ -296,12 +350,12 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                 <th key={ci} className="px-2 py-2 border-b border-r border-zinc-200 last:border-r-0 min-w-[150px]">
                   <div className="relative flex flex-col items-center gap-1">
                     <div className="flex items-center gap-1.5">
-                      {/* Color swatch */}
+                      {/* Color swatch — usa el hex guardado; si todavía no eligió uno, lo deriva del nombre */}
                       <button type="button" onClick={() => openPicker(ci)}
-                        style={{ backgroundColor: colorToHex(color) }}
+                        style={{ backgroundColor: colorHexes[ci] || colorToHex(color) }}
                         title="Elegir color"
                         className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
-                      {/* Color name input */}
+                      {/* Color name input — texto libre, nunca se pisa automáticamente */}
                       <input
                         className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none text-center capitalize"
                         style={{ width: '80px' }}

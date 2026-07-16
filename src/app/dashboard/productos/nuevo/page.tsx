@@ -157,7 +157,7 @@ export default function NuevoProductoPage() {
         const attrs = { ...v.attrs, ...extraAttrValues }
         const { data: variant, error: varErr } = await supabase
           .from('variants')
-          .insert({ product_id: product.id, size: v.size, color: v.color, sku: null, stock: v.stock, attributes: attrs })
+          .insert({ product_id: product.id, size: v.size, color: v.color, color_hex: v.colorHex, sku: null, stock: v.stock, attributes: attrs })
           .select().single()
         if (varErr) throw varErr
 
