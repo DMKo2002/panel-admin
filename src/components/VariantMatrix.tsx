@@ -281,8 +281,17 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
   function renameColor(idx: number, newName: string) {
     const oldName = colors[idx]
-    setColors(prev => prev.map((c, i) => i === idx ? newName : c))
     if (oldName === newName) return
+    // Si ya existe OTRA columna con ese mismo nombre, renombrar acá pisaría
+    // sus datos (precio/stock) al mezclarse bajo la misma cellKey, o dejaría
+    // talles huérfanos sin moverse — exactamente el bug que partió variantes
+    // en dos. Se bloquea y se avisa en vez de arriesgar el dato.
+    const trimmedNew = newName.trim()
+    if (trimmedNew && colors.some((c, i) => i !== idx && c.trim().toLowerCase() === trimmedNew.toLowerCase())) {
+      alert(`Ya existe un color llamado "${trimmedNew}" en este producto. Para fusionarlos, primero borrá una de las dos columnas duplicadas y volvé a intentar.`)
+      return
+    }
+    setColors(prev => prev.map((c, i) => i === idx ? newName : c))
     setCells(prev => {
       const next = { ...prev }
       for (const s of sizes) {
