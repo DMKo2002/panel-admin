@@ -30,10 +30,14 @@ export async function POST(req: NextRequest) {
     .select('id').eq('id', productId).eq('tenant_id', tenantId).limit(1)
   if (!productRows?.[0]) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 
-  const { data: variants } = await service.from('variants')
-    .select('id')
-    .eq('product_id', productId)
-    .eq(by, value)
+  // .eq(by, value) con "by" dinámico ("color" | "size") hace que TypeScript
+  // intente resolver todos los overloads posibles del query builder de
+  // supabase-js y explota ("Type instantiation is excessively deep") — se
+  // separan las dos variantes explícitamente para evitar la inferencia.
+  const variantsQuery = by === 'color'
+    ? service.from('variants').select('id').eq('product_id', productId).eq('color', value)
+    : service.from('variants').select('id').eq('product_id', productId).eq('size', value)
+  const { data: variants } = await variantsQuery
 
   const variantIds = (variants ?? []).map(v => v.id)
   if (variantIds.length === 0) {
