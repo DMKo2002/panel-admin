@@ -75,7 +75,7 @@ const CSS_NAMED_COLORS: [string, string][] = [
 // Nombre HTML/CSS más cercano al hex elegido, por distancia RGB — se usa para
 // sugerir un nombre por default cuando el tenant elige un hex con el
 // cuentagotas/selector y todavía no le puso nombre propio.
-function nearestColorName(hex: string): string {
+export function nearestColorName(hex: string): string {
   const target = hexToRgb(hex)
   if (!target) return ''
   let best = ''
@@ -89,12 +89,18 @@ function nearestColorName(hex: string): string {
   return best
 }
 
-// "nuevo" / "nuevo-2" son los placeholders que pone addColor() — mientras el
-// tenant no haya tipeado un nombre propio, está bien pisarlo con la sugerencia
-// automática. Apenas escribe algo, nunca más se lo tocamos automáticamente.
-function isPlaceholderName(name: string): boolean {
+// "nuevo" / "nuevo-2" son los placeholders que pone addColor(); un nombre que
+// es literalmente un código hex (ej: "#CD5C5C") es el resto de datos viejos
+// de antes de separar nombre/hex — en ningún caso es un nombre "tipeado a
+// propósito" por el tenant, así que en ambos casos está bien pisarlo con la
+// sugerencia automática. Apenas escribe un nombre de verdad, nunca más se
+// lo tocamos automáticamente.
+export function isPlaceholderName(name: string): boolean {
   const trimmed = (name ?? '').trim()
-  return !trimmed || /^nuevo(-\d+)?$/i.test(trimmed)
+  if (!trimmed) return true
+  if (/^nuevo(-\d+)?$/i.test(trimmed)) return true
+  if (/^#[0-9A-Fa-f]{3,8}$/.test(trimmed)) return true
+  return false
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────

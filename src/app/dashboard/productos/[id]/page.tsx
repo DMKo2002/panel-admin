@@ -5,7 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
-import VariantMatrix, { VariantMatrixHandle, CellData, cellKey } from '@/components/VariantMatrix'
+import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, nearestColorName } from '@/components/VariantMatrix'
+
+// Nombre viejo guardado como código hex (bug legacy previo a separar nombre/hex)
+function isHexLikeName(name: string): boolean {
+  return /^#[0-9A-Fa-f]{3,8}$/.test((name ?? '').trim())
+}
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -131,14 +136,40 @@ export default function EditarProductoPage() {
       // Build matrix from existing variants
       const dbVariants: any[] = product.variants ?? []
       const sizes = [...new Set(dbVariants.map((v: any) => v.size ?? '').filter(Boolean))]
-      const colors = [...new Set(dbVariants.map((v: any) => v.color ?? '').filter(Boolean))]
+
+      // Nombre a mostrar por variante: si el nombre guardado es en realidad un
+      // código hex (bug legacy previo a separar nombre/hex), se reemplaza acá
+      // mismo por el nombre HTML/CSS más cercano — sin que el tenant tenga que
+      // tocar nada. Es solo el valor mostrado en el editor; se persiste recién
+      // cuando el tenant guarda el producto (ver getVariants() en VariantMatrix).
+      const displayNameByRawColor: Record<string, string> = {}
+      for (const v of dbVariants) {
+        const raw = v.color ?? ''
+        if (!raw || displayNameByRawColor[raw]) continue
+        displayNameByRawColor[raw] = isHexLikeName(raw)
+          ? (nearestColorName(v.color_hex || raw) || raw)
+          : raw
+      }
+      // Evitar colisiones si dos hex distintos cayeron en el mismo nombre sugerido
+      const usedNames = new Set<string>()
+      for (const raw of Object.keys(displayNameByRawColor)) {
+        const base = displayNameByRawColor[raw]
+        let name = base
+        let n = 2
+        while (usedNames.has(name)) { name = `${base} ${n++}` }
+        usedNames.add(name)
+        displayNameByRawColor[raw] = name
+      }
+
+      const colors = [...new Set(dbVariants.map((v: any) => displayNameByRawColor[v.color ?? ''] ?? '').filter(Boolean))]
       if (colors.length === 0) colors.push('')
 
       // Hex real guardado por color (elegido con cuentagotas/selector) — se
-      // toma del primer variant que tenga ese nombre de color con color_hex seteado.
+      // toma del primer variant con ese nombre (ya normalizado) que tenga color_hex.
       const colorHexByName: Record<string, string> = {}
       for (const v of dbVariants) {
-        if (v.color && v.color_hex && !colorHexByName[v.color]) colorHexByName[v.color] = v.color_hex
+        const name = displayNameByRawColor[v.color ?? ''] ?? ''
+        if (name && v.color_hex && !colorHexByName[name]) colorHexByName[name] = v.color_hex
       }
       const colorHexes = colors.map(c => colorHexByName[c] ?? '')
 
@@ -184,7 +215,7 @@ export default function EditarProductoPage() {
       const cells: Record<string, CellData> = {}
       for (const v of dbVariants) {
         const s = v.size ?? ''
-        const c = v.color ?? ''
+        const c = displayNameByRawColor[v.color ?? ''] ?? ''
         const retail = v.price_rules?.find((p: any) => p.type === 'retail')
         const wholesale = v.price_rules?.find((p: any) => p.type === 'wholesale')
         cells[cellKey(s, c)] = {
