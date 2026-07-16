@@ -138,6 +138,12 @@ interface Props {
   initialColors?: string[]
   initialColorHexes?: string[]
   initialCells?: Record<string, CellData>
+  // En modo "edit" borrar una columna/fila puede implicar borrar variantes
+  // reales en la base (con historial de pedidos, etc.) — el padre decide si
+  // se puede hacer (confirm + API) y devuelve true/false. Si no se pasa
+  // (modo "create"), se borra directo del estado local sin preguntar.
+  onRemoveColor?: (color: string) => Promise<boolean>
+  onRemoveSize?: (size: string) => Promise<boolean>
 }
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
@@ -155,6 +161,8 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   initialColors = DEFAULT_COLORS,
   initialColorHexes = [],
   initialCells = {},
+  onRemoveColor,
+  onRemoveSize,
 }, ref) => {
   const [sizes, setSizes] = useState<string[]>(initialSizes)
   const [colors, setColors] = useState<string[]>(initialColors)
@@ -236,6 +244,18 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     })
   }
 
+  // En modo "edit" esto puede implicar borrar variantes reales en la base
+  // (ver onRemoveSize en el padre) — se espera su confirmación antes de
+  // tocar el estado local. En modo "create" no hay callback, se borra directo.
+  async function handleRemoveSizeClick(idx: number) {
+    const size = sizes[idx]
+    if (onRemoveSize) {
+      const ok = await onRemoveSize(size)
+      if (!ok) return
+    }
+    removeSize(idx)
+  }
+
   function renameSize(idx: number, newName: string) {
     const oldName = sizes[idx]
     setSizes(prev => prev.map((s, i) => i === idx ? newName : s))
@@ -277,6 +297,18 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
       for (const s of sizes) delete next[cellKey(s, color)]
       return next
     })
+  }
+
+  // En modo "edit" esto puede implicar borrar variantes reales en la base
+  // (ver onRemoveColor en el padre) — se espera su confirmación antes de
+  // tocar el estado local. En modo "create" no hay callback, se borra directo.
+  async function handleRemoveColorClick(idx: number) {
+    const color = colors[idx]
+    if (onRemoveColor) {
+      const ok = await onRemoveColor(color)
+      if (!ok) return
+    }
+    removeColor(idx)
   }
 
   function renameColor(idx: number, newName: string) {
@@ -421,9 +453,10 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                         onChange={e => renameColor(ci, e.target.value)}
                         placeholder="Color..."
                       />
-                      {/* Remove (create only) */}
-                      {mode === 'create' && colors.length > 1 && (
-                        <button type="button" onClick={() => removeColor(ci)}
+                      {/* Borrar columna — en modo edición pide confirmación y borra las variantes reales */}
+                      {colors.length > 1 && (
+                        <button type="button" onClick={() => handleRemoveColorClick(ci)}
+                          title="Eliminar este color"
                           className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
                           <X size={11} />
                         </button>
@@ -506,8 +539,9 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                       onChange={e => renameSize(si, e.target.value)}
                       placeholder="Talle..."
                     />
-                    {mode === 'create' && sizes.length > 1 && (
-                      <button type="button" onClick={() => removeSize(si)}
+                    {sizes.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveSizeClick(si)}
+                        title="Eliminar este talle"
                         className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
                         <X size={11} />
                       </button>

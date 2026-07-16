@@ -403,6 +403,32 @@ export default function EditarProductoPage() {
     } catch (err: any) { setError(err.message); setDeleting(false) }
   }
 
+  // Borrar una columna de color o una fila de talle entera — a diferencia de
+  // vaciar los precios a mano, esto elimina de verdad las variantes en la
+  // base (vía API, que bloquea el borrado si ya tienen pedidos asociados).
+  async function removeVariantGroup(by: 'color' | 'size', value: string): Promise<boolean> {
+    const label = by === 'color' ? 'el color' : 'el talle'
+    if (!confirm(`¿Eliminar ${label} "${value}" de este producto? Esto borra las variantes correspondientes de la base — no se puede deshacer.`)) {
+      return false
+    }
+    try {
+      const res = await fetch('/api/variants/delete-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: id, by, value }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        alert(json.error ?? 'No se pudo eliminar')
+        return false
+      }
+      return true
+    } catch (err: any) {
+      alert(err.message ?? 'No se pudo eliminar')
+      return false
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <p className="text-zinc-400 text-sm">Cargando producto...</p>
@@ -633,6 +659,8 @@ export default function EditarProductoPage() {
             initialColors={matrixInitialColors}
             initialColorHexes={matrixInitialColorHexes}
             initialCells={matrixInitialCells}
+            onRemoveColor={(color) => removeVariantGroup('color', color)}
+            onRemoveSize={(size) => removeVariantGroup('size', size)}
           />
         )}
 
