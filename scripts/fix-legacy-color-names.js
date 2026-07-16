@@ -146,10 +146,25 @@ async function main() {
   // Evitar colisiones: si dos hex distintos del MISMO producto caen en el
   // mismo nombre sugerido, se les agrega un sufijo para no fusionarlos en
   // una sola columna de color en el editor.
+  //
+  // OJO: un mismo color puede repetirse en varias filas del mismo producto
+  // (un talle S, un M, un L... todos con el mismo color). Hay que agrupar
+  // primero por (producto, color original) y calcular UN solo nombre por
+  // grupo — si se recorre fila por fila sin agrupar, cada talle del mismo
+  // color termina con un nombre distinto ("Gris Oscuro", "Gris Oscuro 2",
+  // "Gris Oscuro 3"...) porque cada uno "choca" con el anterior.
+  const groups = new Map() // `${product_id}::${color}` -> variantes[]
+  for (const v of hexNamed) {
+    const key = `${v.product_id}::${v.color}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(v)
+  }
+
   const usedNamesByProduct = new Map() // product_id -> Set<string>
   const updates = []
 
-  for (const v of hexNamed) {
+  for (const rows of groups.values()) {
+    const v = rows[0]
     const sourceHex = v.color_hex || v.color
     const suggested = nearestColorName(sourceHex) || v.color
     let usedNames = usedNamesByProduct.get(v.product_id)
@@ -158,7 +173,9 @@ async function main() {
     let n = 2
     while (usedNames.has(name)) { name = `${suggested} ${n++}` }
     usedNames.add(name)
-    updates.push({ id: v.id, oldColor: v.color, newColor: name })
+    for (const row of rows) {
+      updates.push({ id: row.id, oldColor: row.color, newColor: name })
+    }
   }
 
   for (const u of updates) {
