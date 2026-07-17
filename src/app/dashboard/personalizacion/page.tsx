@@ -32,7 +32,7 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'blog_3',       label: 'Blog — Foto 3',       hint: '800 × 500 px recomendado',      aspect: '16/9'  },
   ],
   mono: [
-    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — se muestra en el panel izquierdo del hero, máx. 200 × 180 px', aspect: 'logo' },
+    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — se muestra en el panel izquierdo del hero, 150 px de ancho (alto proporcional)', aspect: 'logo' },
     { key: 'logo_favicon', label: 'Favicon',           hint: 'PNG cuadrado — 512 × 512 px', aspect: '1/1' },
     { key: 'hero_main',    label: 'Hero principal',    hint: '1300 × 975 px — columna a la derecha del hero', aspect: '1300/975' },
     // Mosaico de 4 fotos (Frame 2 del diseño): 1 grande a la izquierda + 1 ancha y 2 chicas apiladas a la derecha
