@@ -40,10 +40,10 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'gallery_2',    label: 'Mosaico — Foto ancha (arriba der.)', hint: '864 × 559 px', aspect: '864/559' },
     { key: 'gallery_3',    label: 'Mosaico — Foto chica 1 (abajo der.)', hint: '432 × 559 px', aspect: '432/559' },
     { key: 'gallery_4',    label: 'Mosaico — Foto chica 2 (abajo der.)', hint: '432 × 559 px', aspect: '432/559' },
-    { key: 'moodboard_1',  label: 'MoodBoard — Foto 1', hint: '600 × 600 px cuadrado', aspect: '1/1' },
-    { key: 'moodboard_2',  label: 'MoodBoard — Foto 2', hint: '600 × 600 px cuadrado', aspect: '1/1' },
-    { key: 'moodboard_3',  label: 'MoodBoard — Foto 3', hint: '600 × 600 px cuadrado', aspect: '1/1' },
-    { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado', aspect: '1/1' },
+    // Moodboard (Frame 4 del diseño): franja panorámica con texto + 2 fotos lado a lado
+    { key: 'moodboard_banner', label: 'Moodboard — Franja superior', hint: '1728 × 200 px — franja panorámica con texto superpuesto', aspect: '1728/200' },
+    { key: 'moodboard_left',   label: 'Moodboard — Foto izquierda',  hint: '860 × 573 px', aspect: '860/573' },
+    { key: 'moodboard_right',  label: 'Moodboard — Foto derecha',    hint: '860 × 573 px', aspect: '860/573' },
   ],
   axis:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
 
@@ -526,6 +526,9 @@ export default function PersonalizacionPage() {
     if (!groups[prefix]) groups[prefix] = []
     groups[prefix].push(s)
   }
+  // El template mono tiene una estructura de home distinta (sin colecciones/blog/newsletter),
+  // así que el panel se ordena por sector de la tienda en vez de por tipo de campo.
+  const isMono = template === 'mono'
 
   if (loading) {
     return (
@@ -549,6 +552,8 @@ export default function PersonalizacionPage() {
         </div>
       </div>
 
+      {!isMono && (
+      <>
       {/* ── Imágenes (Hero, colecciones, blog, etc.) ── */}
       <section className="space-y-10">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
@@ -881,6 +886,167 @@ export default function PersonalizacionPage() {
           <p className="text-xs text-zinc-400">El texto de ese bloque es siempre oscuro, así que conviene elegir un color claro</p>
         </div>
       </section>
+      </>
+      )}
+
+      {isMono && (
+      <>
+      {/* ── Identidad ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Identidad
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          {(groups['logo'] ?? []).map(slotDef => (
+            <AssetSlot
+              key={slotDef.key}
+              slotDef={slotDef}
+              state={slots[slotDef.key] ?? { url: null, uploading: false, error: null }}
+              onUpload={file => handleUpload(slotDef.key, file)}
+              onRemove={() => handleRemove(slotDef.key)}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ── 1. Hero ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          1. Hero
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          {(groups['hero'] ?? []).map(slotDef => (
+            <AssetSlot
+              key={slotDef.key}
+              slotDef={slotDef}
+              state={slots[slotDef.key] ?? { url: null, uploading: false, error: null }}
+              onUpload={file => handleUpload(slotDef.key, file)}
+              onRemove={() => handleRemove(slotDef.key)}
+            />
+          ))}
+        </div>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Texto principal de portada</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Editá el título y la temporada que se muestran en el hero</p>
+            </div>
+            <button onClick={handleSaveHero} disabled={savingHero} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedHero ? '✓ Guardado' : savingHero ? 'Guardando...' : 'Guardar hero'}
+            </button>
+            {errorHero && <p className="text-xs text-red-500 mt-1.5">{errorHero}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Código de temporada</label>
+              <input className="input text-sm font-mono" value={heroSeason} onChange={e => setHeroSeason(e.target.value)} placeholder="AW2026" />
+              <p className="text-xs text-zinc-400 mt-1">Aparece como texto decorativo en el fondo (ej: AW2026, SS2027)</p>
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Texto pequeño (sobre el título)</label>
+              <input className="input text-sm" value={heroEyebrow} onChange={e => setHeroEyebrow(e.target.value)} placeholder="Opening New Season Summer 2026" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 1 <span className="text-zinc-400">(regular)</span></label>
+              <input className="input text-sm" value={heroLine1} onChange={e => setHeroLine1(e.target.value)} placeholder="Timeless Design" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 2 <span className="italic">(itálica)</span></label>
+              <input className="input text-sm italic" value={heroItalic} onChange={e => setHeroItalic(e.target.value)} placeholder="Beyond Trends" />
+              <p className="text-xs text-zinc-400 mt-1">Frase completa del segundo renglón — se muestra en itálica</p>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Bajada (debajo del logo)</label>
+              <textarea
+                className="input text-sm min-h-[60px] resize-y"
+                value={heroSubtitle}
+                onChange={e => setHeroSubtitle(e.target.value)}
+                placeholder={'Piezas únicas diseñadas para\nquienes buscan estilo y distinción.'}
+              />
+              <p className="text-xs text-zinc-400 mt-1">Un enter = salto de línea en el hero</p>
+            </div>
+            <div className="col-span-2 pt-2 border-t border-zinc-100">
+              <label className="block text-xs text-zinc-500 mb-2">Color del texto sobre la foto</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={heroTextColor}
+                  onChange={e => setHeroTextColor(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-zinc-200 p-0.5 bg-white"
+                />
+                <input
+                  className="input text-sm font-mono w-32"
+                  value={heroTextColor}
+                  onChange={e => setHeroTextColor(e.target.value)}
+                  placeholder="#FFFFFF"
+                />
+                <div className="flex gap-2">
+                  {['#FFFFFF', '#1A1A1A', '#F5F0EB', '#8B7355'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setHeroTextColor(c)}
+                      className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                      style={{ backgroundColor: c, borderColor: heroTextColor === c ? '#7C3AED' : '#E5E7EB' }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-400">Usá blanco para fotos oscuras, negro para fotos claras</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 2. Galería ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          2. Galería
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          {(groups['gallery'] ?? []).map(slotDef => (
+            <AssetSlot
+              key={slotDef.key}
+              slotDef={slotDef}
+              state={slots[slotDef.key] ?? { url: null, uploading: false, error: null }}
+              onUpload={file => handleUpload(slotDef.key, file)}
+              onRemove={() => handleRemove(slotDef.key)}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ── 3. New Arrivals ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          3. New Arrivals
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5">
+          <p className="text-sm text-zinc-600">
+            Esta sección se completa sola: muestra las últimas 4 fotos de portada de tus productos activos, cargados en <strong>Productos</strong>. No requiere ninguna configuración acá — para cambiar lo que se ve, editá o agregá productos.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 4. Moodboard ── */}
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          4. Moodboard
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          {(groups['moodboard'] ?? []).map(slotDef => (
+            <AssetSlot
+              key={slotDef.key}
+              slotDef={slotDef}
+              state={slots[slotDef.key] ?? { url: null, uploading: false, error: null }}
+              onUpload={file => handleUpload(slotDef.key, file)}
+              onRemove={() => handleRemove(slotDef.key)}
+            />
+          ))}
+        </div>
+      </section>
+      </>
+      )}
 
       {/* ── Footer ── */}
       <section className="space-y-6">
