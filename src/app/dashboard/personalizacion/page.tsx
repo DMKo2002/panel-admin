@@ -552,6 +552,21 @@ export default function PersonalizacionPage() {
         </div>
       </div>
 
+      {isMono && (
+        <div className="sticky top-0 z-20 -mx-8 px-8 py-3 bg-white/95 backdrop-blur border-b border-zinc-200 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-zinc-700">Guardar cambios</p>
+            <p className="text-xs text-zinc-400">Las imágenes se suben y guardan solas. Este botón guarda los textos (Hero).</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {errorHero && <p className="text-xs text-red-500">{errorHero}</p>}
+            <button onClick={handleSaveHero} disabled={savingHero} className="btn-secondary text-xs py-1.5 px-4 disabled:opacity-60">
+              {savedHero ? '✓ Guardado' : savingHero ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {!isMono && (
       <>
       {/* ── Imágenes (Hero, colecciones, blog, etc.) ── */}
@@ -926,15 +941,9 @@ export default function PersonalizacionPage() {
           ))}
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-700">Texto principal de portada</h3>
-              <p className="text-xs text-zinc-400 mt-0.5">Editá el título y la temporada que se muestran en el hero</p>
-            </div>
-            <button onClick={handleSaveHero} disabled={savingHero} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
-              {savedHero ? '✓ Guardado' : savingHero ? 'Guardando...' : 'Guardar hero'}
-            </button>
-            {errorHero && <p className="text-xs text-red-500 mt-1.5">{errorHero}</p>}
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-700">Texto principal de portada</h3>
+            <p className="text-xs text-zinc-400 mt-0.5">Editá el título y la temporada que se muestran en el hero — usá "Guardar cambios" arriba para guardar</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
