@@ -5,12 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
-import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, nearestColorName } from '@/components/VariantMatrix'
-
-// Nombre viejo guardado como código hex (bug legacy previo a separar nombre/hex)
-function isHexLikeName(name: string): boolean {
-  return /^#[0-9A-Fa-f]{3,8}$/.test((name ?? '').trim())
-}
+import VariantMatrix, { VariantMatrixHandle, CellData, cellKey } from '@/components/VariantMatrix'
+import { buildDisplayNameByRawColor } from '@/lib/colorNames'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -142,24 +138,10 @@ export default function EditarProductoPage() {
       // mismo por el nombre HTML/CSS más cercano — sin que el tenant tenga que
       // tocar nada. Es solo el valor mostrado en el editor; se persiste recién
       // cuando el tenant guarda el producto (ver getVariants() en VariantMatrix).
-      const displayNameByRawColor: Record<string, string> = {}
-      for (const v of dbVariants) {
-        const raw = v.color ?? ''
-        if (!raw || displayNameByRawColor[raw]) continue
-        displayNameByRawColor[raw] = isHexLikeName(raw)
-          ? (nearestColorName(v.color_hex || raw) || raw)
-          : raw
-      }
-      // Evitar colisiones si dos hex distintos cayeron en el mismo nombre sugerido
-      const usedNames = new Set<string>()
-      for (const raw of Object.keys(displayNameByRawColor)) {
-        const base = displayNameByRawColor[raw]
-        let name = base
-        let n = 2
-        while (usedNames.has(name)) { name = `${base} ${n++}` }
-        usedNames.add(name)
-        displayNameByRawColor[raw] = name
-      }
+      // Misma normalización que usa la API de borrado de columnas/filas (ver
+      // @/lib/colorNames) — así el nombre que ve el tenant acá es siempre el
+      // mismo que se busca del lado del servidor cuando pide borrar un color.
+      const displayNameByRawColor = buildDisplayNameByRawColor(dbVariants)
 
       const colors = [...new Set(dbVariants.map((v: any) => displayNameByRawColor[v.color ?? ''] ?? '').filter(Boolean))]
       if (colors.length === 0) colors.push('')

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { buildDisplayNameByRawColor } from '@/lib/colorNames'
 
 // Borra TODAS las variantes de un producto que compartan un mismo color
 // (columna) o un mismo talle (fila) desde el editor de producto. Se usa
@@ -30,16 +31,32 @@ export async function POST(req: NextRequest) {
     .select('id').eq('id', productId).eq('tenant_id', tenantId).limit(1)
   if (!productRows?.[0]) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 
-  // .eq(by, value) con "by" dinámico ("color" | "size") hace que TypeScript
-  // intente resolver todos los overloads posibles del query builder de
-  // supabase-js y explota ("Type instantiation is excessively deep") — se
-  // separan las dos variantes explícitamente para evitar la inferencia.
-  const variantsQuery = by === 'color'
-    ? service.from('variants').select('id').eq('product_id', productId).eq('color', value)
-    : service.from('variants').select('id').eq('product_id', productId).eq('size', value)
-  const { data: variants } = await variantsQuery
+  // Se trae TODA la variante cruda del producto y se filtra en JS — no se
+  // puede matchear "value" directo contra la columna "color" en la base
+  // porque el editor MUESTRA un nombre normalizado (ej: variantes viejas
+  // guardadas como color="#555555" se muestran como "Gris Oscuro"), pero
+  // esa normalización nunca se persiste hasta que el tenant guarda el
+  // producto. Si acá se buscara por el nombre mostrado tal cual, para esos
+  // colores legacy nunca matcheaba nada y el borrado quedaba "roto" en
+  // silencio (404) — exactamente el bug reportado en Mykonos y Connors.
+  const { data: allVariants } = await service.from('variants')
+    .select('id, color, size, color_hex')
+    .eq('product_id', productId)
 
-  const variantIds = (variants ?? []).map(v => v.id)
+  let variantIds: string[] = []
+  if (by === 'size') {
+    variantIds = (allVariants ?? [])
+      .filter(v => (v.size ?? '') === value)
+      .map(v => v.id)
+  } else {
+    // Mismo criterio de normalización + desambiguación de colisiones que
+    // usa el editor (productos/[id]/page.tsx) al cargar la matriz, para que
+    // el nombre que ve el tenant en pantalla sea el mismo que se busca acá.
+    const displayByRaw = buildDisplayNameByRawColor(allVariants ?? [])
+    variantIds = (allVariants ?? [])
+      .filter(v => (displayByRaw[v.color ?? ''] ?? '') === value)
+      .map(v => v.id)
+  }
   if (variantIds.length === 0) {
     return NextResponse.json({ error: 'No se encontraron variantes con ese valor' }, { status: 404 })
   }
