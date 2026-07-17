@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
-import VariantMatrix, { VariantMatrixHandle, CellData, cellKey } from '@/components/VariantMatrix'
+import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, FavoriteColor } from '@/components/VariantMatrix'
 import { buildDisplayNameByRawColor } from '@/lib/colorNames'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
@@ -111,9 +111,19 @@ export default function EditarProductoPage() {
   const [matrixInitialColorHexes, setMatrixInitialColorHexes] = useState<string[]>([])
   const [matrixInitialCells, setMatrixInitialCells] = useState<Record<string, CellData>>({})
   const [matrixReady, setMatrixReady] = useState(false)
+  // Se incrementa cada vez que se recargan los datos frescos de la base
+  // (después de guardar) — se usa como `key` de VariantMatrix para forzar
+  // que reinicie su estado interno con los ids de variante reales, en vez
+  // de seguir pensando que las recién creadas todavía no existen.
+  const [matrixVersion, setMatrixVersion] = useState(0)
+  const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    async function load() {
+    load()
+  }, [id])
+
+  async function load() {
       const [{ data: product }, { data: { user } }] = await Promise.all([
         supabase.from('products').select('*, product_images(*), variants(*, price_rules(*))').eq('id', id).single(),
         supabase.auth.getUser(),
@@ -164,9 +174,10 @@ export default function EditarProductoPage() {
           setTenantId(userRow?.tenant_id)
           const [{ data: cats }, { data: configData }] = await Promise.all([
             supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-            supabase.from('store_config').select('variant_attributes').eq('tenant_id', userRow.tenant_id).single(),
+            supabase.from('store_config').select('variant_attributes, preferred_colors').eq('tenant_id', userRow.tenant_id).single(),
           ])
           setCategories(cats ?? [])
+          setFavoriteColors((configData as any)?.preferred_colors ?? [])
 
           storeAttrs = configData?.variant_attributes ?? []
           const extra = storeAttrs.filter((a: AttrConfig) => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
@@ -216,10 +227,9 @@ export default function EditarProductoPage() {
       setMatrixInitialColorHexes(colorHexes)
       setMatrixInitialCells(cells)
       setMatrixReady(true)
+      setMatrixVersion(v => v + 1)
       setLoading(false)
-    }
-    load()
-  }, [id])
+  }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -359,8 +369,15 @@ export default function EditarProductoPage() {
 
       setNewImageFiles([])
       setNewImagePreviews([])
-      router.push('/dashboard/productos')
+      // Se queda en la misma página en vez de volver al listado, para poder
+      // seguir editando — pero hay que recargar los datos frescos (ids de
+      // variantes recién creadas, imágenes subidas) y remontar la matriz
+      // con esos ids reales, si no un segundo guardado insertaría de nuevo
+      // las mismas variantes en vez de actualizarlas.
+      await load()
       router.refresh()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
       setError(err.message ?? 'Error al guardar')
     } finally {
@@ -411,6 +428,19 @@ export default function EditarProductoPage() {
     }
   }
 
+  // Agrega o saca un color de favoritos (por hex) — persiste en store_config
+  // para el tenant entero, así aparece primero en el selector de CUALQUIER
+  // producto, no solo este.
+  async function toggleFavorite(color: FavoriteColor) {
+    if (!tenantId) return
+    const exists = favoriteColors.some(f => f.hex.toLowerCase() === color.hex.toLowerCase())
+    const next = exists
+      ? favoriteColors.filter(f => f.hex.toLowerCase() !== color.hex.toLowerCase())
+      : [...favoriteColors, color]
+    setFavoriteColors(next)
+    await supabase.from('store_config').update({ preferred_colors: next }).eq('tenant_id', tenantId)
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <p className="text-zinc-400 text-sm">Cargando producto...</p>
@@ -440,6 +470,7 @@ export default function EditarProductoPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {saved && <span className="text-xs text-emerald-600 font-medium">✓ Cambios guardados</span>}
           <button type="button" onClick={() => setConfirmDelete(true)} className="btn-secondary text-red-500 hover:text-red-600 hover:border-red-200">
             <Trash2 size={15} /> Eliminar
           </button>
@@ -635,6 +666,7 @@ export default function EditarProductoPage() {
         {/* Variantes */}
         {matrixReady && (
           <VariantMatrix
+            key={matrixVersion}
             ref={matrixRef}
             mode="edit"
             initialSizes={matrixInitialSizes}
@@ -643,6 +675,8 @@ export default function EditarProductoPage() {
             initialCells={matrixInitialCells}
             onRemoveColor={(color) => removeVariantGroup('color', color)}
             onRemoveSize={(size) => removeVariantGroup('size', size)}
+            favoriteColors={favoriteColors}
+            onToggleFavorite={toggleFavorite}
           />
         )}
 

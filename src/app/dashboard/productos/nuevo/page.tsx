@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Upload, ArrowLeft, X, Star } from 'lucide-react'
 import Link from 'next/link'
-import VariantMatrix, { VariantMatrixHandle } from '@/components/VariantMatrix'
+import VariantMatrix, { VariantMatrixHandle, FavoriteColor } from '@/components/VariantMatrix'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -43,7 +43,7 @@ async function resizeImageTo600x900(file: File): Promise<File> {
 }
 
 function slugify(text: string) {
-  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 export default function NuevoProductoPage() {
@@ -67,6 +67,7 @@ export default function NuevoProductoPage() {
   const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
   const [initialSizes, setInitialSizes] = useState<string[] | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
 
   useEffect(() => {
     async function load() {
@@ -78,9 +79,10 @@ export default function NuevoProductoPage() {
       setTenantId(userRow?.tenant_id)
       const [{ data: cats }, { data: configData }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-        supabase.from('store_config').select('variant_attributes').eq('tenant_id', userRow.tenant_id).single(),
+        supabase.from('store_config').select('variant_attributes, preferred_colors').eq('tenant_id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
+      setFavoriteColors((configData as any)?.preferred_colors ?? [])
 
       // Extra attrs = any attrs that aren't size or color
       const allAttrs: AttrConfig[] = configData?.variant_attributes ?? []
@@ -122,6 +124,19 @@ export default function NuevoProductoPage() {
     if (idx === 0) return
     setImageFiles(prev => { const a = [...prev]; const [item] = a.splice(idx, 1); a.unshift(item); return a })
     setImagePreviews(prev => { const a = [...prev]; const [item] = a.splice(idx, 1); a.unshift(item); return a })
+  }
+
+  // Agrega o saca un color de favoritos (por hex) — persiste en store_config
+  // para el tenant entero, así aparece primero en el selector de CUALQUIER
+  // producto, no solo este.
+  async function toggleFavorite(color: FavoriteColor) {
+    if (!tenantId) return
+    const exists = favoriteColors.some(f => f.hex.toLowerCase() === color.hex.toLowerCase())
+    const next = exists
+      ? favoriteColors.filter(f => f.hex.toLowerCase() !== color.hex.toLowerCase())
+      : [...favoriteColors, color]
+    setFavoriteColors(next)
+    await supabase.from('store_config').update({ preferred_colors: next }).eq('tenant_id', tenantId)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -265,7 +280,15 @@ export default function NuevoProductoPage() {
         </div>
 
         {/* Variantes */}
-        {initialSizes && <VariantMatrix ref={matrixRef} mode="create" initialSizes={initialSizes} />}
+        {initialSizes && (
+          <VariantMatrix
+            ref={matrixRef}
+            mode="create"
+            initialSizes={initialSizes}
+            favoriteColors={favoriteColors}
+            onToggleFavorite={toggleFavorite}
+          />
+        )}
 
         {/* Atributos extra del tenant */}
         {extraAttrs.length > 0 && (

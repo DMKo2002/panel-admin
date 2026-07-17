@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
-import { Plus, Pipette, X } from 'lucide-react'
+import { Plus, Pipette, X, Star } from 'lucide-react'
 import { nearestColorName, isPlaceholderName } from '@/lib/colorNames'
+
+export interface FavoriteColor { name: string; hex: string }
 
 export { nearestColorName, isPlaceholderName }
 
@@ -70,6 +72,10 @@ interface Props {
   // (modo "create"), se borra directo del estado local sin preguntar.
   onRemoveColor?: (color: string) => Promise<boolean>
   onRemoveSize?: (size: string) => Promise<boolean>
+  // Colores favoritos del tenant (persisten en store_config, no acá) —
+  // se muestran primero en el selector de color de CUALQUIER producto.
+  favoriteColors?: FavoriteColor[]
+  onToggleFavorite?: (color: FavoriteColor) => void
 }
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
@@ -89,6 +95,8 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   initialCells = {},
   onRemoveColor,
   onRemoveSize,
+  favoriteColors = [],
+  onToggleFavorite,
 }, ref) => {
   const [sizes, setSizes] = useState<string[]>(initialSizes)
   const [colors, setColors] = useState<string[]>(initialColors)
@@ -364,87 +372,27 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
               {/* Color column headers */}
               {colors.map((color, ci) => (
                 <th key={ci} className="px-2 py-2 border-b border-r border-zinc-200 last:border-r-0 min-w-[150px]">
-                  <div className="relative flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-1.5">
-                      {/* Color swatch — usa el hex guardado; si todavía no eligió uno, lo deriva del nombre */}
-                      <button type="button" onClick={() => openPicker(ci)}
-                        style={{ backgroundColor: colorHexes[ci] || colorToHex(color) }}
-                        title="Elegir color"
-                        className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
-                      {/* Color name input — texto libre, nunca se pisa automáticamente */}
-                      <input
-                        className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none text-center capitalize"
-                        style={{ width: '80px' }}
-                        value={color}
-                        onChange={e => renameColor(ci, e.target.value)}
-                        placeholder="Color..."
-                      />
-                      {/* Borrar columna — en modo edición pide confirmación y borra las variantes reales */}
-                      {colors.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveColorClick(ci)}
-                          title="Eliminar este color"
-                          className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
-                          <X size={11} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Color picker popup */}
-                    {pickerForCol === ci && (
-                      <div ref={pickerRef}
-                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-zinc-200 rounded-xl shadow-xl p-4 w-64">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-medium text-zinc-700">Elegir color</p>
-                          <button type="button" onClick={() => setPickerForCol(null)} className="text-zinc-400 hover:text-zinc-600">
-                            <X size={14} />
-                          </button>
-                        </div>
-                        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Hex</p>
-                        <div className="flex items-center gap-3 mb-3">
-                          <input type="color" value={pickerHex}
-                            onChange={e => setPickerHex(e.target.value)}
-                            className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
-                          <div>
-                            <p className="text-xs text-zinc-500 mb-0.5">Seleccionado</p>
-                            <p className="text-sm font-semibold text-zinc-800 font-mono">{pickerHex}</p>
-                          </div>
-                        </div>
-
-                        <div className="h-px bg-zinc-100 mb-3" />
-
-                        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Nombre</p>
-                        <input
-                          type="text"
-                          value={color}
-                          onChange={e => renameColor(ci, e.target.value)}
-                          placeholder="Ej: Azul"
-                          className="w-full text-sm border border-zinc-200 rounded-lg px-2.5 py-2 mb-1 focus:outline-none focus:border-violet-400"
-                        />
-                        <p className="text-[10px] text-zinc-400 mb-3">
-                          Se sugiere solo. Cambiarlo no toca el hex de arriba.
-                        </p>
-
-                        <div className="h-px bg-zinc-100 mb-3" />
-
-                        {'EyeDropper' in window && (
-                          <button type="button" onClick={() => launchEyeDropper(ci)}
-                            className="w-full flex items-center justify-center gap-2 text-xs py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors mb-3">
-                            <Pipette size={13} /> Cuentagotas — clickeá en la foto
-                          </button>
-                        )}
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                          {Object.entries(COLOR_MAP).map(([name, hex]) => (
-                            <button key={name} type="button" title={name}
-                              onClick={() => setPickerHex(hex)}
-                              style={{ backgroundColor: hex }}
-                              className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-violet-500 scale-110' : 'border-zinc-200'}`} />
-                          ))}
-                        </div>
-                        <button type="button" onClick={() => applyPickerColor(ci)}
-                          className="w-full btn-primary text-xs py-2 justify-center">
-                          Aplicar — {pickerHex}
-                        </button>
-                      </div>
+                  <div className="flex items-center justify-center gap-1.5">
+                    {/* Color swatch — usa el hex guardado; si todavía no eligió uno, lo deriva del nombre */}
+                    <button type="button" onClick={() => openPicker(ci)}
+                      style={{ backgroundColor: colorHexes[ci] || colorToHex(color) }}
+                      title="Elegir color"
+                      className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
+                    {/* Color name input — texto libre, nunca se pisa automáticamente */}
+                    <input
+                      className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none text-center capitalize"
+                      style={{ width: '80px' }}
+                      value={color}
+                      onChange={e => renameColor(ci, e.target.value)}
+                      placeholder="Color..."
+                    />
+                    {/* Borrar columna — en modo edición pide confirmación y borra las variantes reales */}
+                    {colors.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveColorClick(ci)}
+                        title="Eliminar este color"
+                        className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
+                        <X size={11} />
+                      </button>
                     )}
                   </div>
                 </th>
@@ -568,6 +516,108 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
       <p className="text-xs text-zinc-400">
         Cada celda muestra: stock · precio minorista · precio min. rebajado (tachado) · precio mayorista · precio may. rebajado · Solo completá los campos que aplican
       </p>
+
+      {/* ── Color picker — modal fijo centrado, siempre arriba de todo y sin
+          necesidad de scrollear para verlo entero (antes colgaba del botón
+          y en pantallas chicas quedaba cortado) ──────────────────────────── */}
+      {pickerForCol !== null && (() => {
+        const ci = pickerForCol
+        const isFav = favoriteColors.some(f => f.hex.toLowerCase() === pickerHex.toLowerCase())
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div ref={pickerRef}
+              className="bg-white border border-zinc-200 rounded-xl shadow-xl p-4 w-72 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-zinc-700">Elegir color</p>
+                <button type="button" onClick={() => setPickerForCol(null)} className="text-zinc-400 hover:text-zinc-600">
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Hex</p>
+              <div className="flex items-center gap-3 mb-3">
+                <input type="color" value={pickerHex}
+                  onChange={e => setPickerHex(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
+                <div>
+                  <p className="text-xs text-zinc-500 mb-0.5">Seleccionado</p>
+                  <p className="text-sm font-semibold text-zinc-800 font-mono">{pickerHex}</p>
+                </div>
+              </div>
+
+              <div className="h-px bg-zinc-100 mb-3" />
+
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Nombre</p>
+              <input
+                type="text"
+                value={colors[ci] ?? ''}
+                onChange={e => renameColor(ci, e.target.value)}
+                placeholder="Ej: Azul"
+                className="w-full text-sm border border-zinc-200 rounded-lg px-2.5 py-2 mb-1 focus:outline-none focus:border-violet-400"
+              />
+              <p className="text-[10px] text-zinc-400 mb-3">
+                Se sugiere solo. Cambiarlo no toca el hex de arriba.
+              </p>
+
+              <div className="h-px bg-zinc-100 mb-3" />
+
+              {'EyeDropper' in window && (
+                <button type="button" onClick={() => launchEyeDropper(ci)}
+                  className="w-full flex items-center justify-center gap-2 text-xs py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors mb-3">
+                  <Pipette size={13} /> Cuentagotas — clickeá en la foto
+                </button>
+              )}
+
+              {favoriteColors.length > 0 && (
+                <>
+                  <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide mb-1.5">Tus favoritos</p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {favoriteColors.map(fav => (
+                      <div key={fav.hex} className="relative group">
+                        <button type="button" title={fav.name}
+                          onClick={() => { setPickerHex(fav.hex); renameColor(ci, fav.name) }}
+                          style={{ backgroundColor: fav.hex }}
+                          className={`w-6 h-6 rounded-full border transition-all hover:scale-110 ${pickerHex.toLowerCase() === fav.hex.toLowerCase() ? 'border-violet-500 scale-110' : 'border-zinc-300'}`} />
+                        {onToggleFavorite && (
+                          <button type="button" onClick={() => onToggleFavorite(fav)} title="Sacar de favoritos"
+                            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex">
+                            <X size={8} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="h-px bg-zinc-100 mb-3" />
+                </>
+              )}
+
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Paleta rápida</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {Object.entries(COLOR_MAP).map(([name, hex]) => (
+                  <button key={name} type="button" title={name}
+                    onClick={() => setPickerHex(hex)}
+                    style={{ backgroundColor: hex }}
+                    className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-violet-500 scale-110' : 'border-zinc-200'}`} />
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => applyPickerColor(ci)}
+                  className="flex-1 btn-primary text-xs py-2 justify-center">
+                  Aplicar — {pickerHex}
+                </button>
+                {onToggleFavorite && (
+                  <button type="button"
+                    onClick={() => onToggleFavorite({ name: colors[ci]?.trim() || nearestColorName(pickerHex) || 'Color', hex: pickerHex })}
+                    title={isFav ? 'Sacar de favoritos' : 'Guardar como favorito'}
+                    className={`px-3 rounded-lg border flex items-center justify-center transition-colors flex-shrink-0 ${isFav ? 'border-amber-300 bg-amber-50 text-amber-500' : 'border-zinc-200 text-zinc-400 hover:text-amber-500 hover:border-amber-300'}`}>
+                    <Star size={14} fill={isFav ? 'currentColor' : 'none'} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 })
