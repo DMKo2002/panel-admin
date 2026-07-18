@@ -15,7 +15,7 @@ const MINIMALISTA_SLOTS = [
   { key: 'moodboard_4',  label: 'MoodBoard — Foto 4', hint: '600 × 600 px cuadrado',         aspect: '1/1' },
 ]
 
-const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string }[]> = {
+const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string; allowVideo?: boolean }[]> = {
   default:     MINIMALISTA_SLOTS,
   minimalista: MINIMALISTA_SLOTS,
   atelier: [
@@ -45,7 +45,22 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'moodboard_left',   label: 'Moodboard — Foto izquierda',  hint: '860 × 573 px', aspect: '860/573' },
     { key: 'moodboard_right',  label: 'Moodboard — Foto derecha',    hint: '860 × 573 px', aspect: '860/573' },
   ],
-  axis:        MINIMALISTA_SLOTS, // reemplazar cuando se diseñe el template
+  // Axis: mismo layout que mono (viene del mismo Figma, secciones en el mismo orden salvo el hero).
+  // Único cambio real: el hero es un video en vez de una foto — hero_main acepta video acá.
+  axis: [
+    { key: 'logo',         label: 'Logo',              hint: 'PNG o SVG transparente — se muestra en el panel izquierdo del hero, 150 px de ancho (alto proporcional)', aspect: 'logo' },
+    { key: 'logo_favicon', label: 'Favicon',           hint: 'PNG cuadrado — 512 × 512 px', aspect: '1/1' },
+    { key: 'hero_main',    label: 'Hero — Video',      hint: 'Video MP4, 1117 × 1117 px aprox. (cuadrado) — también acepta una imagen si preferís no usar video', aspect: '1/1', allowVideo: true },
+    // Mosaico de 4 fotos (igual que mono): 1 grande a la izquierda + 1 ancha y 2 chicas apiladas a la derecha
+    { key: 'gallery_1',    label: 'Mosaico — Foto grande (izq.)', hint: '864 × 1117 px — ocupa toda la altura de la sección', aspect: '864/1117' },
+    { key: 'gallery_2',    label: 'Mosaico — Foto ancha (arriba der.)', hint: '864 × 559 px', aspect: '864/559' },
+    { key: 'gallery_3',    label: 'Mosaico — Foto chica 1 (abajo der.)', hint: '432 × 559 px', aspect: '432/559' },
+    { key: 'gallery_4',    label: 'Mosaico — Foto chica 2 (abajo der.)', hint: '432 × 559 px', aspect: '432/559' },
+    // Moodboard (igual que mono): franja panorámica con texto + 2 fotos lado a lado
+    { key: 'moodboard_banner', label: 'Moodboard — Franja superior', hint: '1728 × 200 px — franja panorámica con texto superpuesto', aspect: '1728/200' },
+    { key: 'moodboard_left',   label: 'Moodboard — Foto izquierda',  hint: '860 × 573 px', aspect: '860/573' },
+    { key: 'moodboard_right',  label: 'Moodboard — Foto derecha',    hint: '860 × 573 px', aspect: '860/573' },
+  ],
 
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
@@ -149,19 +164,26 @@ interface SlotState {
   saved?: boolean
 }
 
-// ─── Componente de slot de imagen ─────────────────────────────────────────────
+// ─── Componente de slot de imagen (o video, si el slot lo permite) ───────────
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov)(\?|$)/i.test(url)
+
 function AssetSlot({ slotDef, state, onUpload, onRemove }: {
-  slotDef: { key: string; label: string; hint: string; aspect: string }
+  slotDef: { key: string; label: string; hint: string; aspect: string; allowVideo?: boolean }
   state: SlotState
   onUpload: (file: File) => void
   onRemove: () => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const isValidFile = (file: File) =>
+    file.type.startsWith('image/') || (!!slotDef.allowVideo && file.type.startsWith('video/'))
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const file = e.dataTransfer.files[0]
-    if (file && file.type.startsWith('image/')) onUpload(file)
+    if (file && isValidFile(file)) onUpload(file)
   }
+
+  const showingVideo = !!state.url && slotDef.allowVideo && isVideoUrl(state.url)
 
   return (
     <div className="flex flex-col gap-2">
@@ -178,8 +200,12 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
       >
         {state.url ? (
           <>
-            <img src={state.url} alt={slotDef.label}
-              className={slotDef.aspect === 'logo' ? 'max-h-full w-auto object-contain' : 'w-full h-full object-cover'} />
+            {showingVideo ? (
+              <video src={state.url} muted loop autoPlay playsInline className="w-full h-full object-cover" />
+            ) : (
+              <img src={state.url} alt={slotDef.label}
+                className={slotDef.aspect === 'logo' ? 'max-h-full w-auto object-contain' : 'w-full h-full object-cover'} />
+            )}
             {state.saved && (
               <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
                 <Check size={10} /> Guardado
@@ -196,7 +222,7 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400">
-            {state.uploading ? <Loader2 size={24} className="animate-spin text-violet-500" /> : <><ImageIcon size={24} /><span className="text-xs">Subir imagen</span></>}
+            {state.uploading ? <Loader2 size={24} className="animate-spin text-violet-500" /> : <><ImageIcon size={24} /><span className="text-xs">{slotDef.allowVideo ? 'Subir imagen o video' : 'Subir imagen'}</span></>}
           </div>
         )}
         {state.uploading && state.url && (
@@ -206,7 +232,13 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
         )}
       </div>
       {state.error && <p className="text-xs text-red-500">{state.error}</p>}
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f) }} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept={slotDef.allowVideo ? 'image/*,video/*' : 'image/*'}
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f && isValidFile(f)) onUpload(f) }}
+      />
     </div>
   )
 }
@@ -526,9 +558,10 @@ export default function PersonalizacionPage() {
     if (!groups[prefix]) groups[prefix] = []
     groups[prefix].push(s)
   }
-  // El template mono tiene una estructura de home distinta (sin colecciones/blog/newsletter),
-  // así que el panel se ordena por sector de la tienda en vez de por tipo de campo.
-  const isMono = template === 'mono'
+  // Los templates mono y axis tienen una estructura de home distinta (sin colecciones/blog/newsletter),
+  // así que el panel se ordena por sector de la tienda en vez de por tipo de campo. Axis reusa el mismo
+  // layout que mono (viene del mismo Figma con hero video en vez de imagen estática).
+  const isMono = template === 'mono' || template === 'axis'
 
   if (loading) {
     return (
