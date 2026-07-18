@@ -982,7 +982,7 @@ export default function PersonalizacionPage() {
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Código de temporada</label>
               <input className="input text-sm font-mono" value={heroSeason} onChange={e => setHeroSeason(e.target.value)} placeholder="AW2026" />
-              <p className="text-xs text-zinc-400 mt-1">Aparece como texto decorativo en el fondo (ej: AW2026, SS2027)</p>
+              <p className="text-xs text-zinc-400 mt-1">Texto decorativo del hero — en axis se muestra en vertical junto al video (ej: AW2026, SS2027)</p>
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Texto pequeño (sobre el título)</label>
