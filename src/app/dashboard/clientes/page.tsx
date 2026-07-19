@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import DeleteCustomerButton from '@/components/DeleteCustomerButton'
+import CsvImportExportButtons from '@/components/CsvImportExportButtons'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -101,9 +102,18 @@ export default async function ClientesPage() {
   return (
     <div>
       {/* Header */}
-      <div className="px-8 py-6 border-b border-zinc-200 bg-white">
-        <h1 className="text-xl font-semibold text-zinc-900">Clientes</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">{totalClients} clientes registrados</p>
+      <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900">Clientes</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">{totalClients} clientes registrados</p>
+        </div>
+        <div className="relative">
+          <CsvImportExportButtons
+            exportUrl="/api/clientes/export"
+            importUrl="/api/clientes/import"
+            entityLabel="clientes"
+          />
+        </div>
       </div>
 
       {/* KPIs */}
