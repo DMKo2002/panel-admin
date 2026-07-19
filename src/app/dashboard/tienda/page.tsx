@@ -26,6 +26,7 @@ export default function TiendaPage() {
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [mpToken, setMpToken] = useState('')
+  const [mpPublicKey, setMpPublicKey] = useState('')
   const [savingMp, setSavingMp] = useState(false)
   const [savedMp, setSavedMp] = useState(false)
   const [errorMp, setErrorMp] = useState<string | null>(null)
@@ -71,6 +72,7 @@ export default function TiendaPage() {
       const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
       setConfig(data)
       if ((data as any)?.mp_access_token)    setMpToken((data as any).mp_access_token as string)
+      if ((data as any)?.mp_public_key)      setMpPublicKey((data as any).mp_public_key as string)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
       if ((data as any)?.email_from_name)    setEmailFromName((data as any).email_from_name)
       if ((data as any)?.notification_email) setNotificationEmail((data as any).notification_email)
@@ -141,7 +143,10 @@ export default function TiendaPage() {
     if (!config) return
     setSavingMp(true)
     setErrorMp(null)
-    const { error } = await supabase.from('store_config').update({ mp_access_token: mpToken.trim() || null }).eq('id', config.id)
+    const { error } = await supabase.from('store_config').update({
+      mp_access_token: mpToken.trim() || null,
+      mp_public_key:   mpPublicKey.trim() || null,
+    }).eq('id', config.id)
     setSavingMp(false)
     if (error) {
       console.error('Error guardando token MP:', error)
@@ -490,12 +495,17 @@ export default function TiendaPage() {
           {config?.mp_enabled && (
             <div className="space-y-3">
               <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Public Key de tu cuenta MP</label>
+                <input className="input font-mono text-xs" value={mpPublicKey} onChange={e => setMpPublicKey(e.target.value)} placeholder="APP_USR-... o TEST-..." />
+                <p className="text-xs text-zinc-400 mt-1.5">Se usa en el checkout para tokenizar la tarjeta del comprador.</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Access Token de tu cuenta MP</label>
                 <input className="input font-mono text-xs" type="password" value={mpToken} onChange={e => setMpToken(e.target.value)} placeholder="APP_USR-... o TEST-..." />
                 <p className="text-xs text-zinc-400 mt-1.5">
-                  Lo encontrás en{' '}
+                  Encontrás ambas claves en{' '}
                   <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">mercadopago.com.ar/developers</a>
-                  {' '}→ Credenciales de producción
+                  {' '}→ Credenciales de producción (o de prueba)
                 </p>
               </div>
               <button onClick={handleSaveMpToken} disabled={savingMp} className="btn-secondary text-sm disabled:opacity-60">

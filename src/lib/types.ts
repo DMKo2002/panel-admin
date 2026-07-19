@@ -52,6 +52,8 @@ export interface StoreConfig {
   whatsapp_number: string | null
   notification_email: string | null
   mp_enabled: boolean
+  mp_access_token: string | null
+  mp_public_key: string | null
   transfer_enabled: boolean
   transfer_cbu: string | null
   transfer_alias: string | null
