@@ -4,8 +4,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { toCsv } from '@/lib/csv'
 
 const HEADERS = [
-  'producto_id', 'variante_id', 'categoria', 'nombre', 'descripcion', 'imagenes',
-  'talle', 'color', 'color_hex', 'sku', 'stock', 'stock_alerta_baja',
+  'producto_id', 'variante_id', 'categoria', 'nombre', 'descripcion', 'imagenes', 'sku',
+  'talle', 'color', 'color_hex', 'stock', 'stock_alerta_baja',
   'precio_minorista', 'precio_minorista_tachado',
   'precio_mayorista', 'precio_mayorista_min_qty',
   'producto_activo', 'variante_activa',
@@ -26,7 +26,7 @@ export async function GET() {
     service
       .from('products')
       .select(`
-        id, name, description, active, category_id,
+        id, name, sku, description, active, category_id,
         product_images ( url, sort_order, is_cover ),
         variants ( id, size, color, color_hex, sku, stock, low_stock_alert, active,
           price_rules ( type, price, compare_at_price, min_qty, active )
@@ -63,8 +63,8 @@ export async function GET() {
     if (variants.length === 0) {
       // Producto sin variantes todavía — igual se exporta una fila para no perderlo.
       rows.push([
-        p.id, '', catPath, p.name, p.description ?? '', images,
-        '', '', '', '', '', '',
+        p.id, '', catPath, p.name, p.description ?? '', images, p.sku ?? '',
+        '', '', '', '', '',
         '', '', '', '',
         p.active ? '1' : '0', '',
       ])
@@ -76,9 +76,9 @@ export async function GET() {
       const retail = rules.find((r: any) => r.type === 'retail' && (r.min_qty ?? 1) <= 1)
       const wholesale = rules.find((r: any) => r.type === 'wholesale')
       rows.push([
-        p.id, v.id, catPath, p.name, p.description ?? '', images,
+        p.id, v.id, catPath, p.name, p.description ?? '', images, p.sku ?? '',
         v.size ?? '', v.color ?? '', v.color_hex ?? '',
-        v.sku ?? '', v.stock ?? 0, v.low_stock_alert ?? '',
+        v.stock ?? 0, v.low_stock_alert ?? '',
         retail?.price ?? '', retail?.compare_at_price ?? '',
         wholesale?.price ?? '', wholesale?.min_qty ?? '',
         p.active ? '1' : '0', v.active ? '1' : '0',

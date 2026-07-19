@@ -92,6 +92,17 @@ export async function POST(req: NextRequest) {
     const { data: existingProducts } = await service.from('products').select('id, name, category_id').eq('tenant_id', tenantId)
     const productById = new Map((existingProducts ?? []).map((p: any) => [p.id, p]))
 
+    // ── Variantes existentes del tenant, para no confundir un variante_id de
+    // OTRA tienda (ej: reimportando el export de otro tenant) con una propia.
+    // Sin este chequeo, un UPDATE por id ajeno afecta 0 filas silenciosamente
+    // (sin error) y la variante nunca se crea — bug que causaba pérdida de
+    // color/talle/precio al migrar entre tiendas.
+    const existingProductIds = (existingProducts ?? []).map((p: any) => p.id)
+    const { data: existingVariants } = existingProductIds.length
+      ? await service.from('variants').select('id, product_id').in('product_id', existingProductIds)
+      : { data: [] as any[] }
+    const variantById = new Map((existingVariants ?? []).map((v: any) => [v.id, v]))
+
     const groupKeyToProductId = new Map<string, string>()
     const productsCreatedThisRun = new Set<string>()
 
@@ -115,11 +126,15 @@ export async function POST(req: NextRequest) {
         if (!productId) {
           const categoryId = categoria ? await resolveCategoryPath(categoria) : null
 
+          // "producto_id" solo cuenta como existente si REALMENTE pertenece a
+          // esta tienda — si viene de un export de OTRO tenant (migración),
+          // productById.has() da false y cae a CREATE, como corresponde.
           if (producto_id && productById.has(producto_id)) {
             // UPDATE producto existente
             const updates: Record<string, any> = { name: nombre }
             if (row['descripcion']?.trim()) updates.description = row['descripcion'].trim()
             if (categoryId) updates.category_id = categoryId
+            if (row['sku']?.trim()) updates.sku = row['sku'].trim()
             if (row['producto_activo'] !== undefined) updates.active = toBool(row['producto_activo'])
             const { error } = await service.from('products').update(updates).eq('id', producto_id).eq('tenant_id', tenantId)
             if (error) throw new Error(error.message)
@@ -134,6 +149,7 @@ export async function POST(req: NextRequest) {
               slug: slugify(nombre) + '-' + Math.random().toString(36).slice(2, 6),
               description: row['descripcion']?.trim() || null,
               category_id: categoryId,
+              sku: row['sku']?.trim() || null,
               active: toBool(row['producto_activo']),
             }).select('id').single()
             if (error) throw new Error(error.message)
@@ -160,16 +176,22 @@ export async function POST(req: NextRequest) {
         const talle = row['talle']?.trim() || null
         const color = row['color']?.trim() || null
         const color_hex = normalizeHex(row['color_hex'] ?? '')
-        const sku = row['sku']?.trim() || null
         const stock = toNum(row['stock'] ?? '') ?? 0
         const lowStockAlert = toNum(row['stock_alerta_baja'] ?? '')
         const variantActive = toBool(row['variante_activa'] ?? '')
 
-        let variantId = variante_id
+        // Igual que con producto_id: un variante_id que no pertenece a ESTE
+        // tenant/producto no cuenta como existente — si no, el UPDATE de abajo
+        // afecta 0 filas en silencio (sin error) y la variante nunca se crea.
+        const variantExists = variante_id
+          && variantById.has(variante_id)
+          && variantById.get(variante_id)!.product_id === productId
 
-        if (variante_id) {
+        let variantId = variantExists ? variante_id : undefined
+
+        if (variantExists) {
           const { error } = await service.from('variants').update({
-            size: talle, color, color_hex, sku, stock,
+            size: talle, color, color_hex, stock,
             ...(lowStockAlert !== null && { low_stock_alert: lowStockAlert }),
             active: variantActive,
           }).eq('id', variante_id).eq('product_id', productId)
@@ -178,7 +200,7 @@ export async function POST(req: NextRequest) {
         } else {
           const { data: createdVariant, error } = await service.from('variants').insert({
             id: randomUUID(), product_id: productId, size: talle, color, color_hex,
-            sku, stock, low_stock_alert: lowStockAlert ?? 5, active: variantActive,
+            stock, low_stock_alert: lowStockAlert ?? 5, active: variantActive,
           }).select('id').single()
           if (error) throw new Error(error.message)
           variantId = createdVariant!.id
