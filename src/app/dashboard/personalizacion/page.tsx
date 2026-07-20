@@ -16,7 +16,6 @@ const MINIMALISTA_SLOTS = [
 ]
 
 const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string; aspect: string; allowVideo?: boolean }[]> = {
-  default:     MINIMALISTA_SLOTS,
   minimalista: MINIMALISTA_SLOTS,
   atelier: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
@@ -248,7 +247,7 @@ export default function PersonalizacionPage() {
   const supabase = createClient()
 
   // ── Image slots
-  const [template, setTemplate] = useState<string>('default')
+  const [template, setTemplate] = useState<string>('minimalista')
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [configId, setConfigId] = useState<string | null>(null)
   const [slots, setSlots] = useState<Record<string, SlotState>>({})
@@ -336,7 +335,7 @@ export default function PersonalizacionPage() {
         setTenantId(userRow?.tenant_id)
 
         const { data: tenant } = await supabase.from('tenants').select('name, template').eq('id', userRow.tenant_id).single()
-        const tmpl = (tenant as any)?.template ?? 'default'
+        const tmpl = (tenant as any)?.template ?? 'minimalista'
         setTemplate(tmpl)
         setStoreName((tenant as any)?.name ?? '')
 
@@ -383,7 +382,7 @@ export default function PersonalizacionPage() {
         }
 
         const { data: assets } = await supabase.from('store_assets').select('slot, url').eq('tenant_id', userRow.tenant_id)
-        const slotDefs = TEMPLATE_SLOTS[tmpl] ?? TEMPLATE_SLOTS['default']
+        const slotDefs = TEMPLATE_SLOTS[tmpl] ?? TEMPLATE_SLOTS['minimalista']
         const initial: Record<string, SlotState> = {}
         for (const s of slotDefs) {
           const existing = assets?.find(a => a.slot === s.key)
@@ -551,7 +550,7 @@ export default function PersonalizacionPage() {
     setSavedLegal(true); setTimeout(() => setSavedLegal(false), 2000)
   }
 
-  const slotDefs = TEMPLATE_SLOTS[template] ?? TEMPLATE_SLOTS['default']
+  const slotDefs = TEMPLATE_SLOTS[template] ?? TEMPLATE_SLOTS['minimalista']
   const groups: Record<string, typeof slotDefs> = {}
   for (const s of slotDefs) {
     const prefix = s.key.split('_')[0]

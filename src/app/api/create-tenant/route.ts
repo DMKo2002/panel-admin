@@ -26,8 +26,8 @@ export async function POST(req: Request) {
     .replace(/(^-|-$)/g, '')
     + '-' + Date.now().toString().slice(-4)
 
-  const validTemplates = ['default', 'mono', 'atelier', 'axis']
-  const chosenTemplate = validTemplates.includes(template) ? template : 'default'
+  const validTemplates = ['minimalista', 'mono', 'atelier', 'axis']
+  const chosenTemplate = validTemplates.includes(template) ? template : 'minimalista'
 
   const { data: tenant, error: tenantError } = await serviceClient
     .from('tenants')

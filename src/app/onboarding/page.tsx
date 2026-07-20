@@ -7,7 +7,7 @@ import { Store, Check, ExternalLink, Loader2 } from 'lucide-react'
 // ── Templates — URLs vienen de env vars del Panel Admin ──────────────────────
 const TEMPLATES = [
   {
-    id: 'default',
+    id: 'minimalista',
     name: 'Minimalista',
     description: 'Elegante y limpio. Tipografía serif, paleta neutra, hero de pantalla completa.',
     previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? '',
@@ -143,7 +143,7 @@ export default function OnboardingPage() {
   const [step, setStep]         = useState<Step>('nombre')
   const [name, setName]         = useState('')
   const [domain, setDomain]     = useState('')
-  const [template, setTemplate] = useState('default')
+  const [template, setTemplate] = useState('minimalista')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState<string | null>(null)
 

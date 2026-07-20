@@ -3,10 +3,10 @@ import SuperadminClient, { TenantRow } from './SuperadminClient'
 
 // URLs de los deployments por template (para tenants sin dominio propio)
 const TEMPLATE_URLS: Record<string, string> = {
-  default: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? '',
-  mono:    process.env.NEXT_PUBLIC_PREVIEW_URL_MONO        ?? '',
-  atelier: process.env.NEXT_PUBLIC_PREVIEW_URL_ATELIER     ?? '',
-  axis:    process.env.NEXT_PUBLIC_PREVIEW_URL_AXIS        ?? '',
+  minimalista: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? '',
+  mono:        process.env.NEXT_PUBLIC_PREVIEW_URL_MONO        ?? '',
+  atelier:     process.env.NEXT_PUBLIC_PREVIEW_URL_ATELIER     ?? '',
+  axis:        process.env.NEXT_PUBLIC_PREVIEW_URL_AXIS        ?? '',
 }
 
 export default async function SuperadminPage() {
@@ -36,12 +36,12 @@ export default async function SuperadminPage() {
     name:        t.name,
     slug:        t.slug,
     domain:      t.domain ?? null,
-    template:    t.template ?? 'default',
+    template:    t.template ?? 'minimalista',
     status:      t.status,
     ownerEmail:  ownerByTenant[t.id] ?? null,
     frontendUrl: t.domain
       ? `https://${t.domain}`
-      : (TEMPLATE_URLS[t.template ?? 'default'] || null),
+      : (TEMPLATE_URLS[t.template ?? 'minimalista'] || null),
   }))
 
   return <SuperadminClient initialTenants={rows} />
