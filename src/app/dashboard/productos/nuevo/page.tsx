@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Upload, ArrowLeft, X, Star } from 'lucide-react'
 import Link from 'next/link'
 import VariantMatrix, { VariantMatrixHandle, FavoriteColor } from '@/components/VariantMatrix'
+import SimpleVariantForm, { SimpleVariantHandle } from '@/components/SimpleVariantForm'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -50,6 +51,7 @@ export default function NuevoProductoPage() {
   const router = useRouter()
   const supabase = createClient()
   const matrixRef = useRef<VariantMatrixHandle>(null)
+  const simpleRef = useRef<SimpleVariantHandle>(null)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +68,8 @@ export default function NuevoProductoPage() {
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
   const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
   const [initialSizes, setInitialSizes] = useState<string[] | null>(null)
+  const [variantMode, setVariantMode] = useState<'sizes_colors' | 'simple'>('sizes_colors')
+  const [configLoaded, setConfigLoaded] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
 
@@ -79,20 +83,25 @@ export default function NuevoProductoPage() {
       setTenantId(userRow?.tenant_id)
       const [{ data: cats }, { data: configData }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-        supabase.from('store_config').select('variant_attributes, preferred_colors').eq('tenant_id', userRow.tenant_id).single(),
+        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode').eq('tenant_id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
+      const mode = (configData as any)?.variant_mode === 'simple' ? 'simple' : 'sizes_colors'
+      setVariantMode(mode)
 
-      // Extra attrs = any attrs that aren't size or color
+      // Extra attrs = any attrs that aren't size or color (aplica en ambos modos)
       const allAttrs: AttrConfig[] = configData?.variant_attributes ?? []
       const extra = allAttrs.filter(a => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
       setExtraAttrs(extra)
+
+      if (mode === 'simple') { setInitialSizes([]); setConfigLoaded(true); return }
 
       // Sizes from tenant config
       const sizeAttr = allAttrs.find(a => SIZE_KEYS.includes(a.key))
       const sizes = sizeAttr?.options?.length ? sizeAttr.options : ['XS', 'S', 'M', 'L', 'XL']
       setInitialSizes(sizes)
+      setConfigLoaded(true)
     }
     load()
   }, [])
@@ -166,13 +175,18 @@ export default function NuevoProductoPage() {
         }
       }
 
-      // Guardar variantes desde la matriz (extra attrs se agregan al JSONB attributes de cada variante)
-      const variantsFromMatrix = matrixRef.current?.getVariants() ?? []
-      for (const v of variantsFromMatrix) {
-        const attrs = { ...v.attrs, ...extraAttrValues }
+      // Guardar variantes — modo simple: 1 sola variante sin talle/color.
+      // Modo sizes_colors: una por celda de la matriz (extra attrs van al
+      // JSONB attributes de cada variante).
+      const variantsToSave = variantMode === 'simple'
+        ? (simpleRef.current ? [{ ...simpleRef.current.getVariant(), size: null, color: null, colorHex: null, attrs: {} }] : [])
+        : (matrixRef.current?.getVariants() ?? [])
+
+      for (const v of variantsToSave) {
+        const attrs = { ...(v as any).attrs, ...extraAttrValues }
         const { data: variant, error: varErr } = await supabase
           .from('variants')
-          .insert({ product_id: product.id, size: v.size, color: v.color, color_hex: v.colorHex, sku: null, stock: v.stock, attributes: attrs })
+          .insert({ product_id: product.id, size: v.size, color: v.color, color_hex: (v as any).colorHex, sku: null, stock: v.stock, attributes: attrs })
           .select().single()
         if (varErr) throw varErr
 
@@ -280,14 +294,18 @@ export default function NuevoProductoPage() {
         </div>
 
         {/* Variantes */}
-        {initialSizes && (
-          <VariantMatrix
-            ref={matrixRef}
-            mode="create"
-            initialSizes={initialSizes}
-            favoriteColors={favoriteColors}
-            onToggleFavorite={toggleFavorite}
-          />
+        {configLoaded && (
+          variantMode === 'simple' ? (
+            <SimpleVariantForm ref={simpleRef} />
+          ) : initialSizes && (
+            <VariantMatrix
+              ref={matrixRef}
+              mode="create"
+              initialSizes={initialSizes}
+              favoriteColors={favoriteColors}
+              onToggleFavorite={toggleFavorite}
+            />
+          )
         )}
 
         {/* Atributos extra del tenant */}
