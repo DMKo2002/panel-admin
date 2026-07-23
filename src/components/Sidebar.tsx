@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users, ArrowLeft, KeyRound
+  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users, ArrowLeft, KeyRound, BarChart3
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -14,6 +14,7 @@ import clsx from 'clsx'
 // STAFF_BLOCKED_PREFIXES en src/proxy.ts)
 const navItems = [
   { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard, staffBlocked: false },
+  { label: 'Estadísticas',    href: '/dashboard/estadisticas',   icon: BarChart3,        staffBlocked: false },
   { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart,     staffBlocked: false },
   { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users,            staffBlocked: false },
   { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt,            staffBlocked: false },
@@ -34,7 +35,7 @@ interface SidebarProps {
 export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role }: SidebarProps) {
   const isStaff = role === 'staff'
   const visibleItems = navItems.filter(item => !(isStaff && item.staffBlocked))
-  const general = visibleItems.filter(i => ['/dashboard', '/dashboard/pedidos', '/dashboard/clientes'].includes(i.href))
+  const general = visibleItems.filter(i => ['/dashboard', '/dashboard/estadisticas', '/dashboard/pedidos', '/dashboard/clientes'].includes(i.href))
   const catalogo = visibleItems.filter(i => ['/dashboard/productos', '/dashboard/categorias'].includes(i.href))
   const config = visibleItems.filter(i => !general.includes(i) && !catalogo.includes(i))
   const pathname = usePathname()
