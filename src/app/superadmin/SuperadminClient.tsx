@@ -170,7 +170,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                           if (e.key === 'Enter') handleRename(tenant)
                           if (e.key === 'Escape') setEditingId(null)
                         }}
-                        className="bg-zinc-800 border border-zinc-600 rounded-lg px-2 py-1 text-sm text-zinc-100 w-36 focus:outline-none focus:border-violet-500"
+                        className="bg-zinc-800 border border-zinc-600 rounded-lg px-2 py-1 text-sm text-zinc-100 w-36 focus:outline-none focus:border-primary-500"
                       />
                       <button
                         onClick={() => handleRename(tenant)}
@@ -267,7 +267,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                         onClick={() => handleImpersonate(tenant)}
                         disabled={impersonatingId === tenant.id}
                         title={`Acceder como ${tenant.ownerEmail}`}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
                       >
                         <LogIn size={13} />
                         {impersonatingId === tenant.id ? 'Generando...' : 'Acceder'}

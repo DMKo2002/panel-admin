@@ -15,7 +15,7 @@ interface VariantAttribute {
 }
 
 const THEMES = [
-  { id: 'default', label: 'Default', preview: { sidebar: 'bg-violet-600', bg: 'bg-zinc-100' } },
+  { id: 'default', label: 'Default', preview: { sidebar: 'bg-primary-600', bg: 'bg-zinc-100' } },
   { id: 'dark',    label: 'Dark',    preview: { sidebar: 'bg-zinc-900',   bg: 'bg-zinc-800' } },
 ]
 
@@ -278,7 +278,7 @@ export default function TiendaPage() {
             <h2 className="text-sm font-semibold text-zinc-700">Apariencia</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
               Las imágenes (logo, hero, colecciones) se gestionan en{' '}
-              <a href="/dashboard/personalizacion" className="text-violet-600 hover:underline">Personalización</a>.
+              <a href="/dashboard/personalizacion" className="text-primary-600 hover:underline">Personalización</a>.
             </p>
           </div>
           <div>
@@ -289,7 +289,7 @@ export default function TiendaPage() {
                   key={t.id}
                   onClick={() => handleThemeChange(t.id as 'default' | 'dark')}
                   className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all w-32 ${
-                    panelTheme === t.id ? 'border-violet-500 bg-violet-50' : 'border-zinc-200 hover:border-zinc-300'
+                    panelTheme === t.id ? 'border-primary-500 bg-primary-50' : 'border-zinc-200 hover:border-zinc-300'
                   }`}
                 >
                   {/* Mini preview */}
@@ -302,7 +302,7 @@ export default function TiendaPage() {
                   </div>
                   <p className="text-sm font-medium text-zinc-900">{t.label}</p>
                   {panelTheme === t.id && (
-                    <div className="absolute top-2 right-2 w-4 h-4 bg-violet-600 rounded-full flex items-center justify-center">
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-primary-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-[9px] font-bold">✓</span>
                     </div>
                   )}
@@ -437,7 +437,7 @@ export default function TiendaPage() {
               </div>
             ))}
           </div>
-          <button onClick={addAttribute} className="flex items-center gap-2 text-sm text-violet-600 hover:text-violet-700 transition-colors">
+          <button onClick={addAttribute} className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 transition-colors">
             <Plus size={14} /> Agregar atributo
           </button>
         </div>
@@ -504,7 +504,7 @@ export default function TiendaPage() {
                 <input className="input font-mono text-xs" type="password" value={mpToken} onChange={e => setMpToken(e.target.value)} placeholder="APP_USR-... o TEST-..." />
                 <p className="text-xs text-zinc-400 mt-1.5">
                   Encontrás ambas claves en{' '}
-                  <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">mercadopago.com.ar/developers</a>
+                  <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">mercadopago.com.ar/developers</a>
                   {' '}→ Credenciales de producción (o de prueba)
                 </p>
               </div>
@@ -562,7 +562,7 @@ export default function TiendaPage() {
                   <button
                     onClick={() => setCustomShipping(s => s.map((m, j) => j === i ? { ...m, priceOnRequest: !m.priceOnRequest } : m))}
                     title="El cliente no ve un precio fijo — se coordina aparte"
-                    className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.priceOnRequest ? 'border-violet-300 text-violet-700 bg-violet-50' : 'border-zinc-200 text-zinc-400'}`}
+                    className={`text-xs px-2 py-1 rounded border transition-colors flex-shrink-0 ${method.priceOnRequest ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-zinc-200 text-zinc-400'}`}
                   >
                     A convenir
                   </button>

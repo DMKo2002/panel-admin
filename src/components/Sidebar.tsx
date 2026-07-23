@@ -68,8 +68,8 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role }: 
     <aside className="w-56 flex-shrink-0 h-screen bg-white border-r border-zinc-200 flex flex-col">
       <div className="px-4 py-4 border-b border-zinc-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-            <Store size={16} className="text-violet-600" />
+          <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+            <Store size={16} className="text-primary-600" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-zinc-900 truncate">{storeName}</p>
@@ -101,7 +101,7 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role }: 
         {hasSuperadminTokens && (
           <button
             onClick={handleReturnToSuperadmin}
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors font-medium"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
           >
             <ArrowLeft size={16} />
             Volver al Superadmin
@@ -110,7 +110,7 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role }: 
         {isSuperAdmin && !hasSuperadminTokens && (
           <Link
             href="/superadmin"
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors font-medium"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
           >
             <ShieldCheck size={16} />
             Superadmin
@@ -136,10 +136,10 @@ function NavLink({ item, pathname }: { item: typeof navItems[0]; pathname: strin
       href={item.href}
       className={clsx(
         'flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm transition-colors',
-        active ? 'bg-violet-50 text-violet-700 font-medium' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
+        active ? 'bg-primary-50 text-primary-700 font-medium' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
       )}
     >
-      <Icon size={16} className={active ? 'text-violet-600' : 'text-zinc-400'} />
+      <Icon size={16} className={active ? 'text-primary-600' : 'text-zinc-400'} />
       {item.label}
     </Link>
   )

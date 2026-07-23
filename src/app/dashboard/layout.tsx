@@ -55,7 +55,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </p>
           <div className="bg-white border border-zinc-200 rounded-xl p-4 text-left text-sm text-zinc-600 space-y-2">
             <p className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs font-bold">✓</span>
+              <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-bold">✓</span>
               Cuenta creada
             </p>
             <p className="flex items-center gap-2">

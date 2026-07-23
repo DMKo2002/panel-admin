@@ -191,7 +191,7 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
         <p className="text-xs text-zinc-400">{slotDef.hint}</p>
       </div>
       <div
-        className="relative overflow-hidden rounded-lg border-2 border-dashed border-zinc-200 bg-zinc-50 cursor-pointer hover:border-violet-400 hover:bg-violet-50/30 transition-colors group"
+        className="relative overflow-hidden rounded-lg border-2 border-dashed border-zinc-200 bg-zinc-50 cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-colors group"
         style={slotDef.aspect === 'logo' ? { height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' } : { aspectRatio: slotDef.aspect }}
         onClick={() => !state.uploading && inputRef.current?.click()}
         onDrop={handleDrop}
@@ -221,7 +221,7 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400">
-            {state.uploading ? <Loader2 size={24} className="animate-spin text-violet-500" /> : <><ImageIcon size={24} /><span className="text-xs">{slotDef.allowVideo ? 'Subir imagen o video' : 'Subir imagen'}</span></>}
+            {state.uploading ? <Loader2 size={24} className="animate-spin text-primary-500" /> : <><ImageIcon size={24} /><span className="text-xs">{slotDef.allowVideo ? 'Subir imagen o video' : 'Subir imagen'}</span></>}
           </div>
         )}
         {state.uploading && state.url && (
@@ -578,8 +578,8 @@ export default function PersonalizacionPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Personalización</h1>
         <p className="text-sm text-zinc-500 mt-1">Imágenes y contenido de tu tienda. Los cambios se ven al instante.</p>
-        <div className="mt-2 inline-flex items-center gap-1.5 bg-violet-50 text-violet-700 text-xs font-medium px-2.5 py-1 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
+        <div className="mt-2 inline-flex items-center gap-1.5 bg-primary-50 text-primary-700 text-xs font-medium px-2.5 py-1 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary-400 inline-block" />
           Template: {template}
         </div>
       </div>
@@ -801,7 +801,7 @@ export default function PersonalizacionPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setCollectionTextColor('')}
-                className={`text-xs px-3 py-2 rounded-lg border ${collectionTextColor === '' ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-zinc-200 text-zinc-500'}`}
+                className={`text-xs px-3 py-2 rounded-lg border ${collectionTextColor === '' ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-zinc-200 text-zinc-500'}`}
               >
                 Automático
               </button>
@@ -1168,7 +1168,7 @@ export default function PersonalizacionPage() {
               <button onClick={handleSaveFooter} disabled={savingFooter} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
                 {savedFooter ? '✓ Guardado' : savingFooter ? 'Guardando...' : 'Guardar sucursales'}
               </button>
-              <button onClick={() => setBranches(prev => [...prev, { name: '', address: '', phone: '' }])} className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700">
+              <button onClick={() => setBranches(prev => [...prev, { name: '', address: '', phone: '' }])} className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700">
                 <Plus size={14} /> Agregar
               </button>
             </div>
@@ -1215,7 +1215,7 @@ export default function PersonalizacionPage() {
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-medium text-zinc-600">Términos y condiciones</label>
                 {!terms && (
-                  <button onClick={() => setTerms(DEFAULT_TERMS)} className="text-xs text-violet-600 hover:text-violet-700">
+                  <button onClick={() => setTerms(DEFAULT_TERMS)} className="text-xs text-primary-600 hover:text-primary-700">
                     Usar texto predeterminado
                   </button>
                 )}
@@ -1231,7 +1231,7 @@ export default function PersonalizacionPage() {
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-medium text-zinc-600">Política de privacidad</label>
                 {!privacy && (
-                  <button onClick={() => setPrivacy(DEFAULT_PRIVACY)} className="text-xs text-violet-600 hover:text-violet-700">
+                  <button onClick={() => setPrivacy(DEFAULT_PRIVACY)} className="text-xs text-primary-600 hover:text-primary-700">
                     Usar texto predeterminado
                   </button>
                 )}
@@ -1247,7 +1247,7 @@ export default function PersonalizacionPage() {
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-medium text-zinc-600">Política de cookies</label>
                 {!cookies && (
-                  <button onClick={() => setCookies(DEFAULT_COOKIES)} className="text-xs text-violet-600 hover:text-violet-700">
+                  <button onClick={() => setCookies(DEFAULT_COOKIES)} className="text-xs text-primary-600 hover:text-primary-700">
                     Usar texto predeterminado
                   </button>
                 )}

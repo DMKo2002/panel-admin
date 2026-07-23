@@ -150,7 +150,7 @@ export default function OrderPreviewModal({ orderId, mode, label }: Props) {
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
               {loading && (
                 <div className="flex items-center justify-center py-12">
-                  <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
 

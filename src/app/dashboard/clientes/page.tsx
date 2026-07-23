@@ -16,7 +16,7 @@ function TypeBadge({ type }: { type: string }) {
   const isWholesale = type === 'wholesale' || type === 'mayorista'
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-      isWholesale ? 'bg-violet-50 text-violet-700' : 'bg-zinc-100 text-zinc-600'
+      isWholesale ? 'bg-primary-50 text-primary-700' : 'bg-zinc-100 text-zinc-600'
     }`}>
       {isWholesale ? 'Mayorista' : 'Minorista'}
     </span>

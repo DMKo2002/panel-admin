@@ -462,7 +462,7 @@ export default function EditarProductoPage() {
                 href={`/tienda/${productSlug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-violet-500 hover:text-violet-700 flex items-center gap-1 mt-0.5"
+                className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-0.5"
               >
                 Ver en tienda <ExternalLink size={10} />
               </a>
@@ -569,7 +569,7 @@ export default function EditarProductoPage() {
               {images.map((img, i) => (
                 <div
                   key={img.id}
-                  className={`relative group transition-opacity ${dragImageIdx === i ? 'opacity-40' : ''} ${dragOverImageIdx === i && dragImageIdx !== null && dragImageIdx !== i ? 'ring-2 ring-violet-400 rounded-lg' : ''}`}
+                  className={`relative group transition-opacity ${dragImageIdx === i ? 'opacity-40' : ''} ${dragOverImageIdx === i && dragImageIdx !== null && dragImageIdx !== i ? 'ring-2 ring-primary-400 rounded-lg' : ''}`}
                   draggable={!img.is_cover}
                   onDragStart={() => setDragImageIdx(i)}
                   onDragOver={e => { if (!img.is_cover) { e.preventDefault(); setDragOverImageIdx(i) } }}
@@ -582,9 +582,9 @@ export default function EditarProductoPage() {
                   }}
                   onDragEnd={() => { setDragImageIdx(null); setDragOverImageIdx(null) }}
                 >
-                  <img src={img.url} className={`w-20 h-20 object-cover rounded-lg border-2 transition-colors ${img.is_cover ? 'border-violet-500' : 'border-zinc-200'} ${!img.is_cover ? 'cursor-grab active:cursor-grabbing' : ''}`} />
+                  <img src={img.url} className={`w-20 h-20 object-cover rounded-lg border-2 transition-colors ${img.is_cover ? 'border-primary-500' : 'border-zinc-200'} ${!img.is_cover ? 'cursor-grab active:cursor-grabbing' : ''}`} />
                   {img.is_cover && (
-                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>
+                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-primary-600 text-white rounded-b-lg py-0.5">Portada</span>
                   )}
                   {/* Cover toggle */}
                   {!img.is_cover && (
@@ -592,7 +592,7 @@ export default function EditarProductoPage() {
                       type="button"
                       onClick={() => setCoverImage(img.id)}
                       title="Establecer como portada"
-                      className="absolute top-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-400 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex transition-colors shadow-sm"
+                      className="absolute top-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-400 hover:text-primary-600 hover:bg-white items-center justify-center hidden group-hover:flex transition-colors shadow-sm"
                     >
                       <Star size={11} />
                     </button>
@@ -613,7 +613,7 @@ export default function EditarProductoPage() {
                         onClick={() => moveImage(i, -1)}
                         disabled={i === 0 || images[i - 1]?.is_cover}
                         title="Mover antes"
-                        className="absolute bottom-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-500 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex disabled:opacity-0 transition-colors shadow-sm"
+                        className="absolute bottom-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-500 hover:text-primary-600 hover:bg-white items-center justify-center hidden group-hover:flex disabled:opacity-0 transition-colors shadow-sm"
                       >
                         <ChevronLeft size={12} />
                       </button>
@@ -622,7 +622,7 @@ export default function EditarProductoPage() {
                         onClick={() => moveImage(i, 1)}
                         disabled={i === images.length - 1}
                         title="Mover después"
-                        className="absolute bottom-1 right-1 w-5 h-5 bg-white/80 rounded-full text-zinc-500 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex disabled:opacity-0 transition-colors shadow-sm"
+                        className="absolute bottom-1 right-1 w-5 h-5 bg-white/80 rounded-full text-zinc-500 hover:text-primary-600 hover:bg-white items-center justify-center hidden group-hover:flex disabled:opacity-0 transition-colors shadow-sm"
                       >
                         <ChevronRight size={12} />
                       </button>
@@ -650,13 +650,13 @@ export default function EditarProductoPage() {
             </div>
           )}
           <label
-            className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${dragOver ? 'border-violet-400 bg-violet-50' : 'border-zinc-200 hover:border-violet-300 hover:bg-violet-50'}`}
+            className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${dragOver ? 'border-primary-400 bg-primary-50' : 'border-zinc-200 hover:border-primary-300 hover:bg-primary-50'}`}
             onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
             onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
             onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
             onDrop={handleImageDrop}
           >
-            <Upload size={20} className={`mb-1 ${dragOver ? 'text-violet-400' : 'text-zinc-400'}`} />
+            <Upload size={20} className={`mb-1 ${dragOver ? 'text-primary-400' : 'text-zinc-400'}`} />
             <span className="text-sm text-zinc-500">{dragOver ? 'Soltar imágenes aquí' : 'Agregar más imágenes'}</span>
             <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a 600×900</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />

@@ -176,7 +176,7 @@ export default function CategoriasPage() {
   const rowButtons = (cat: Category, onAddSub?: () => void) => (
     <div className="flex items-center gap-2 flex-shrink-0">
       {onAddSub && (
-        <button onClick={onAddSub} className="text-xs text-zinc-400 hover:text-violet-600 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-violet-50">
+        <button onClick={onAddSub} className="text-xs text-zinc-400 hover:text-primary-600 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-primary-50">
           <Plus size={12} /> Sub
         </button>
       )}
@@ -192,12 +192,12 @@ export default function CategoriasPage() {
     <div className="flex items-center gap-2 flex-1">
       <input autoFocus className="input text-sm flex-1" value={editName} onChange={e => setEditName(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(cat); if (e.key === 'Escape') setEditingId(null) }} />
-      <button onClick={() => handleSaveEdit(cat)} className="text-violet-600 hover:text-violet-700"><Check size={14} /></button>
+      <button onClick={() => handleSaveEdit(cat)} className="text-primary-600 hover:text-primary-700"><Check size={14} /></button>
       <button onClick={() => setEditingId(null)} className="text-zinc-400 hover:text-zinc-600"><X size={14} /></button>
     </div>
   ) : (
     <button onClick={() => { setEditingId(cat.id); setEditName(cat.name) }} className="text-left group flex-1">
-      <p className="text-sm font-medium text-zinc-800 group-hover:text-violet-700 transition-colors">{cat.name}</p>
+      <p className="text-sm font-medium text-zinc-800 group-hover:text-primary-700 transition-colors">{cat.name}</p>
       <p className="text-xs text-zinc-400 font-mono">/{cat.slug}</p>
     </button>
   )
@@ -217,7 +217,7 @@ export default function CategoriasPage() {
       <div className="px-8 py-6 max-w-2xl">
 
         {addingTop && (
-          <div className="bg-white rounded-xl border border-violet-200 p-4 mb-4 flex items-center gap-3">
+          <div className="bg-white rounded-xl border border-primary-200 p-4 mb-4 flex items-center gap-3">
             {inlineInput('Ej: Remeras, Vestidos...', newTopName, setNewTopName, handleAddTop, () => { setAddingTop(false); setNewTopName('') })}
           </div>
         )}

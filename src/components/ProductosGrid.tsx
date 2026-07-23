@@ -298,7 +298,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                 const discountPct = hasDiscount ? Math.round((1 - product.retailPrice! / product.compareAtPrice!) * 100) : null
                 const isSelected = selected.has(product.id)
                 return (
-                  <div key={product.id} className={`relative bg-white rounded-xl border overflow-hidden transition-all group ${isSelected ? 'border-violet-400 shadow-sm ring-1 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300 hover:shadow-sm'}`}>
+                  <div key={product.id} className={`relative bg-white rounded-xl border overflow-hidden transition-all group ${isSelected ? 'border-primary-400 shadow-sm ring-1 ring-primary-200' : 'border-zinc-200 hover:border-zinc-300 hover:shadow-sm'}`}>
                     {/* Selection checkbox */}
                     <button
                       onClick={() => toggleSelect(product.id)}
@@ -306,7 +306,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                       title="Seleccionar"
                     >
                       {isSelected
-                        ? <CheckSquare size={16} className="text-violet-600 drop-shadow" />
+                        ? <CheckSquare size={16} className="text-primary-600 drop-shadow" />
                         : <Square size={16} className="text-white drop-shadow opacity-0 group-hover:opacity-100 transition-opacity" />
                       }
                     </button>
@@ -399,11 +399,11 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                     const hasDiscount = product.compareAtPrice && product.compareAtPrice > (product.retailPrice ?? 0)
                     const isSelected = selected.has(product.id)
                     return (
-                      <tr key={product.id} className={`border-b border-zinc-50 transition-colors ${isSelected ? 'bg-violet-50' : 'hover:bg-zinc-50'}`}>
+                      <tr key={product.id} className={`border-b border-zinc-50 transition-colors ${isSelected ? 'bg-primary-50' : 'hover:bg-zinc-50'}`}>
                         <td className="px-4 py-2">
                           <button onClick={() => toggleSelect(product.id)}>
                             {isSelected
-                              ? <CheckSquare size={14} className="text-violet-600" />
+                              ? <CheckSquare size={14} className="text-primary-600" />
                               : <Square size={14} className="text-zinc-300" />
                             }
                           </button>

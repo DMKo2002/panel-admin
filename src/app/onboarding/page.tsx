@@ -53,7 +53,7 @@ function TemplatePreview({
     <button
       onClick={template.available ? onSelect : undefined}
       className={`relative text-left rounded-xl border-2 overflow-hidden transition-all w-full ${
-        selected ? 'border-violet-500 ring-2 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300'
+        selected ? 'border-primary-500 ring-2 ring-primary-200' : 'border-zinc-200 hover:border-zinc-300'
       } ${!template.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {/* Zona de preview */}
@@ -97,7 +97,7 @@ function TemplatePreview({
         <div className="absolute top-3 right-3 z-10">
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
             template.available
-              ? 'bg-violet-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'bg-zinc-200 text-zinc-500'
           }`}>
             {template.available ? 'Disponible' : 'Próximamente'}
@@ -106,7 +106,7 @@ function TemplatePreview({
 
         {/* Check de selección */}
         {selected && (
-          <div className="absolute top-3 left-3 z-10 w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center shadow">
+          <div className="absolute top-3 left-3 z-10 w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center shadow">
             <Check size={13} className="text-white" />
           </div>
         )}
@@ -124,7 +124,7 @@ function TemplatePreview({
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            className="flex-shrink-0 text-zinc-400 hover:text-violet-600 transition-colors mt-0.5"
+            className="flex-shrink-0 text-zinc-400 hover:text-primary-600 transition-colors mt-0.5"
             title="Ver demo completa"
           >
             <ExternalLink size={14} />
@@ -184,16 +184,16 @@ export default function OnboardingPage() {
       <div className="bg-white border-b border-zinc-200 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
               <Store size={16} className="text-white" />
             </div>
             <span className="font-semibold text-zinc-900">gounuri</span>
           </div>
           <div className="flex items-center gap-6">
             <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
-              <span className={step === 'nombre' ? 'text-violet-600 font-medium' : 'text-zinc-300'}>1. Tu tienda</span>
+              <span className={step === 'nombre' ? 'text-primary-600 font-medium' : 'text-zinc-300'}>1. Tu tienda</span>
               <span className="text-zinc-200">→</span>
-              <span className={step === 'template' ? 'text-violet-600 font-medium' : 'text-zinc-400'}>2. Diseño</span>
+              <span className={step === 'template' ? 'text-primary-600 font-medium' : 'text-zinc-400'}>2. Diseño</span>
             </div>
             <button onClick={handleLogout} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
               Cerrar sesión
@@ -206,7 +206,7 @@ export default function OnboardingPage() {
       {step === 'nombre' && (
         <div className="max-w-lg mx-auto px-6 py-12">
           <div className="mb-8">
-            <p className="text-xs font-medium text-violet-600 uppercase tracking-wider mb-2">Paso 1 de 2</p>
+            <p className="text-xs font-medium text-primary-600 uppercase tracking-wider mb-2">Paso 1 de 2</p>
             <h1 className="text-2xl font-semibold text-zinc-900">Configurá tu tienda</h1>
             <p className="text-sm text-zinc-500 mt-1">Solo necesitamos el nombre para empezar</p>
           </div>
@@ -253,7 +253,7 @@ export default function OnboardingPage() {
       {step === 'template' && (
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="mb-8">
-            <p className="text-xs font-medium text-violet-600 uppercase tracking-wider mb-2">Paso 2 de 2</p>
+            <p className="text-xs font-medium text-primary-600 uppercase tracking-wider mb-2">Paso 2 de 2</p>
             <h1 className="text-2xl font-semibold text-zinc-900">Elegí el diseño de tu tienda</h1>
             <p className="text-sm text-zinc-500 mt-1">
               Podés cambiarlo después desde Personalización. Hacé click en{' '}

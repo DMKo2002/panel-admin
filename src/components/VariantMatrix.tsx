@@ -327,8 +327,8 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     <div className="space-y-4">
 
       {/* ── Bulk edit panel ────────────────────────────────────────────────── */}
-      <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
-        <p className="text-xs font-semibold text-violet-700 mb-3">Editar todas las celdas a la vez</p>
+      <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
+        <p className="text-xs font-semibold text-primary-700 mb-3">Editar todas las celdas a la vez</p>
         <div className="flex flex-wrap items-end gap-3">
           {[
             { label: 'Stock', field: 'stock' as const, w: 'w-20' },
@@ -338,7 +338,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
             { label: '$ May. rebajado', field: 'compareWholesale' as const, w: 'w-28' },
           ].map(({ label, field, w }) => (
             <div key={field}>
-              <label className="block text-xs text-violet-600 mb-1">{label}</label>
+              <label className="block text-xs text-primary-600 mb-1">{label}</label>
               <input
                 className={`input text-sm ${w}`}
                 type="number" min="0" step="1"
@@ -349,11 +349,11 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
             </div>
           ))}
           <button type="button" onClick={applyBulk}
-            className="btn-primary text-xs py-2 px-4 bg-violet-600 hover:bg-violet-700 border-violet-600">
+            className="btn-primary text-xs py-2 px-4 bg-primary-600 hover:bg-primary-700 border-primary-600">
             Aplicar a todas
           </button>
         </div>
-        <p className="text-[10px] text-violet-400 mt-2">Solo los campos que completes se van a aplicar. Los demás se dejan como están.</p>
+        <p className="text-[10px] text-primary-400 mt-2">Solo los campos que completes se van a aplicar. Los demás se dejan como están.</p>
       </div>
 
       {/* ── Matrix table ───────────────────────────────────────────────────── */}
@@ -364,7 +364,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
               {/* Top-left: add color button */}
               <th className="px-3 py-3 text-left border-b border-r border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[90px]">
                 <button type="button" onClick={addColor}
-                  className="text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 font-medium">
+                  className="text-[11px] text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium">
                   <Plus size={11} /> Color
                 </button>
               </th>
@@ -380,7 +380,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                       className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
                     {/* Color name input — texto libre, nunca se pisa automáticamente */}
                     <input
-                      className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none text-center capitalize"
+                      className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-primary-400 focus:outline-none text-center capitalize"
                       style={{ width: '80px' }}
                       value={color}
                       onChange={e => renameColor(ci, e.target.value)}
@@ -407,7 +407,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                 <td className="px-3 py-2 border-r border-zinc-200 sticky left-0 bg-white z-10">
                   <div className="flex items-center gap-1.5">
                     <input
-                      className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-violet-400 focus:outline-none"
+                      className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-primary-400 focus:outline-none"
                       style={{ width: '56px' }}
                       value={size}
                       onChange={e => renameSize(si, e.target.value)}
@@ -436,7 +436,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                         <div className="p-1.5">
                           <p className="text-[9px] text-zinc-400 leading-none mb-1">Stock</p>
                           <input
-                            className="w-full text-sm font-semibold border border-zinc-200 rounded px-1.5 py-1.5 focus:outline-none focus:border-violet-400 bg-white text-center"
+                            className="w-full text-sm font-semibold border border-zinc-200 rounded px-1.5 py-1.5 focus:outline-none focus:border-primary-400 bg-white text-center"
                             type="number" min="0"
                             value={cell.stock || ''}
                             placeholder="0"
@@ -449,7 +449,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                           <div className="p-1.5">
                             <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Min.</p>
                             <input
-                              className="w-full text-xs border border-zinc-200 rounded px-1 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              className="w-full text-xs border border-zinc-200 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
                               type="number" min="0" step="1"
                               value={cell.retailPrice || ''}
                               placeholder="0"
@@ -469,21 +469,21 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                         </div>
 
                         {/* Fila 3 — Mayorista | Mayorista rebajado */}
-                        <div className="grid grid-cols-2 divide-x divide-violet-100">
-                          <div className="p-1.5 bg-violet-50/40">
-                            <p className="text-[9px] text-violet-500 leading-none mb-1">$ May.</p>
+                        <div className="grid grid-cols-2 divide-x divide-primary-100">
+                          <div className="p-1.5 bg-primary-50/40">
+                            <p className="text-[9px] text-primary-500 leading-none mb-1">$ May.</p>
                             <input
-                              className="w-full text-xs border border-violet-100 rounded px-1 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
                               type="number" min="0" step="1"
                               value={cell.wholesalePrice || ''}
                               placeholder="0"
                               onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
                             />
                           </div>
-                          <div className="p-1.5 bg-violet-50/40">
-                            <p className="text-[9px] text-violet-400 leading-none mb-1">$ May. reb.</p>
+                          <div className="p-1.5 bg-primary-50/40">
+                            <p className="text-[9px] text-primary-400 leading-none mb-1">$ May. reb.</p>
                             <input
-                              className="w-full text-xs border border-violet-100 rounded px-1 py-1 focus:outline-none focus:border-violet-400 bg-white text-center"
+                              className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
                               type="number" min="0" step="1"
                               value={cell.wholesaleCompareAt || ''}
                               placeholder="0"
@@ -503,7 +503,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
             <tr className="border-t border-zinc-100">
               <td className="px-3 py-2 sticky left-0 bg-white">
                 <button type="button" onClick={addSize}
-                  className="text-[11px] text-violet-600 hover:text-violet-700 flex items-center gap-1 font-medium">
+                  className="text-[11px] text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium">
                   <Plus size={11} /> Talle
                 </button>
               </td>
@@ -552,7 +552,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                 value={colors[ci] ?? ''}
                 onChange={e => renameColor(ci, e.target.value)}
                 placeholder="Ej: Azul"
-                className="w-full text-sm border border-zinc-200 rounded-lg px-2.5 py-2 mb-1 focus:outline-none focus:border-violet-400"
+                className="w-full text-sm border border-zinc-200 rounded-lg px-2.5 py-2 mb-1 focus:outline-none focus:border-primary-400"
               />
               <p className="text-[10px] text-zinc-400 mb-3">
                 Se sugiere solo. Cambiarlo no toca el hex de arriba.
@@ -569,14 +569,14 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
               {favoriteColors.length > 0 && (
                 <>
-                  <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide mb-1.5">Tus favoritos</p>
+                  <p className="text-[10px] font-semibold text-primary-400 uppercase tracking-wide mb-1.5">Tus favoritos</p>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {favoriteColors.map(fav => (
                       <div key={fav.hex} className="relative group">
                         <button type="button" title={fav.name}
                           onClick={() => { setPickerHex(fav.hex); renameColor(ci, fav.name) }}
                           style={{ backgroundColor: fav.hex }}
-                          className={`w-6 h-6 rounded-full border transition-all hover:scale-110 ${pickerHex.toLowerCase() === fav.hex.toLowerCase() ? 'border-violet-500 scale-110' : 'border-zinc-300'}`} />
+                          className={`w-6 h-6 rounded-full border transition-all hover:scale-110 ${pickerHex.toLowerCase() === fav.hex.toLowerCase() ? 'border-primary-500 scale-110' : 'border-zinc-300'}`} />
                         {onToggleFavorite && (
                           <button type="button" onClick={() => onToggleFavorite(fav)} title="Sacar de favoritos"
                             className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex">
@@ -596,7 +596,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                   <button key={name} type="button" title={name}
                     onClick={() => setPickerHex(hex)}
                     style={{ backgroundColor: hex }}
-                    className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-violet-500 scale-110' : 'border-zinc-200'}`} />
+                    className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-primary-500 scale-110' : 'border-zinc-200'}`} />
                 ))}
               </div>
 

@@ -244,7 +244,7 @@ export default function NuevoProductoPage() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
           <label
-            className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-violet-500 bg-violet-50' : 'border-zinc-200 hover:border-violet-300 hover:bg-violet-50'}`}
+            className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-primary-500 bg-primary-50' : 'border-zinc-200 hover:border-primary-300 hover:bg-primary-50'}`}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
@@ -260,11 +260,11 @@ export default function NuevoProductoPage() {
               <div className="flex gap-2 flex-wrap">
                 {imagePreviews.map((src, i) => (
                   <div key={i} className="relative group">
-                    <img src={src} className={`w-20 h-20 object-cover rounded-lg border-2 ${i === 0 ? 'border-violet-500' : 'border-zinc-200'}`} />
+                    <img src={src} className={`w-20 h-20 object-cover rounded-lg border-2 ${i === 0 ? 'border-primary-500' : 'border-zinc-200'}`} />
                     {i === 0
-                      ? <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-violet-600 text-white rounded-b-lg py-0.5">Portada</span>
+                      ? <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-primary-600 text-white rounded-b-lg py-0.5">Portada</span>
                       : <button type="button" onClick={() => moveImageToFront(i)} title="Establecer como portada"
-                          className="absolute top-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-400 hover:text-violet-600 hover:bg-white items-center justify-center hidden group-hover:flex shadow-sm">
+                          className="absolute top-1 left-1 w-5 h-5 bg-white/80 rounded-full text-zinc-400 hover:text-primary-600 hover:bg-white items-center justify-center hidden group-hover:flex shadow-sm">
                           <Star size={11} />
                         </button>
                     }

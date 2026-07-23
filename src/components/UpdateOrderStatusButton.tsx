@@ -58,14 +58,14 @@ export default function UpdateOrderStatusButton({ orderId, currentStatus }: Prop
           <div className="space-y-1.5 mb-3">
             <button
               onClick={() => setPendingStatus('shipped')}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors text-left ${pendingStatus === 'shipped' ? 'bg-violet-50 border border-violet-200 text-violet-700' : 'border border-zinc-100 hover:bg-zinc-50 text-zinc-600'}`}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors text-left ${pendingStatus === 'shipped' ? 'bg-primary-50 border border-primary-200 text-primary-700' : 'border border-zinc-100 hover:bg-zinc-50 text-zinc-600'}`}
             >
               <Send size={12} />
               Pedido enviado (con despacho)
             </button>
             <button
               onClick={() => setPendingStatus('ready_pickup')}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors text-left ${pendingStatus === 'ready_pickup' ? 'bg-violet-50 border border-violet-200 text-violet-700' : 'border border-zinc-100 hover:bg-zinc-50 text-zinc-600'}`}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors text-left ${pendingStatus === 'ready_pickup' ? 'bg-primary-50 border border-primary-200 text-primary-700' : 'border border-zinc-100 hover:bg-zinc-50 text-zinc-600'}`}
             >
               <Store size={12} />
               Listo para retirar en local
@@ -78,7 +78,7 @@ export default function UpdateOrderStatusButton({ orderId, currentStatus }: Prop
               placeholder="Código de seguimiento (opcional)"
               value={trackingCode}
               onChange={e => setTrackingCode(e.target.value)}
-              className="w-full text-xs border border-zinc-200 rounded-lg px-2.5 py-1.5 mb-2 focus:outline-none focus:border-violet-400"
+              className="w-full text-xs border border-zinc-200 rounded-lg px-2.5 py-1.5 mb-2 focus:outline-none focus:border-primary-400"
             />
           )}
 
@@ -92,7 +92,7 @@ export default function UpdateOrderStatusButton({ orderId, currentStatus }: Prop
             <button
               onClick={handleConfirm}
               disabled={!pendingStatus}
-              className="flex-1 text-xs py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 text-xs py-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Confirmar y enviar mail
             </button>

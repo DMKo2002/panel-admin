@@ -17,8 +17,8 @@ export default function Toggle({ checked, onChange, disabled }: ToggleProps) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={clsx(
-        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-1 disabled:opacity-40',
-        checked ? 'bg-violet-600' : 'bg-zinc-200'
+        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 disabled:opacity-40',
+        checked ? 'bg-primary-600' : 'bg-zinc-200'
       )}
     >
       <span className={clsx(

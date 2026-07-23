@@ -105,7 +105,7 @@ export default async function PedidosPage({
             href={opt.value ? `/dashboard/pedidos?status=${opt.value}` : '/dashboard/pedidos'}
             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
               (searchParams.status ?? '') === opt.value
-                ? 'bg-violet-50 text-violet-700 font-medium'
+                ? 'bg-primary-50 text-primary-700 font-medium'
                 : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50'
             }`}
           >

@@ -71,8 +71,8 @@ export default async function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4">
           <StatCard
-            icon={<TrendingUp size={18} className="text-violet-600" />}
-            iconBg="bg-violet-50"
+            icon={<TrendingUp size={18} className="text-primary-600" />}
+            iconBg="bg-primary-50"
             label="Ventas hoy"
             value={formatPrice(salesTotal)}
             sub={`${ordersToday?.length ?? 0} pedidos`}

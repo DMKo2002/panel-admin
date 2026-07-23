@@ -57,7 +57,7 @@ export default async function CuentasPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      a.role === 'owner' ? 'bg-violet-50 text-violet-700' : 'bg-zinc-100 text-zinc-600'
+                      a.role === 'owner' ? 'bg-primary-50 text-primary-700' : 'bg-zinc-100 text-zinc-600'
                     }`}>
                       {a.role === 'owner' ? 'Dueño' : 'Empleado'}
                     </span>
