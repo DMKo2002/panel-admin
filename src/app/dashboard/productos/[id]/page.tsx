@@ -83,6 +83,7 @@ export default function EditarProductoPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const [storeDomain, setStoreDomain] = useState<string>('')
   const [productSlug, setProductSlug] = useState<string>('')
 
   // Basic product fields
@@ -172,12 +173,14 @@ export default function EditarProductoPage() {
   const userRow = _userRows?.[0]
         if (userRow) {
           setTenantId(userRow?.tenant_id)
-          const [{ data: cats }, { data: configData }] = await Promise.all([
+          const [{ data: cats }, { data: configData }, { data: tenantRow }] = await Promise.all([
             supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
             supabase.from('store_config').select('variant_attributes, preferred_colors').eq('tenant_id', userRow.tenant_id).single(),
+            supabase.from('tenants').select('domain').eq('id', userRow.tenant_id).single(),
           ])
           setCategories(cats ?? [])
           setFavoriteColors((configData as any)?.preferred_colors ?? [])
+          setStoreDomain(tenantRow?.domain ?? '')
 
           storeAttrs = configData?.variant_attributes ?? []
           const extra = storeAttrs.filter((a: AttrConfig) => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
@@ -457,9 +460,9 @@ export default function EditarProductoPage() {
           </Link>
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Editar producto</h1>
-            {productSlug && (
+            {productSlug && storeDomain && (
               <a
-                href={`/tienda/${productSlug}`}
+                href={`https://${storeDomain}/tienda/${productSlug}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-0.5"
