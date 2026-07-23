@@ -16,8 +16,8 @@ const config: Config = {
       // cambiar el color de marca implicaba encontrar cada uso a mano. Ahora
       // hay un solo lugar: acá. Los tonos 50-500 quedan iguales a la escala
       // zinc que ya usa el resto del panel (para que conviva bien con el
-      // resto de la UI); 600/700 son los que definen "negro" para botones y
-      // estados activos.
+      // resto de la UI); 600/700 son los que definen el color de marca
+      // (base/hover) para botones y estados activos.
       colors: {
         primary: {
           50: '#fafafa',
@@ -26,8 +26,8 @@ const config: Config = {
           300: '#d4d4d8',
           400: '#a1a1aa',
           500: '#71717a',
-          600: '#18181b',
-          700: '#000000',
+          600: '#A4A49C',
+          700: '#8B8B83',
         },
       },
     },
