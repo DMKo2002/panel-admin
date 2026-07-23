@@ -111,8 +111,8 @@ export async function fetchSalesItemsForRange(
       order_items (
         product_name, variant_desc, quantity, unit_price, subtotal, variant_id,
         variants (
-          sku, size, color,
-          products ( id, name, category_id, categories ( id, name ) )
+          size, color,
+          products ( id, name, sku, category_id, categories ( id, name ) )
         )
       )
     `)
@@ -139,7 +139,7 @@ export async function fetchSalesItemsForRange(
         productName: product?.name ?? item.product_name ?? 'Producto eliminado',
         categoryId: category?.id ?? null,
         categoryName: category?.name ?? 'Sin categoría',
-        sku: variant?.sku ?? null,
+        sku: product?.sku ?? null,
         variantLabel,
         quantity: item.quantity ?? 0,
         subtotal: item.subtotal ?? 0,

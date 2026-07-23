@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Package } from 'lucide-react'
 import {
   getMonthRange,
   fetchOrdersForRange,
@@ -11,6 +10,7 @@ import {
 import RevenueChart from '@/components/stats/RevenueChart'
 import MonthSelector from '@/components/stats/MonthSelector'
 import StatsTabs from '@/components/stats/StatsTabs'
+import ProductsTable from '@/components/stats/ProductsTable'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -73,45 +73,7 @@ export default async function EstadisticasProductosPage({
         <RevenueChart data={revenueByDay} monthLabel={range.label} />
 
         {/* Tabla de productos más vendidos */}
-        <div>
-          <h2 className="text-sm font-semibold text-zinc-700 mb-3">Productos más vendidos</h2>
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Producto</th>
-                  <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">SKU</th>
-                  <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Cantidad</th>
-                  <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Venta neta</th>
-                  <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Categoría</th>
-                  <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Variantes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map(p => (
-                  <tr key={p.productId ?? p.productName} className="border-b border-zinc-50 last:border-0 hover:bg-zinc-50 transition-colors">
-                    <td className="px-4 py-3 text-zinc-900 font-medium">{p.productName}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-zinc-500">{p.skus.join(', ') || '—'}</td>
-                    <td className="px-4 py-3 text-zinc-700">{p.quantity}</td>
-                    <td className="px-4 py-3 font-medium text-zinc-900">{formatPrice(p.netSales)}</td>
-                    <td className="px-4 py-3 text-zinc-600">{p.categoryName}</td>
-                    <td className="px-4 py-3 text-zinc-500 text-xs">{p.variants.join(', ') || '—'}</td>
-                  </tr>
-                ))}
-                {products.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 text-sm">
-                      <div className="flex flex-col items-center gap-2">
-                        <Package size={20} className="text-zinc-300" />
-                        Sin ventas en este período
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ProductsTable products={products} />
       </div>
     </div>
   )
