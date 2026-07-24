@@ -561,6 +561,9 @@ export default function PersonalizacionPage() {
   // así que el panel se ordena por sector de la tienda en vez de por tipo de campo. Axis reusa el mismo
   // layout que mono (viene del mismo Figma con hero video en vez de imagen estática).
   const isMono = template === 'mono' || template === 'axis'
+  // Colecciones/Blog/Newsletter son secciones exclusivas de la home de Atelier (y Mykonos Love,
+  // que comparte su estructura). Minimalista no las usa — mostrarlas ahí era un resabio del demo Atelier.
+  const hasBlogSections = template === 'atelier' || template === 'mykonoslove'
 
   if (loading) {
     return (
@@ -748,6 +751,8 @@ export default function PersonalizacionPage() {
         </div>
       </section>
 
+      {hasBlogSections && (
+      <>
       {/* ── Colecciones ── */}
       <section className="space-y-6">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
@@ -933,6 +938,8 @@ export default function PersonalizacionPage() {
           <p className="text-xs text-zinc-400">El texto de ese bloque es siempre oscuro, así que conviene elegir un color claro</p>
         </div>
       </section>
+      </>
+      )}
       </>
       )}
 
