@@ -6,7 +6,7 @@ import { toCsv } from '@/lib/csv'
 const HEADERS = [
   'cliente_id', 'nombre', 'apellido', 'telefono',
   'direccion_calle', 'direccion_localidad', 'direccion_provincia', 'direccion_cp',
-  'cuit', 'email', 'tipo', 'activo',
+  'cuit', 'empresa', 'email', 'tipo', 'activo',
 ]
 
 export async function GET() {
@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data: customers } = await service
     .from('customers')
-    .select('id, full_name, last_name, phone, address_street, address_city, address_province, address_zip, cuit, email, type, active')
+    .select('id, full_name, last_name, phone, address_street, address_city, address_province, address_zip, cuit, company_name, email, type, active')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
@@ -30,7 +30,7 @@ export async function GET() {
     rows.push([
       c.id, c.full_name ?? '', c.last_name ?? '', c.phone ?? '',
       c.address_street ?? '', c.address_city ?? '', c.address_province ?? '', c.address_zip ?? '',
-      c.cuit ?? '', c.email ?? '', c.type ?? 'retail', c.active ? '1' : '0',
+      c.cuit ?? '', (c as any).company_name ?? '', c.email ?? '', c.type ?? 'retail', c.active ? '1' : '0',
     ])
   }
 

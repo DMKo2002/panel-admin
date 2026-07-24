@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
           address_province: row['direccion_provincia']?.trim() || null,
           address_zip: row['direccion_cp']?.trim() || null,
           cuit: row['cuit']?.trim() || null,
+          company_name: row['empresa']?.trim() || null,
           email: email || null,
           type: (row['tipo']?.trim() || 'retail'),
           active: toBool(row['activo'] ?? ''),

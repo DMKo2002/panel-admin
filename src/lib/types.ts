@@ -10,6 +10,9 @@ export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed'
 export type PriceType = 'retail' | 'wholesale'
 export type NotifChannel = 'whatsapp' | 'email' | 'sms'
 export type PanelTheme = 'default' | 'dark'
+// 'sizes_colors' = matriz de talle/color (indumentaria, default). 'simple' =
+// una sola variante por producto, sin talle/color (ej: cosmética/skincare).
+export type VariantMode = 'sizes_colors' | 'simple'
 
 export interface Tenant {
   id: string
@@ -87,6 +90,7 @@ export interface StoreConfig {
   registration_visibility: 'both' | 'retail_only' | 'wholesale_only'
   custom_shipping: CustomShippingMethod[]
   panel_theme: PanelTheme
+  variant_mode: VariantMode
   panel_accent_color: string | null
   terms_and_conditions: string | null
   privacy_policy: string | null
@@ -135,6 +139,9 @@ export interface Product {
   // Mínimo de unidades por variante (talle/color) para este producto puntual.
   // null/vacío = usa el mínimo global de la tienda (store_config.min_qty_per_variant).
   min_qty: number | null
+  // Marca manual (no calculada de ventas) para destacar el producto como
+  // "best seller" en la home de la tienda.
+  is_bestseller: boolean
   product_images?: ProductImage[]
   variants?: Variant[]
   categories?: Category

@@ -61,6 +61,13 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'moodboard_right',  label: 'Moodboard — Foto derecha',    hint: '860 × 573 px', aspect: '860/573' },
   ],
 
+  glow: [
+    { key: 'logo',         label: 'Logo',                 hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
+    { key: 'logo_favicon', label: 'Favicon',               hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'  },
+    { key: 'banner_1',     label: 'Banner — Foto 1',       hint: '1600 × 600 px recomendado — se muestra primero, arriba de todo', aspect: '16/6' },
+    { key: 'banner_2',     label: 'Banner — Foto 2',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
+    { key: 'banner_3',     label: 'Banner — Foto 3',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
+  ],
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
     { key: 'logo_favicon', label: 'Favicon',              hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'   },

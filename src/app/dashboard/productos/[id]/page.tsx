@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, FavoriteColor } from '@/components/VariantMatrix'
+import SimpleVariantForm, { SimpleVariantHandle, SimpleVariantData } from '@/components/SimpleVariantForm'
 import { buildDisplayNameByRawColor } from '@/lib/colorNames'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export default function EditarProductoPage() {
   const id = params.id as string
   const supabase = createClient()
   const matrixRef = useRef<VariantMatrixHandle>(null)
+  const simpleRef = useRef<SimpleVariantHandle>(null)
   const [dragOver, setDragOver] = useState(false)
 
   // Prevent browser from navigating when files are dropped outside the upload zone
@@ -94,6 +96,7 @@ export default function EditarProductoPage() {
   // mínimo global configurado en Mi Tienda.
   const [minQty, setMinQty] = useState<string>('')
   const [active, setActive] = useState(true)
+  const [isBestseller, setIsBestseller] = useState(false)
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
   const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean; sort_order: number }[]>([])
@@ -112,6 +115,8 @@ export default function EditarProductoPage() {
   const [matrixInitialColorHexes, setMatrixInitialColorHexes] = useState<string[]>([])
   const [matrixInitialCells, setMatrixInitialCells] = useState<Record<string, CellData>>({})
   const [matrixReady, setMatrixReady] = useState(false)
+  const [variantMode, setVariantMode] = useState<'sizes_colors' | 'simple'>('sizes_colors')
+  const [simpleInitial, setSimpleInitial] = useState<SimpleVariantData | undefined>(undefined)
   // Se incrementa cada vez que se recargan los datos frescos de la base
   // (después de guardar) — se usa como `key` de VariantMatrix para forzar
   // que reinicie su estado interno con los ids de variante reales, en vez
@@ -136,6 +141,7 @@ export default function EditarProductoPage() {
       setDescription(product.description ?? '')
       setMinQty(product.min_qty != null ? String(product.min_qty) : '')
       setActive(product.active ?? true)
+      setIsBestseller(product.is_bestseller ?? false)
       setCategoryId(product.category_id ?? null)
       setProductSlug(product.slug ?? '')
       setImages(sortImages(product.product_images ?? []))
@@ -167,6 +173,7 @@ export default function EditarProductoPage() {
       const colorHexes = colors.map(c => colorHexByName[c] ?? '')
 
       let storeAttrs: AttrConfig[] = []
+      let mode: 'sizes_colors' | 'simple' = 'sizes_colors'
 
       if (user) {
         const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
@@ -175,12 +182,14 @@ export default function EditarProductoPage() {
           setTenantId(userRow?.tenant_id)
           const [{ data: cats }, { data: configData }, { data: tenantRow }] = await Promise.all([
             supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-            supabase.from('store_config').select('variant_attributes, preferred_colors').eq('tenant_id', userRow.tenant_id).single(),
+            supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode').eq('tenant_id', userRow.tenant_id).single(),
             supabase.from('tenants').select('domain').eq('id', userRow.tenant_id).single(),
           ])
           setCategories(cats ?? [])
           setFavoriteColors((configData as any)?.preferred_colors ?? [])
           setStoreDomain(tenantRow?.domain ?? '')
+          mode = (configData as any)?.variant_mode === 'simple' ? 'simple' : 'sizes_colors'
+          setVariantMode(mode)
 
           storeAttrs = configData?.variant_attributes ?? []
           const extra = storeAttrs.filter((a: AttrConfig) => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
@@ -196,6 +205,31 @@ export default function EditarProductoPage() {
             setExtraAttrValues(vals)
           }
         }
+      }
+
+      if (mode === 'simple') {
+        // Modo simple: 1 sola variante, sin talle/color. Precarga desde la
+        // primera (y única esperada) variante existente, si hay.
+        const v = dbVariants[0]
+        if (v) {
+          const retail = v.price_rules?.find((p: any) => p.type === 'retail')
+          const wholesale = v.price_rules?.find((p: any) => p.type === 'wholesale')
+          setSimpleInitial({
+            id: v.id,
+            stock: v.stock ?? 0,
+            retailPrice: Math.round(retail?.price ?? 0),
+            retailCompareAt: Math.round(retail?.compare_at_price ?? 0),
+            wholesalePrice: Math.round(wholesale?.price ?? 0),
+            wholesaleCompareAt: Math.round(wholesale?.compare_at_price ?? 0),
+            wholesaleMinQty: wholesale?.min_qty ?? 1,
+          })
+        } else {
+          setSimpleInitial(undefined)
+        }
+        setMatrixReady(true)
+        setMatrixVersion(v2 => v2 + 1)
+        setLoading(false)
+        return
       }
 
       // Fallback to Mi Tienda configured sizes when the product has no sizes yet
@@ -325,6 +359,7 @@ export default function EditarProductoPage() {
         active,
         category_id: categoryId || null,
         min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
+        is_bestseller: isBestseller,
       }).eq('id', id)
       if (prodErr) throw prodErr
 
@@ -342,9 +377,13 @@ export default function EditarProductoPage() {
         }
       }
 
-      // Guardar variantes desde la matriz
-      const variantsFromMatrix = matrixRef.current?.getVariants() ?? []
-      for (const v of variantsFromMatrix) {
+      // Guardar variantes — modo simple: 1 sola (sin talle/color). Modo
+      // sizes_colors: una por celda de la matriz.
+      const variantsToSave = variantMode === 'simple'
+        ? (simpleRef.current ? [{ ...simpleRef.current.getVariant(), size: null, color: null, colorHex: null, attrs: {} }] : [])
+        : (matrixRef.current?.getVariants() ?? [])
+
+      for (const v of variantsToSave as any[]) {
         const attrs = { ...(v.attrs ?? {}), ...extraAttrValues }
         const rules: any[] = []
 
@@ -510,6 +549,10 @@ export default function EditarProductoPage() {
               Producto activo
             </label>
           </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer">
+            <input type="checkbox" checked={isBestseller} onChange={e => setIsBestseller(e.target.checked)} className="rounded" />
+            Destacado (Best seller) — se muestra en la sección de más vendidos de la home
+          </label>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
@@ -668,19 +711,23 @@ export default function EditarProductoPage() {
 
         {/* Variantes */}
         {matrixReady && (
-          <VariantMatrix
-            key={matrixVersion}
-            ref={matrixRef}
-            mode="edit"
-            initialSizes={matrixInitialSizes}
-            initialColors={matrixInitialColors}
-            initialColorHexes={matrixInitialColorHexes}
-            initialCells={matrixInitialCells}
-            onRemoveColor={(color) => removeVariantGroup('color', color)}
-            onRemoveSize={(size) => removeVariantGroup('size', size)}
-            favoriteColors={favoriteColors}
-            onToggleFavorite={toggleFavorite}
-          />
+          variantMode === 'simple' ? (
+            <SimpleVariantForm key={matrixVersion} ref={simpleRef} initial={simpleInitial} />
+          ) : (
+            <VariantMatrix
+              key={matrixVersion}
+              ref={matrixRef}
+              mode="edit"
+              initialSizes={matrixInitialSizes}
+              initialColors={matrixInitialColors}
+              initialColorHexes={matrixInitialColorHexes}
+              initialCells={matrixInitialCells}
+              onRemoveColor={(color) => removeVariantGroup('color', color)}
+              onRemoveSize={(size) => removeVariantGroup('size', size)}
+              favoriteColors={favoriteColors}
+              onToggleFavorite={toggleFavorite}
+            />
+          )
         )}
 
         {/* Atributos extra del tenant */}
