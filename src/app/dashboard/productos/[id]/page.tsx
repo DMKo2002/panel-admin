@@ -96,6 +96,7 @@ export default function EditarProductoPage() {
   // mínimo global configurado en Mi Tienda.
   const [minQty, setMinQty] = useState<string>('')
   const [active, setActive] = useState(true)
+  const [isBestseller, setIsBestseller] = useState(false)
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
   const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean; sort_order: number }[]>([])
@@ -140,6 +141,7 @@ export default function EditarProductoPage() {
       setDescription(product.description ?? '')
       setMinQty(product.min_qty != null ? String(product.min_qty) : '')
       setActive(product.active ?? true)
+      setIsBestseller(product.is_bestseller ?? false)
       setCategoryId(product.category_id ?? null)
       setProductSlug(product.slug ?? '')
       setImages(sortImages(product.product_images ?? []))
@@ -357,6 +359,7 @@ export default function EditarProductoPage() {
         active,
         category_id: categoryId || null,
         min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
+        is_bestseller: isBestseller,
       }).eq('id', id)
       if (prodErr) throw prodErr
 
@@ -546,6 +549,10 @@ export default function EditarProductoPage() {
               Producto activo
             </label>
           </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer">
+            <input type="checkbox" checked={isBestseller} onChange={e => setIsBestseller(e.target.checked)} className="rounded" />
+            Destacado (Best seller) — se muestra en la sección de más vendidos de la home
+          </label>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>

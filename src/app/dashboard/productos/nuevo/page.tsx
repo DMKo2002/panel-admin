@@ -61,6 +61,7 @@ export default function NuevoProductoPage() {
   const [name, setName] = useState('')
   const [sku, setSku] = useState('')
   const [description, setDescription] = useState('')
+  const [isBestseller, setIsBestseller] = useState(false)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
 
@@ -159,7 +160,7 @@ export default function NuevoProductoPage() {
       const slug = slugify(name) + '-' + Date.now()
       const { data: product, error: productError } = await supabase
         .from('products')
-        .insert({ tenant_id: tenantId, name: name.trim(), sku: sku.trim() || null, slug, description: description.trim() || null, active: true, category_id: categoryId || null })
+        .insert({ tenant_id: tenantId, name: name.trim(), sku: sku.trim() || null, slug, description: description.trim() || null, active: true, category_id: categoryId || null, is_bestseller: isBestseller })
         .select().single()
       if (productError) throw productError
 
@@ -235,6 +236,10 @@ export default function NuevoProductoPage() {
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
             <textarea className="input resize-none" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Descripción del producto..." />
           </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer">
+            <input type="checkbox" checked={isBestseller} onChange={e => setIsBestseller(e.target.checked)} className="rounded" />
+            Destacado (Best seller) — se muestra en la sección de más vendidos de la home
+          </label>
           {categories.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Categoría</label>

@@ -139,6 +139,9 @@ export interface Product {
   // Mínimo de unidades por variante (talle/color) para este producto puntual.
   // null/vacío = usa el mínimo global de la tienda (store_config.min_qty_per_variant).
   min_qty: number | null
+  // Marca manual (no calculada de ventas) para destacar el producto como
+  // "best seller" en la home de la tienda.
+  is_bestseller: boolean
   product_images?: ProductImage[]
   variants?: Variant[]
   categories?: Category
