@@ -129,6 +129,9 @@ export interface Category {
 export interface Product {
   id: string
   tenant_id: string
+  // Categoría principal (compatibilidad con reportes/exports viejos). El
+  // set completo de categorías del producto vive en product_categories —
+  // usar esa tabla para cualquier lógica nueva de multi-categoría.
   category_id: string | null
   name: string
   slug: string
@@ -136,15 +139,28 @@ export interface Product {
   active: boolean
   created_at: string
   updated_at: string
-  // Mínimo de unidades por variante (talle/color) para este producto puntual.
+  // Mínimo de unidades por variante para este producto puntual.
   // null/vacío = usa el mínimo global de la tienda (store_config.min_qty_per_variant).
   min_qty: number | null
   // Marca manual (no calculada de ventas) para destacar el producto como
   // "best seller" en la home de la tienda.
   is_bestseller: boolean
+  // Dimensiones y peso — por ahora solo ficha de datos, todavía no conectado
+  // al cálculo de envío.
+  width_cm: number | null
+  length_cm: number | null
+  height_cm: number | null
+  weight_kg: number | null
   product_images?: ProductImage[]
   variants?: Variant[]
   categories?: Category
+  product_categories?: ProductCategory[]
+}
+
+// Tabla puente producto <-> categoría (many-to-many)
+export interface ProductCategory {
+  product_id: string
+  category_id: string
 }
 
 export interface ProductImage {

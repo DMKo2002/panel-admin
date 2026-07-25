@@ -97,8 +97,12 @@ export default function EditarProductoPage() {
   const [minQty, setMinQty] = useState<string>('')
   const [active, setActive] = useState(true)
   const [isBestseller, setIsBestseller] = useState(false)
-  const [categoryId, setCategoryId] = useState<string | null>(null)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set())
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
+  const [widthCm, setWidthCm] = useState('')
+  const [lengthCm, setLengthCm] = useState('')
+  const [heightCm, setHeightCm] = useState('')
+  const [weightKg, setWeightKg] = useState('')
   const [images, setImages] = useState<{ id: string; url: string; is_cover: boolean; sort_order: number }[]>([])
   const [dragImageIdx, setDragImageIdx] = useState<number | null>(null)
   const [dragOverImageIdx, setDragOverImageIdx] = useState<number | null>(null)
@@ -142,9 +146,22 @@ export default function EditarProductoPage() {
       setMinQty(product.min_qty != null ? String(product.min_qty) : '')
       setActive(product.active ?? true)
       setIsBestseller(product.is_bestseller ?? false)
-      setCategoryId(product.category_id ?? null)
       setProductSlug(product.slug ?? '')
       setImages(sortImages(product.product_images ?? []))
+      setWidthCm(product.width_cm != null ? String(product.width_cm) : '')
+      setLengthCm(product.length_cm != null ? String(product.length_cm) : '')
+      setHeightCm(product.height_cm != null ? String(product.height_cm) : '')
+      setWeightKg(product.weight_kg != null ? String(product.weight_kg) : '')
+
+      // Categorías (multi) — vienen de la tabla puente product_categories.
+      // Fallback a category_id para productos viejos creados antes de la
+      // migración a multi-categoría (todavía no tienen fila en la tabla puente).
+      const { data: pcRows } = await supabase.from('product_categories').select('category_id').eq('product_id', id)
+      if (pcRows && pcRows.length > 0) {
+        setSelectedCategoryIds(new Set(pcRows.map((r: any) => r.category_id)))
+      } else if (product.category_id) {
+        setSelectedCategoryIds(new Set([product.category_id]))
+      }
 
       // Build matrix from existing variants
       const dbVariants: any[] = product.variants ?? []
@@ -322,6 +339,14 @@ export default function EditarProductoPage() {
     })))
   }
 
+  function toggleCategory(catId: string) {
+    setSelectedCategoryIds(prev => {
+      const next = new Set(prev)
+      next.has(catId) ? next.delete(catId) : next.add(catId)
+      return next
+    })
+  }
+
   // Arrastrar y soltar para reordenar (la portada queda fija, igual que con
   // las flechas — no se puede arrastrar sobre/desde ella).
   async function reorderImages(fromIndex: number, toIndex: number) {
@@ -350,6 +375,11 @@ export default function EditarProductoPage() {
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     setSaving(true); setError(null)
     try {
+      const categoryIdsArray = Array.from(selectedCategoryIds)
+      // category_id = "categoría principal" (la primera tildada) — se mantiene
+      // solo por compatibilidad con reportes/exports viejos que todavía la leen.
+      const primaryCategoryId = categoryIdsArray[0] ?? null
+
       // Actualizar producto
       const { error: prodErr } = await supabase.from('products').update({
         name: name.trim(),
@@ -357,11 +387,26 @@ export default function EditarProductoPage() {
         slug: slugify(name) + '-' + id.slice(0, 6),
         description: description.trim() || null,
         active,
-        category_id: categoryId || null,
+        category_id: primaryCategoryId,
         min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
         is_bestseller: isBestseller,
+        width_cm: widthCm ? Number(widthCm) : null,
+        length_cm: lengthCm ? Number(lengthCm) : null,
+        height_cm: heightCm ? Number(heightCm) : null,
+        weight_kg: weightKg ? Number(weightKg) : null,
       }).eq('id', id)
       if (prodErr) throw prodErr
+
+      // Categorías (multi) — se reemplaza el set completo en product_categories
+      // (borra todas las filas del producto y vuelve a insertar las tildadas).
+      const { error: delCatErr } = await supabase.from('product_categories').delete().eq('product_id', id)
+      if (delCatErr) throw delCatErr
+      if (categoryIdsArray.length > 0) {
+        const { error: catErr } = await supabase
+          .from('product_categories')
+          .insert(categoryIdsArray.map(category_id => ({ product_id: id, category_id })))
+        if (catErr) throw catErr
+      }
 
       // Subir nuevas imágenes
       for (let i = 0; i < newImageFiles.length; i++) {
@@ -564,7 +609,7 @@ export default function EditarProductoPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Mínimo por variante (talle/color)</label>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Mínimo por variante</label>
             <input
               className="input max-w-[160px]"
               type="number"
@@ -581,27 +626,81 @@ export default function EditarProductoPage() {
           </div>
           {categories.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Categoría</label>
-              <select className="input" value={categoryId ?? ''} onChange={e => setCategoryId(e.target.value || null)}>
-                <option value="">Sin categoría</option>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Categorías</label>
+              <p className="text-xs text-zinc-400 mb-2">Podés tildar más de una — el producto va a aparecer en todas las que elijas</p>
+              <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-72 overflow-y-auto">
                 {categories.filter(c => !c.parent_id).map(parent => {
                   const subs = categories.filter(c => c.parent_id === parent.id)
-                  return subs.length > 0 ? (
-                    <optgroup key={parent.id} label={parent.name}>
-                      <option value={parent.id}>{parent.name} (general)</option>
+                  return (
+                    <div key={parent.id} className="px-3 py-2">
+                      <label className="flex items-center gap-2 text-sm text-zinc-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={selectedCategoryIds.has(parent.id)}
+                          onChange={() => toggleCategory(parent.id)}
+                        />
+                        {parent.name}
+                      </label>
                       {subs.map(sub => {
                         const subSubs = categories.filter(c => c.parent_id === sub.id)
-                        return subSubs.length > 0 ? [
-                          <option key={sub.id} value={sub.id}>  {sub.name}</option>,
-                          ...subSubs.map(ss => <option key={ss.id} value={ss.id}>    {ss.name}</option>)
-                        ] : <option key={sub.id} value={sub.id}>  {sub.name}</option>
+                        return (
+                          <div key={sub.id} className="mt-1.5 ml-6">
+                            <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="rounded"
+                                checked={selectedCategoryIds.has(sub.id)}
+                                onChange={() => toggleCategory(sub.id)}
+                              />
+                              {sub.name}
+                            </label>
+                            {subSubs.map(leaf => (
+                              <label key={leaf.id} className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer mt-1.5 ml-6">
+                                <input
+                                  type="checkbox"
+                                  className="rounded"
+                                  checked={selectedCategoryIds.has(leaf.id)}
+                                  onChange={() => toggleCategory(leaf.id)}
+                                />
+                                {leaf.name}
+                              </label>
+                            ))}
+                          </div>
+                        )
                       })}
-                    </optgroup>
-                  ) : <option key={parent.id} value={parent.id}>{parent.name}</option>
+                    </div>
+                  )
                 })}
-              </select>
+              </div>
             </div>
           )}
+        </div>
+
+        {/* Dimensiones y peso */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Dimensiones y peso</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Opcional — por ahora es solo un dato de ficha, todavía no se usa para calcular el envío</p>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Ancho (cm)</label>
+              <input className="input" type="number" min={0} step="0.1" value={widthCm} onChange={e => setWidthCm(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Largo (cm)</label>
+              <input className="input" type="number" min={0} step="0.1" value={lengthCm} onChange={e => setLengthCm(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Altura (cm)</label>
+              <input className="input" type="number" min={0} step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso (kg)</label>
+              <input className="input" type="number" min={0} step="0.01" value={weightKg} onChange={e => setWeightKg(e.target.value)} placeholder="0" />
+            </div>
+          </div>
         </div>
 
         {/* Imágenes */}
