@@ -86,6 +86,7 @@ export default function EditarProductoPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [storeDomain, setStoreDomain] = useState<string>('')
+  const [storeTemplate, setStoreTemplate] = useState<string>('')
   const [productSlug, setProductSlug] = useState<string>('')
 
   // Basic product fields
@@ -200,11 +201,12 @@ export default function EditarProductoPage() {
           const [{ data: cats }, { data: configData }, { data: tenantRow }] = await Promise.all([
             supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
             supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode').eq('tenant_id', userRow.tenant_id).single(),
-            supabase.from('tenants').select('domain').eq('id', userRow.tenant_id).single(),
+            supabase.from('tenants').select('domain, template').eq('id', userRow.tenant_id).single(),
           ])
           setCategories(cats ?? [])
           setFavoriteColors((configData as any)?.preferred_colors ?? [])
           setStoreDomain(tenantRow?.domain ?? '')
+          setStoreTemplate((tenantRow as any)?.template ?? '')
           mode = (configData as any)?.variant_mode === 'simple' ? 'simple' : 'sizes_colors'
           setVariantMode(mode)
 
@@ -697,7 +699,7 @@ export default function EditarProductoPage() {
               <input className="input" type="number" min={0} step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso (kg)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso ({storeTemplate === 'glow' ? 'ml' : 'kg'})</label>
               <input className="input" type="number" min={0} step="0.01" value={weightKg} onChange={e => setWeightKg(e.target.value)} placeholder="0" />
             </div>
           </div>
