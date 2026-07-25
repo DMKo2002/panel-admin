@@ -198,8 +198,14 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
         <p className="text-xs text-zinc-400">{slotDef.hint}</p>
       </div>
       <div
-        className="relative overflow-hidden rounded-lg border-2 border-dashed border-zinc-200 bg-zinc-50 cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-colors group"
-        style={slotDef.aspect === 'logo' ? { height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' } : { aspectRatio: slotDef.aspect }}
+        className="relative overflow-hidden rounded-lg border-2 border-dashed border-zinc-200 cursor-pointer hover:border-primary-400 transition-colors group"
+        style={{
+          ...(slotDef.aspect === 'logo'
+            ? { height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }
+            : { aspectRatio: slotDef.aspect }),
+          // Placeholder de imagen todavía sin cargar — degradé suave mientras espera que el cliente la suba
+          ...(!state.url ? { background: 'linear-gradient(135deg, #E3E0DA 0%, #A4A49C 100%)' } : {}),
+        }}
         onClick={() => !state.uploading && inputRef.current?.click()}
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
@@ -227,8 +233,8 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
             </div>
           </>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400">
-            {state.uploading ? <Loader2 size={24} className="animate-spin text-primary-500" /> : <><ImageIcon size={24} /><span className="text-xs">{slotDef.allowVideo ? 'Subir imagen o video' : 'Subir imagen'}</span></>}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.25)]">
+            {state.uploading ? <Loader2 size={24} className="animate-spin" /> : <><ImageIcon size={24} className="drop-shadow" /><span className="text-xs">{slotDef.allowVideo ? 'Subir imagen o video' : 'Subir imagen'}</span></>}
           </div>
         )}
         {state.uploading && state.url && (
