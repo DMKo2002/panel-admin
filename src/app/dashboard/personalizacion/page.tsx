@@ -330,6 +330,11 @@ export default function PersonalizacionPage() {
   const [savedLegal, setSavedLegal] = useState(false)
   const [errorLegal, setErrorLegal] = useState<string | null>(null)
 
+  // ── Guardar todo (botón único arriba de la página)
+  const [savingAll, setSavingAll] = useState(false)
+  const [savedAll, setSavedAll] = useState(false)
+  const [errorAll, setErrorAll] = useState<string | null>(null)
+
   useEffect(() => {
     async function load() {
       try {
@@ -453,7 +458,7 @@ export default function PersonalizacionPage() {
     setSlotState(slotKey, { url: null, uploading: false, error: null })
   }
 
-  async function handleSaveHero() {
+  async function handleSaveHero(): Promise<string | undefined> {
     if (!configId) return
     setSavingHero(true); setErrorHero(null)
     const { error } = await supabase.from('store_config').update({
@@ -466,11 +471,11 @@ export default function PersonalizacionPage() {
       hero_text_color:   heroTextColor  || null,
     }).eq('id', configId)
     setSavingHero(false)
-    if (error) { setErrorHero('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorHero(msg); return msg }
     setSavedHero(true); setTimeout(() => setSavedHero(false), 2000)
   }
 
-  async function handleSaveColors() {
+  async function handleSaveColors(): Promise<string | undefined> {
     if (!configId) return
     setSavingColors(true); setErrorColors(null)
     const { error } = await supabase.from('store_config').update({
@@ -478,22 +483,22 @@ export default function PersonalizacionPage() {
       collection_text_color: collectionTextColor || null,
     }).eq('id', configId)
     setSavingColors(false)
-    if (error) { setErrorColors('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorColors(msg); return msg }
     setSavedColors(true); setTimeout(() => setSavedColors(false), 2000)
   }
 
-  async function handleSaveCollectionPosts() {
+  async function handleSaveCollectionPosts(): Promise<string | undefined> {
     if (!configId) return
     setSavingCollectionPosts(true); setErrorCollectionPosts(null)
     const { error } = await supabase.from('store_config').update({
       collection_posts: collectionPosts,
     }).eq('id', configId)
     setSavingCollectionPosts(false)
-    if (error) { setErrorCollectionPosts('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorCollectionPosts(msg); return msg }
     setSavedCollectionPosts(true); setTimeout(() => setSavedCollectionPosts(false), 2000)
   }
 
-  async function handleSaveBlog() {
+  async function handleSaveBlog(): Promise<string | undefined> {
     if (!configId) return
     setSavingBlog(true); setErrorBlog(null)
     const { error } = await supabase.from('store_config').update({
@@ -502,31 +507,31 @@ export default function PersonalizacionPage() {
       blog_posts:      blogPosts,
     }).eq('id', configId)
     setSavingBlog(false)
-    if (error) { setErrorBlog('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorBlog(msg); return msg }
     setSavedBlog(true); setTimeout(() => setSavedBlog(false), 2000)
   }
 
-  async function handleSaveNewsletter() {
+  async function handleSaveNewsletter(): Promise<string | undefined> {
     if (!configId) return
     setSavingNewsletter(true); setErrorNewsletter(null)
     const { error } = await supabase.from('store_config').update({
       newsletter_bg_color: newsletterBgColor || null,
     }).eq('id', configId)
     setSavingNewsletter(false)
-    if (error) { setErrorNewsletter('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorNewsletter(msg); return msg }
     setSavedNewsletter(true); setTimeout(() => setSavedNewsletter(false), 2000)
   }
 
-  async function handleSaveName() {
+  async function handleSaveName(): Promise<string | undefined> {
     if (!tenantId) return
     setSavingName(true); setErrorName(null)
     const { error } = await supabase.from('tenants').update({ name: storeName.trim() }).eq('id', tenantId)
     setSavingName(false)
-    if (error) { setErrorName('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorName(msg); return msg }
     setSavedName(true); setTimeout(() => setSavedName(false), 2000)
   }
 
-  async function handleSaveFooter() {
+  async function handleSaveFooter(): Promise<string | undefined> {
     if (!configId) return
     setSavingFooter(true); setFooterError(null)
     const { error } = await supabase.from('store_config').update({
@@ -540,11 +545,11 @@ export default function PersonalizacionPage() {
       branches,
     }).eq('id', configId)
     setSavingFooter(false)
-    if (error) setFooterError('Error al guardar: ' + error.message)
-    else { setSavedFooter(true); setTimeout(() => setSavedFooter(false), 2000) }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setFooterError(msg); return msg }
+    setSavedFooter(true); setTimeout(() => setSavedFooter(false), 2000)
   }
 
-  async function handleSaveLegal() {
+  async function handleSaveLegal(): Promise<string | undefined> {
     if (!configId) return
     setSavingLegal(true); setErrorLegal(null)
     const { error } = await supabase.from('store_config').update({
@@ -553,8 +558,33 @@ export default function PersonalizacionPage() {
       cookies_policy: cookies || null,
     }).eq('id', configId)
     setSavingLegal(false)
-    if (error) { setErrorLegal('Error al guardar: ' + error.message); return }
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorLegal(msg); return msg }
     setSavedLegal(true); setTimeout(() => setSavedLegal(false), 2000)
+  }
+
+  // Guarda todas las secciones de texto/color de la página en un solo click.
+  // Las imágenes (logo, banners, etc.) no entran acá: se suben y guardan solas
+  // al elegir el archivo, y cada slot muestra su propio "✓ Guardado" al hacerlo.
+  async function handleSaveAll() {
+    setSavingAll(true); setErrorAll(null); setSavedAll(false)
+    const tasks: Promise<string | undefined>[] = [
+      handleSaveHero(),
+      handleSaveName(),
+      handleSaveFooter(),
+      handleSaveLegal(),
+    ]
+    if (!isMono) tasks.push(handleSaveColors())
+    if (hasBlogSections) tasks.push(handleSaveCollectionPosts(), handleSaveBlog(), handleSaveNewsletter())
+
+    const results = await Promise.all(tasks)
+    setSavingAll(false)
+    const errors = results.filter(Boolean) as string[]
+    if (errors.length > 0) {
+      setErrorAll(`No se pudo guardar ${errors.length === 1 ? '1 sección' : errors.length + ' secciones'} — mirá el detalle en cada bloque de abajo`)
+    } else {
+      setSavedAll(true)
+      setTimeout(() => setSavedAll(false), 2500)
+    }
   }
 
   const slotDefs = TEMPLATE_SLOTS[template] ?? TEMPLATE_SLOTS['minimalista']
@@ -594,20 +624,19 @@ export default function PersonalizacionPage() {
         </div>
       </div>
 
-      {isMono && (
-        <div className="sticky top-0 z-20 -mx-8 px-8 py-3 bg-white/95 backdrop-blur border-b border-zinc-200 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-zinc-700">Guardar cambios</p>
-            <p className="text-xs text-zinc-400">Las imágenes se suben y guardan solas. Este botón guarda los textos (Hero).</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {errorHero && <p className="text-xs text-red-500">{errorHero}</p>}
-            <button onClick={handleSaveHero} disabled={savingHero} className="btn-secondary text-xs py-1.5 px-4 disabled:opacity-60">
-              {savedHero ? '✓ Guardado' : savingHero ? 'Guardando...' : 'Guardar cambios'}
-            </button>
-          </div>
+      {/* ── Guardar todo (barra fija arriba) ── */}
+      <div className="sticky top-0 z-20 -mx-8 px-8 py-3 bg-white/95 backdrop-blur border-b border-zinc-200 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-zinc-700">Guardar todos los cambios</p>
+          <p className="text-xs text-zinc-400">Las imágenes se suben y guardan solas (mirá el "✓ Guardado" en cada foto). Este botón guarda de una vez todos los textos, colores y datos de contacto de esta página.</p>
         </div>
-      )}
+        <div className="flex items-center gap-3">
+          {errorAll && <p className="text-xs text-red-500 max-w-xs text-right">{errorAll}</p>}
+          <button onClick={handleSaveAll} disabled={savingAll} className="btn-secondary text-xs py-1.5 px-4 disabled:opacity-60 whitespace-nowrap">
+            {savedAll ? '✓ Todo guardado' : savingAll ? 'Guardando...' : 'Guardar todos los cambios'}
+          </button>
+        </div>
+      </div>
 
       {!isMono && (
       <>
