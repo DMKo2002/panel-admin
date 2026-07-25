@@ -12,22 +12,24 @@ import SimpleVariantForm, { SimpleVariantHandle } from '@/components/SimpleVaria
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
 const SIZE_KEYS = ['talle', 'numero', 'talla', 'size']
 
-// ── Image resize: center-crop to 2:3, resize to 600×900, compress to ≤150KB ─
-async function resizeImageTo600x900(file: File): Promise<File> {
-  return new Promise(resolve => {
+// ── Image resize: center-crop a un ancho×alto dado, compress a ≤150KB ─
+// glow usa cards cuadradas (1:1) en la tienda -> se procesa a 900x900 en vez
+// de 600x900 (2:3) para que no se recorte contra el marco cuadrado del grid.
+function resizeImageTo(targetW: number, targetH: number) {
+  return (file: File): Promise<File> => new Promise(resolve => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
       URL.revokeObjectURL(url)
       const canvas = document.createElement('canvas')
-      canvas.width = 600; canvas.height = 900
+      canvas.width = targetW; canvas.height = targetH
       const ctx = canvas.getContext('2d')!
-      const ratio = 2 / 3
+      const ratio = targetW / targetH
       const sr = img.width / img.height
       let sx: number, sy: number, sw: number, sh: number
       if (sr > ratio) { sh = img.height; sw = sh * ratio; sx = (img.width - sw) / 2; sy = 0 }
       else { sw = img.width; sh = sw / ratio; sx = 0; sy = (img.height - sh) / 2 }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 600, 900)
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH)
       const tryCompress = (q: number) => {
         canvas.toBlob(blob => {
           if (!blob) { resolve(file); return }
@@ -78,7 +80,8 @@ export default function NuevoProductoPage() {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
-  const [storeTemplate, setStoreTemplate] = useState<string>('')
+  const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
+  const [weightUnit, setWeightUnit] = useState<'kg' | 'ml' | 'g'>('kg')
 
   useEffect(() => {
     async function load() {
@@ -88,14 +91,14 @@ export default function NuevoProductoPage() {
   const userRow = _userRows?.[0]
       if (!userRow) return
       setTenantId(userRow?.tenant_id)
-      const [{ data: cats }, { data: configData }, { data: tenantRow }] = await Promise.all([
+      const [{ data: cats }, { data: configData }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode').eq('tenant_id', userRow.tenant_id).single(),
-        supabase.from('tenants').select('template').eq('id', userRow.tenant_id).single(),
+        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit').eq('tenant_id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
-      setStoreTemplate((tenantRow as any)?.template ?? '')
+      setImageRatio((configData as any)?.product_image_ratio === '1:1' ? '1:1' : '2:3')
+      setWeightUnit((configData as any)?.weight_unit ?? 'kg')
       const mode = (configData as any)?.variant_mode === 'simple' ? 'simple' : 'sizes_colors'
       setVariantMode(mode)
 
@@ -117,7 +120,8 @@ export default function NuevoProductoPage() {
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    const resized = await Promise.all(files.map(resizeImageTo600x900))
+    const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    const resized = await Promise.all(files.map(resizeFn))
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
     e.target.value = ''
@@ -128,7 +132,8 @@ export default function NuevoProductoPage() {
     setIsDragging(false)
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
     if (!files.length) return
-    const resized = await Promise.all(files.map(resizeImageTo600x900))
+    const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    const resized = await Promise.all(files.map(resizeFn))
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
   }
@@ -362,7 +367,7 @@ export default function NuevoProductoPage() {
               <input className="input" type="number" min={0} step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso ({storeTemplate === 'glow' ? 'ml' : 'kg'})</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso ({weightUnit})</label>
               <input className="input" type="number" min={0} step="0.01" value={weightKg} onChange={e => setWeightKg(e.target.value)} placeholder="0" />
             </div>
           </div>
@@ -379,7 +384,7 @@ export default function NuevoProductoPage() {
           >
             <Upload size={20} className="text-zinc-400 mb-1" />
             <span className="text-sm text-zinc-500">{isDragging ? 'Soltá las imágenes acá' : 'Arrastrá o hacé click para subir fotos'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a 600×900</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageRatio === '1:1' ? '900×900' : '600×900'}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
           {imagePreviews.length > 0 && (

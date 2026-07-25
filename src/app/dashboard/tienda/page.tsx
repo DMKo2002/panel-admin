@@ -128,6 +128,8 @@ export default function TiendaPage() {
       registration_visibility: config.registration_visibility ?? 'both',
       custom_shipping:  customShipping,
       ignore_stock:     (config as any).ignore_stock ?? false,
+      product_image_ratio: (config as any).product_image_ratio ?? '2:3',
+      weight_unit:      (config as any).weight_unit ?? 'kg',
     }).eq('id', config.id)
     setSaving(false)
     if (error) {
@@ -440,6 +442,33 @@ export default function TiendaPage() {
           <button onClick={addAttribute} className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 transition-colors">
             <Plus size={14} /> Agregar atributo
           </button>
+        </div>
+
+        {/* Catálogo — formato de imagen y unidad de peso */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">Catálogo</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Cómo se procesan las fotos de producto y en qué unidad se carga el peso. Se guarda con "Guardar cambios" arriba.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Formato de imagen de producto</label>
+              <select className="input" value={(config as any)?.product_image_ratio ?? '2:3'} onChange={e => update('product_image_ratio' as any, e.target.value)}>
+                <option value="2:3">Retrato (2:3) — indumentaria</option>
+                <option value="1:1">Cuadrada (1:1) — ej. cosmética</option>
+              </select>
+              <p className="text-xs text-zinc-400 mt-1">Define cómo se recortan las fotos al subirlas y cómo se ven en el grid de la tienda.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso</label>
+              <select className="input" value={(config as any)?.weight_unit ?? 'kg'} onChange={e => update('weight_unit' as any, e.target.value)}>
+                <option value="kg">Kilogramos (kg)</option>
+                <option value="g">Gramos (g)</option>
+                <option value="ml">Mililitros (ml)</option>
+              </select>
+              <p className="text-xs text-zinc-400 mt-1">Solo cambia la etiqueta del campo "Peso" en la ficha de producto.</p>
+            </div>
+          </div>
         </div>
 
         {/* Contacto y Redes Sociales */}

@@ -95,6 +95,11 @@ export interface StoreConfig {
   terms_and_conditions: string | null
   privacy_policy: string | null
   cookies_policy: string | null
+  // Ratio con el que se procesan y muestran las imágenes de producto.
+  // '2:3' retrato (default) | '1:1' cuadrada (ej. cosmética con grid cuadrado)
+  product_image_ratio: '2:3' | '1:1'
+  // Unidad del campo "peso" del producto (ficha de producto / dimensiones).
+  weight_unit: 'kg' | 'ml' | 'g'
 }
 
 export interface Customer {
