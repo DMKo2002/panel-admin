@@ -65,6 +65,7 @@ export default function NuevoProductoPage() {
   const [name, setName] = useState('')
   const [sku, setSku] = useState('')
   const [description, setDescription] = useState('')
+  const [minQty, setMinQty] = useState<string>('')
   const [isBestseller, setIsBestseller] = useState(false)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
@@ -77,6 +78,7 @@ export default function NuevoProductoPage() {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
+  const [storeTemplate, setStoreTemplate] = useState<string>('')
 
   useEffect(() => {
     async function load() {
@@ -86,12 +88,14 @@ export default function NuevoProductoPage() {
   const userRow = _userRows?.[0]
       if (!userRow) return
       setTenantId(userRow?.tenant_id)
-      const [{ data: cats }, { data: configData }] = await Promise.all([
+      const [{ data: cats }, { data: configData }, { data: tenantRow }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
         supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode').eq('tenant_id', userRow.tenant_id).single(),
+        supabase.from('tenants').select('template').eq('id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
+      setStoreTemplate((tenantRow as any)?.template ?? '')
       const mode = (configData as any)?.variant_mode === 'simple' ? 'simple' : 'sizes_colors'
       setVariantMode(mode)
 
@@ -180,6 +184,7 @@ export default function NuevoProductoPage() {
           tenant_id: tenantId, name: name.trim(), sku: sku.trim() || null, slug,
           description: description.trim() || null, active: true,
           category_id: primaryCategoryId, is_bestseller: isBestseller,
+          min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
           width_cm: widthCm ? Number(widthCm) : null,
           length_cm: lengthCm ? Number(lengthCm) : null,
           height_cm: heightCm ? Number(heightCm) : null,
@@ -265,6 +270,18 @@ export default function NuevoProductoPage() {
             </div>
           </div>
           <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Mínimo por variante</label>
+            <input
+              className="input max-w-[160px]"
+              type="number"
+              min={1}
+              value={minQty}
+              onChange={e => setMinQty(e.target.value)}
+              placeholder="General"
+            />
+            <p className="text-xs text-zinc-400 mt-1">Dejar vacío para usar el mínimo general de la tienda (configurable en Mi Tienda).</p>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
             <textarea className="input resize-none" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Descripción del producto..." />
           </div>
@@ -345,7 +362,7 @@ export default function NuevoProductoPage() {
               <input className="input" type="number" min={0} step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso (kg)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso ({storeTemplate === 'glow' ? 'ml' : 'kg'})</label>
               <input className="input" type="number" min={0} step="0.01" value={weightKg} onChange={e => setWeightKg(e.target.value)} placeholder="0" />
             </div>
           </div>
