@@ -67,6 +67,9 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'banner_1',     label: 'Banner — Foto 1',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
     { key: 'banner_2',     label: 'Banner — Foto 2',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
     { key: 'banner_3',     label: 'Banner — Foto 3',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
+    { key: 'collection_1', label: 'Colección — Banner 1', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'collection_2', label: 'Colección — Banner 2', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'collection_3', label: 'Colección — Banner 3', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
   ],
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
@@ -580,7 +583,8 @@ export default function PersonalizacionPage() {
     ]
     if (template !== 'glow') tasks.push(handleSaveHero())
     if (!isMono) tasks.push(handleSaveColors())
-    if (hasBlogSections) tasks.push(handleSaveCollectionPosts(), handleSaveBlog(), handleSaveNewsletter())
+    if (hasCollections) tasks.push(handleSaveCollectionPosts())
+    if (hasBlogSections) tasks.push(handleSaveBlog(), handleSaveNewsletter())
 
     const results = await Promise.all(tasks)
     setSavingAll(false)
@@ -604,9 +608,12 @@ export default function PersonalizacionPage() {
   // así que el panel se ordena por sector de la tienda en vez de por tipo de campo. Axis reusa el mismo
   // layout que mono (viene del mismo Figma con hero video en vez de imagen estática).
   const isMono = template === 'mono' || template === 'axis'
-  // Colecciones/Blog/Newsletter son secciones exclusivas de la home de Atelier (y Mykonos Love,
+  // Blog/Newsletter son secciones exclusivas de la home de Atelier (y Mykonos Love,
   // que comparte su estructura). Minimalista no las usa — mostrarlas ahí era un resabio del demo Atelier.
   const hasBlogSections = template === 'atelier' || template === 'mykonoslove'
+  // Colecciones (badges de confianza + grid de 3 banners) también la usa Glow, aunque
+  // esa tienda no tiene Blog ni Newsletter — por eso es un flag aparte de hasBlogSections.
+  const hasCollections = template === 'atelier' || template === 'mykonoslove' || template === 'glow'
 
   if (loading) {
     return (
@@ -795,7 +802,7 @@ export default function PersonalizacionPage() {
         </div>
       </section>
 
-      {hasBlogSections && (
+      {hasCollections && (
       <>
       {/* ── Colecciones ── */}
       <section className="space-y-6">
@@ -882,7 +889,11 @@ export default function PersonalizacionPage() {
           </div>
         </div>
       </section>
+      </>
+      )}
 
+      {hasBlogSections && (
+      <>
       {/* ── Blog ── */}
       <section className="space-y-6">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
