@@ -64,7 +64,7 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
   glow: [
     { key: 'logo',         label: 'Logo',                 hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
     { key: 'logo_favicon', label: 'Favicon',               hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'  },
-    { key: 'banner_1',     label: 'Banner — Foto 1',       hint: '1600 × 600 px recomendado — se muestra primero, arriba de todo', aspect: '16/6' },
+    { key: 'banner_1',     label: 'Banner — Foto 1',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
     { key: 'banner_2',     label: 'Banner — Foto 2',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
     { key: 'banner_3',     label: 'Banner — Foto 3',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
   ],
@@ -568,11 +568,11 @@ export default function PersonalizacionPage() {
   async function handleSaveAll() {
     setSavingAll(true); setErrorAll(null); setSavedAll(false)
     const tasks: Promise<string | undefined>[] = [
-      handleSaveHero(),
       handleSaveName(),
       handleSaveFooter(),
       handleSaveLegal(),
     ]
+    if (template !== 'glow') tasks.push(handleSaveHero())
     if (!isMono) tasks.push(handleSaveColors())
     if (hasBlogSections) tasks.push(handleSaveCollectionPosts(), handleSaveBlog(), handleSaveNewsletter())
 
@@ -665,7 +665,8 @@ export default function PersonalizacionPage() {
         ))}
       </section>
 
-      {/* ── Textos del Hero ── */}
+      {/* ── Textos del Hero ── (Glow no usa hero de texto — su home es el carrusel de banners) */}
+      {template !== 'glow' && (
       <section className="space-y-6">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
           Textos del Hero
@@ -742,6 +743,7 @@ export default function PersonalizacionPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── Color del menú ── */}
       <section className="space-y-6">
