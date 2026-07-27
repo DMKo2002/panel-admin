@@ -101,6 +101,7 @@ export default function EditarProductoPage() {
   const [minQty, setMinQty] = useState<string>('')
   const [active, setActive] = useState(true)
   const [isBestseller, setIsBestseller] = useState(false)
+  const [maxInstallments, setMaxInstallments] = useState<string>('')
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set())
   const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([])
   const [widthCm, setWidthCm] = useState('')
@@ -150,6 +151,7 @@ export default function EditarProductoPage() {
       setMinQty(product.min_qty != null ? String(product.min_qty) : '')
       setActive(product.active ?? true)
       setIsBestseller(product.is_bestseller ?? false)
+      setMaxInstallments(product.max_installments != null ? String(product.max_installments) : '')
       setProductSlug(product.slug ?? '')
       setImages(sortImages(product.product_images ?? []))
       setWidthCm(product.width_cm != null ? String(product.width_cm) : '')
@@ -398,6 +400,7 @@ export default function EditarProductoPage() {
         category_id: primaryCategoryId,
         min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
         is_bestseller: isBestseller,
+        max_installments: maxInstallments.trim() === '' ? null : Math.max(1, Number(maxInstallments)),
         width_cm: widthCm ? Number(widthCm) : null,
         length_cm: lengthCm ? Number(lengthCm) : null,
         height_cm: heightCm ? Number(heightCm) : null,
@@ -606,6 +609,18 @@ export default function EditarProductoPage() {
             <input type="checkbox" checked={isBestseller} onChange={e => setIsBestseller(e.target.checked)} className="rounded" />
             Destacado (Best seller) — se muestra en la sección de más vendidos de la home
           </label>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Máximo de cuotas</label>
+            <input
+              className="input max-w-[160px]"
+              type="number"
+              min={1}
+              value={maxInstallments}
+              onChange={e => setMaxInstallments(e.target.value)}
+              placeholder="Sin tope"
+            />
+            <p className="text-xs text-zinc-400 mt-1">Tope de cuotas para este producto al pagar con Mercado Pago. Dejar vacío para no limitar.</p>
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>

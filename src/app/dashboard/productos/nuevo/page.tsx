@@ -69,6 +69,7 @@ export default function NuevoProductoPage() {
   const [description, setDescription] = useState('')
   const [minQty, setMinQty] = useState<string>('')
   const [isBestseller, setIsBestseller] = useState(false)
+  const [maxInstallments, setMaxInstallments] = useState<string>('')
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
 
@@ -190,6 +191,7 @@ export default function NuevoProductoPage() {
           description: description.trim() || null, active: true,
           category_id: primaryCategoryId, is_bestseller: isBestseller,
           min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
+          max_installments: maxInstallments.trim() === '' ? null : Math.max(1, Number(maxInstallments)),
           width_cm: widthCm ? Number(widthCm) : null,
           length_cm: lengthCm ? Number(lengthCm) : null,
           height_cm: heightCm ? Number(heightCm) : null,
@@ -294,6 +296,18 @@ export default function NuevoProductoPage() {
             <input type="checkbox" checked={isBestseller} onChange={e => setIsBestseller(e.target.checked)} className="rounded" />
             Destacado (Best seller) — se muestra en la sección de más vendidos de la home
           </label>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Máximo de cuotas</label>
+            <input
+              className="input max-w-[160px]"
+              type="number"
+              min={1}
+              value={maxInstallments}
+              onChange={e => setMaxInstallments(e.target.value)}
+              placeholder="Sin tope"
+            />
+            <p className="text-xs text-zinc-400 mt-1">Tope de cuotas para este producto al pagar con Mercado Pago. Dejar vacío para no limitar.</p>
+          </div>
           {categories.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Categorías</label>

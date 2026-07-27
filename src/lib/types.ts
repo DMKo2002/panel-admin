@@ -91,6 +91,10 @@ export interface StoreConfig {
   custom_shipping: CustomShippingMethod[]
   panel_theme: PanelTheme
   variant_mode: VariantMode
+  // Cuántas cuotas sin interés tiene ESTE tenant activadas en su propia
+  // cuenta de Mercado Pago (dato informativo, no activa nada por sí solo —
+  // ver cuotas_migration.sql). null/0 = no ofrece.
+  interest_free_installments: number | null
   panel_accent_color: string | null
   terms_and_conditions: string | null
   privacy_policy: string | null
@@ -150,6 +154,9 @@ export interface Product {
   // Marca manual (no calculada de ventas) para destacar el producto como
   // "best seller" en la home de la tienda.
   is_bestseller: boolean
+  // Tope de cuotas para ESTE producto — se manda a Mercado Pago al armar la
+  // preferencia de pago. null = sin tope propio (usa el máximo de MP).
+  max_installments: number | null
   // Dimensiones y peso — por ahora solo ficha de datos, todavía no conectado
   // al cálculo de envío.
   width_cm: number | null

@@ -119,6 +119,7 @@ export default function TiendaPage() {
     const { error } = await supabase.from('store_config').update({
       panel_theme:      panelTheme,
       mp_enabled:       config.mp_enabled,
+      interest_free_installments: (config as any).interest_free_installments ?? null,
       transfer_enabled: config.transfer_enabled,
       transfer_cbu:     config.transfer_cbu,
       transfer_alias:   config.transfer_alias,
@@ -523,6 +524,24 @@ export default function TiendaPage() {
           <ToggleRow label="Habilitar MercadoPago" desc="Los clientes podrán pagar con tarjeta, débito y QR" checked={Boolean(config?.mp_enabled)} onChange={v => update('mp_enabled', v)} />
           {config?.mp_enabled && (
             <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Cuotas sin interés</label>
+                <select
+                  className="input text-sm"
+                  value={(config as any)?.interest_free_installments ?? ''}
+                  onChange={e => update('interest_free_installments' as any, e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">No ofrezco cuotas sin interés</option>
+                  {[2, 3, 6, 9, 12].map(n => <option key={n} value={n}>Hasta {n} cuotas sin interés</option>)}
+                </select>
+                <p className="text-xs text-zinc-400 mt-1.5">
+                  Este dato es solo para mostrar el cartel correcto en tu tienda — no activa nada por sí solo. Tenés que activarlo antes en tu propia cuenta de Mercado Pago en{' '}
+                  <a href="https://www.mercadopago.com.ar/ayuda/como-ofrecer-cuotas-sin-interes_19304" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                    Tu negocio → Configuraciones → Ofrecer cuotas sin interés
+                  </a>
+                  {' '}(elegí el mismo número acá).
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Public Key de tu cuenta MP</label>
                 <input className="input font-mono text-xs" value={mpPublicKey} onChange={e => setMpPublicKey(e.target.value)} placeholder="APP_USR-... o TEST-..." />
