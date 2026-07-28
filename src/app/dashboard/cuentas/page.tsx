@@ -3,6 +3,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import CreateAccountForm from '@/components/CreateAccountForm'
 import DeleteAccountButton from '@/components/DeleteAccountButton'
+import EditPermissionsButton from '@/components/EditPermissionsButton'
+import { GRANTABLE_SETTINGS_ROUTES } from '@/lib/settings-nav'
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })
@@ -21,10 +23,17 @@ export default async function CuentasPage() {
 
   const { data: accountsData } = await service
     .from('users')
-    .select('id, email, role, created_at')
+    .select('id, email, role, created_at, permissions')
     .eq('tenant_id', caller.tenant_id)
     .order('created_at', { ascending: true })
   const accounts = accountsData ?? []
+
+  function accessSummary(permissions: Record<string, boolean> | null) {
+    const granted = GRANTABLE_SETTINGS_ROUTES.filter(r => permissions?.[r.key] === true)
+    const base = 'Pedidos, Clientes, Productos, Categorías, Precios'
+    if (granted.length === 0) return base
+    return `${base} + ${granted.map(r => r.label).join(', ')}`
+  }
 
   return (
     <div>
@@ -62,12 +71,17 @@ export default async function CuentasPage() {
                       {a.role === 'owner' ? 'Dueño' : 'Empleado'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-zinc-500">
-                    {a.role === 'owner' ? 'Acceso total' : 'Pedidos, Clientes, Productos, Categorías, Precios'}
+                  <td className="px-4 py-3 text-xs text-zinc-500 max-w-xs">
+                    {a.role === 'owner' ? 'Acceso total' : accessSummary(a.permissions as Record<string, boolean> | null)}
                   </td>
                   <td className="px-4 py-3 text-xs text-zinc-400">{fmtDate(a.created_at)}</td>
                   <td className="px-4 py-3">
-                    {a.role !== 'owner' && <DeleteAccountButton accountId={a.id} accountEmail={a.email} />}
+                    <div className="flex items-center gap-2">
+                      {a.role !== 'owner' && (
+                        <EditPermissionsButton accountId={a.id} accountEmail={a.email} currentPermissions={a.permissions as Record<string, boolean> | null} />
+                      )}
+                      {a.role !== 'owner' && <DeleteAccountButton accountId={a.id} accountEmail={a.email} />}
+                    </div>
                   </td>
                 </tr>
               ))}

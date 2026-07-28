@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, X, Loader2 } from 'lucide-react'
+import { GRANTABLE_SETTINGS_ROUTES } from '@/lib/settings-nav'
 
 export default function CreateAccountForm() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [permissions, setPermissions] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -16,7 +18,12 @@ export default function CreateAccountForm() {
     setOpen(false)
     setEmail('')
     setPassword('')
+    setPermissions({})
     setError(null)
+  }
+
+  function togglePerm(key: string) {
+    setPermissions(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -27,7 +34,7 @@ export default function CreateAccountForm() {
       const res = await fetch('/api/accounts/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, permissions }),
       })
       const d = await res.json()
       if (!res.ok) {
@@ -54,8 +61,8 @@ export default function CreateAccountForm() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={close} />
 
-          <div className="relative w-full max-w-sm bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+          <div className="relative w-full max-w-sm bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 sticky top-0 bg-white">
               <h2 className="text-sm font-semibold text-zinc-900">Nueva cuenta de acceso</h2>
               <button onClick={close} className="text-zinc-400 hover:text-zinc-600">
                 <X size={18} />
@@ -64,8 +71,8 @@ export default function CreateAccountForm() {
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <p className="text-xs text-zinc-500 leading-relaxed">
-                Esta cuenta va a poder ver y gestionar <strong>Pedidos, Clientes, Productos, Categorías y Precios</strong>.
-                No va a tener acceso a Personalización, Notificaciones, Mi tienda ni a otras Cuentas.
+                Esta cuenta siempre va a poder ver y gestionar <strong>Pedidos, Clientes, Productos, Categorías y Precios</strong>.
+                Elegí abajo qué páginas de Configuración también puede ver — nunca va a tener acceso a Cuentas.
               </p>
 
               <div>
@@ -93,6 +100,23 @@ export default function CreateAccountForm() {
                   minLength={6}
                 />
                 <p className="text-xs text-zinc-400 mt-1">Se la vas a tener que pasar vos al empleado — no se envía mail.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Acceso a Configuración</label>
+                <div className="space-y-1 border border-zinc-100 rounded-lg p-2">
+                  {GRANTABLE_SETTINGS_ROUTES.map(route => (
+                    <label key={route.key} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-zinc-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(permissions[route.key])}
+                        onChange={() => togglePerm(route.key)}
+                        className="rounded border-zinc-300 text-primary-600 focus:ring-primary-400"
+                      />
+                      <span className="text-sm text-zinc-700">{route.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               {error && (

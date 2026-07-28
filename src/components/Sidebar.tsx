@@ -9,20 +9,21 @@ import {
   FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3
 } from 'lucide-react'
 import clsx from 'clsx'
-import { SETTINGS_ROUTES } from '@/lib/settings-nav'
+import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
 
 // Los ítems de "Configuración" (General, Pagos, Envíos, Catálogo, Contacto,
 // Notificaciones, Apariencia, Legal, Cuentas) viven en src/lib/settings-nav.ts
 // — única fuente de verdad, compartida con src/proxy.ts para que el bloqueo
-// real de rutas y lo que se ve acá nunca queden desincronizados.
+// real de rutas y lo que se ve acá nunca queden desincronizados. `key`
+// definido = ítem gateado por permissions (staff); sin key = siempre visible.
 const navItems = [
-  { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard, staffBlocked: false },
-  { label: 'Estadísticas',    href: '/dashboard/estadisticas',   icon: BarChart3,        staffBlocked: false },
-  { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart,     staffBlocked: false },
-  { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users,            staffBlocked: false },
-  { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt,            staffBlocked: false },
-  { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen,       staffBlocked: false },
-  ...SETTINGS_ROUTES.map(r => ({ label: r.label, href: r.href, icon: r.icon, staffBlocked: r.staffBlocked })),
+  { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard, key: undefined as string | undefined },
+  { label: 'Estadísticas',    href: '/dashboard/estadisticas',   icon: BarChart3,        key: undefined as string | undefined },
+  { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart,     key: undefined as string | undefined },
+  { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users,            key: undefined as string | undefined },
+  { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt,            key: undefined as string | undefined },
+  { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen,       key: undefined as string | undefined },
+  ...SETTINGS_ROUTES.map(r => ({ label: r.label, href: r.href, icon: r.icon, key: r.key as string | undefined })),
 ]
 
 interface SidebarProps {
@@ -30,11 +31,12 @@ interface SidebarProps {
   storeDomain: string
   isSuperAdmin?: boolean
   role?: string | null
+  permissions?: StaffPermissions | null
 }
 
-export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role }: SidebarProps) {
+export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, permissions }: SidebarProps) {
   const isStaff = role === 'staff'
-  const visibleItems = navItems.filter(item => !(isStaff && item.staffBlocked))
+  const visibleItems = navItems.filter(item => !isStaff || !item.key || hasSettingsPermission(permissions, item.key))
   const general = visibleItems.filter(i => ['/dashboard', '/dashboard/estadisticas', '/dashboard/pedidos', '/dashboard/clientes'].includes(i.href))
   const catalogo = visibleItems.filter(i => ['/dashboard/productos', '/dashboard/categorias'].includes(i.href))
   const config = visibleItems.filter(i => !general.includes(i) && !catalogo.includes(i))

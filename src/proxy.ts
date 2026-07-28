@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isSuperAdmin } from '@/lib/superadmin'
-import { STAFF_BLOCKED_PREFIXES as SETTINGS_STAFF_BLOCKED_PREFIXES } from '@/lib/settings-nav'
+import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
 
 function serviceClient() {
   return createClient(
@@ -18,15 +18,10 @@ function redirectTo(request: NextRequest, pathname: string) {
   return NextResponse.redirect(url)
 }
 
-// Secciones bloqueadas para cuentas con role='staff' (empleados con acceso
-// limitado a Pedidos, Clientes, Productos, Categorias y Precios).
-// La lista vive en src/lib/settings-nav.ts — única fuente de verdad,
-// compartida con el Sidebar para que nunca queden desincronizados.
-// /dashboard/tienda y /dashboard/personalizacion son rutas viejas (ahora
-// redirects) — se dejan bloqueadas acá también por las dudas de que alguien
-// llegue a ellas antes de que el redirect del cliente corra.
-const STAFF_BLOCKED_PREFIXES = [
-  ...SETTINGS_STAFF_BLOCKED_PREFIXES,
+// Rutas viejas (ahora redirects del lado del cliente) — se dejan bloqueadas
+// acá también por las dudas de que alguien llegue antes de que corra el
+// redirect. Nunca son otorgables via permisos.
+const LEGACY_STAFF_BLOCKED_PREFIXES = [
   '/dashboard/tienda',
   '/dashboard/personalizacion',
   '/dashboard/test-mp',
@@ -75,7 +70,7 @@ export async function proxy(request: NextRequest) {
 
     const { data: _userRows, error: queryError } = await serviceClient()
       .from('users')
-      .select('tenant_id, role')
+      .select('tenant_id, role, permissions')
       .eq('id', user.id)
       .limit(1)
 
@@ -94,9 +89,17 @@ export async function proxy(request: NextRequest) {
     }
     if (hasTenant && path === '/onboarding') return redirectTo(request, '/dashboard')
 
-    // Cuentas 'staff' (empleados) no pueden acceder a secciones sensibles
-    if (hasTenant && userRow?.role === 'staff' && STAFF_BLOCKED_PREFIXES.some(p => path.startsWith(p))) {
-      return redirectTo(request, '/dashboard')
+    // Cuentas 'staff' (empleados): acceso granular por cuenta a las páginas
+    // de Configuración (users.permissions), 'cuentas' y las rutas legacy
+    // siempre bloqueadas sin excepción.
+    if (hasTenant && userRow?.role === 'staff') {
+      if (LEGACY_STAFF_BLOCKED_PREFIXES.some(p => path.startsWith(p))) {
+        return redirectTo(request, '/dashboard')
+      }
+      const matchedRoute = SETTINGS_ROUTES.find(r => path.startsWith(r.href))
+      if (matchedRoute && !hasSettingsPermission(userRow.permissions as StaffPermissions | null, matchedRoute.key)) {
+        return redirectTo(request, '/dashboard')
+      }
     }
   }
 

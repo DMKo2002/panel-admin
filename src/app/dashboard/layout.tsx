@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: _userRows } = await supabase
     .from('users')
-    .select('tenant_id, role')
+    .select('tenant_id, role, permissions')
     .eq('id', user.id)
     .limit(1)
   const userRow = _userRows?.[0]
@@ -80,7 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
       <ThemeProvider />
-      <Sidebar storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} role={userRow?.role} />
+      <Sidebar storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} role={userRow?.role} permissions={userRow?.permissions} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

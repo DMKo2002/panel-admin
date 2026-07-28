@@ -1,16 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { GRANTABLE_SETTINGS_ROUTES } from '@/lib/settings-nav'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { email, password } = await req.json()
+  const { email, password, permissions } = await req.json()
   if (!email?.trim()) return NextResponse.json({ error: 'Falta el email' }, { status: 400 })
   if (!password || password.length < 6) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 })
+  }
+  // Solo se aceptan claves conocidas (nunca 'cuentas') — filtra cualquier
+  // valor extra que venga del cliente, por las dudas.
+  const grantableKeys = new Set(GRANTABLE_SETTINGS_ROUTES.map(r => r.key))
+  const cleanPermissions: Record<string, boolean> = {}
+  if (permissions && typeof permissions === 'object') {
+    for (const [key, value] of Object.entries(permissions)) {
+      if (grantableKeys.has(key)) cleanPermissions[key] = value === true
+    }
   }
 
   const service = createServiceClient()
@@ -34,7 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: linkError } = await service.from('users').upsert(
-    { id: created.user.id, email: email.trim(), tenant_id: caller.tenant_id, role: 'staff' },
+    { id: created.user.id, email: email.trim(), tenant_id: caller.tenant_id, role: 'staff', permissions: cleanPermissions },
     { onConflict: 'id' }
   )
   if (linkError) {

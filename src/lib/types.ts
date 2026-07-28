@@ -3,6 +3,19 @@
 // ============================================================
 
 export type UserRole = 'superadmin' | 'owner' | 'staff'
+// Permisos granulares de una cuenta 'staff' sobre páginas de Configuración —
+// clave = key de src/lib/settings-nav.ts, ausente/false = bloqueado.
+// 'cuentas' nunca aparece acá: se controla en código, no es otorgable.
+export type StaffPermissions = Record<string, boolean>
+
+export interface PanelUser {
+  id: string
+  email: string
+  tenant_id: string
+  role: UserRole
+  permissions: StaffPermissions | null
+  created_at: string
+}
 export type CustomerType = 'retail' | 'wholesale'
 export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
 export type PaymentMethod = 'mercadopago' | 'transfer'

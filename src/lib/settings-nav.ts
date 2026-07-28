@@ -35,3 +35,18 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
 
 // Usado por src/proxy.ts (matcher de prefijos de ruta)
 export const STAFF_BLOCKED_PREFIXES = SETTINGS_ROUTES.filter(r => r.staffBlocked).map(r => r.href)
+
+// Permisos granulares por cuenta staff (columna users.permissions, JSONB).
+// 'cuentas' queda afuera a propósito: gestionar accesos es siempre exclusivo
+// del owner, nunca delegable via permiso — así una cuenta staff no puede
+// terminar dándose a sí misma (ni a otra) más acceso del que tiene.
+export type StaffPermissions = Record<string, boolean>
+export const GRANTABLE_SETTINGS_ROUTES = SETTINGS_ROUTES.filter(r => r.key !== 'cuentas')
+
+// true solo si el permiso está explícitamente en true. null/undefined/false
+// (incluida la ausencia total de la clave) siempre bloquean — fail-closed,
+// mismo criterio que los GRANT de store_config documentados en CLAUDE.md.
+export function hasSettingsPermission(permissions: StaffPermissions | null | undefined, key: string): boolean {
+  if (key === 'cuentas') return false
+  return permissions?.[key] === true
+}
