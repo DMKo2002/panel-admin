@@ -117,6 +117,17 @@ export interface StoreConfig {
   product_image_ratio: '2:3' | '1:1'
   // Unidad del campo "peso" del producto (ficha de producto / dimensiones).
   weight_unit: 'kg' | 'ml' | 'g'
+  // Qué tipos de precio se piden/muestran al cargar productos. Al menos uno
+  // de los dos (retail/wholesale) debe quedar true — lo valida el Panel
+  // Admin. enable_discount_pricing controla los campos "rebajado" (compare_at)
+  // de los tipos activos.
+  enable_retail_pricing: boolean
+  enable_wholesale_pricing: boolean
+  enable_discount_pricing: boolean
+  // Tipo de columna de la tabla de variantes (VariantMatrix). 'color' (default)
+  // mantiene el selector de color con swatch/picker. 'text' = columnas de
+  // texto libre, sin nada de color — para tenants que no son de indumentaria.
+  variant_column_type: 'color' | 'text'
 }
 
 export interface Customer {

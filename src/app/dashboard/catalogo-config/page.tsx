@@ -23,6 +23,9 @@ export default function CatalogoConfigPage() {
   const [savingFormat, setSavingFormat] = useState(false)
   const [savedFormat, setSavedFormat] = useState(false)
   const [errorFormat, setErrorFormat] = useState<string | null>(null)
+  const [savingVariants, setSavingVariants] = useState(false)
+  const [savedVariants, setSavedVariants] = useState(false)
+  const [errorVariants, setErrorVariants] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -73,6 +76,23 @@ export default function CatalogoConfigPage() {
     setSavedFormat(true); setTimeout(() => setSavedFormat(false), 2000)
   }
 
+  async function handleSaveVariants() {
+    if (!config) return
+    setSavingVariants(true)
+    setErrorVariants(null)
+    const { error } = await supabase.from('store_config').update({
+      variant_mode: (config as any).variant_mode ?? 'sizes_colors',
+      variant_column_type: (config as any).variant_column_type ?? 'color',
+    }).eq('id', config.id)
+    setSavingVariants(false)
+    if (error) {
+      console.error('Error guardando config de variantes:', error)
+      setErrorVariants(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
+      return
+    }
+    setSavedVariants(true); setTimeout(() => setSavedVariants(false), 2000)
+  }
+
   function addAttribute() {
     setAttributes(prev => [...prev, { key: `attr_${Date.now()}`, label: '', type: 'text', options: [] }])
   }
@@ -106,6 +126,41 @@ export default function CatalogoConfigPage() {
       </div>
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
+
+        {/* Tabla de variantes */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Tabla de variantes</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Cómo se cargan las variantes (talle/color) de cada producto</p>
+            </div>
+            <button onClick={handleSaveVariants} disabled={savingVariants} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedVariants ? '✓ Guardado' : savingVariants ? 'Guardando...' : 'Guardar'}
+            </button>
+            {errorVariants && <p className="text-xs text-red-600 mt-1.5">{errorVariants}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Usar tabla de variantes</label>
+            <select className="input max-w-xs" value={(config as any)?.variant_mode ?? 'sizes_colors'} onChange={e => update('variant_mode' as any, e.target.value)}>
+              <option value="sizes_colors">Sí — tabla con filas y columnas (ej: talle × color)</option>
+              <option value="simple">No — una sola variante por producto (ej: cosmética)</option>
+            </select>
+            <p className="text-xs text-zinc-400 mt-1">Con "No", cada producto tiene un solo stock y precio, sin filas ni columnas.</p>
+          </div>
+          {((config as any)?.variant_mode ?? 'sizes_colors') === 'sizes_colors' && (
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Tipo de columna</label>
+              <select className="input max-w-xs" value={(config as any)?.variant_column_type ?? 'color'} onChange={e => update('variant_column_type' as any, e.target.value)}>
+                <option value="color">Color — selector de color con paleta y cuentagotas</option>
+                <option value="text">Texto libre — sin selector de color (ej: modelo, material)</option>
+              </select>
+              <p className="text-xs text-zinc-400 mt-1">
+                Las filas (ej: talles) siempre son texto libre. Esto solo cambia cómo se cargan las columnas.
+                {(config as any)?.variant_column_type === 'text' && ' Nota: hasta que se actualice la tienda, las columnas de texto libre pueden mostrar un punto de color gris al lado del nombre — es solo visual, no afecta el stock ni el precio.'}
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Atributos de productos */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">

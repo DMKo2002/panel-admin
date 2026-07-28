@@ -76,6 +76,16 @@ interface Props {
   // se muestran primero en el selector de color de CUALQUIER producto.
   favoriteColors?: FavoriteColor[]
   onToggleFavorite?: (color: FavoriteColor) => void
+  // 'color' (default) = columnas con swatch + selector de color, como siempre.
+  // 'text' = columnas de texto libre, sin nada de color — para tenants que
+  // usan la tabla para otra cosa que no sea indumentaria.
+  columnType?: 'color' | 'text'
+  // Qué filas de precio mostrar en cada celda — default true en los tres.
+  // Al menos uno de showRetail/showWholesale debería quedar en true (lo
+  // valida la página que configura esto, no este componente).
+  showRetail?: boolean
+  showWholesale?: boolean
+  showDiscount?: boolean
 }
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
@@ -97,6 +107,10 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   onRemoveSize,
   favoriteColors = [],
   onToggleFavorite,
+  columnType = 'color',
+  showRetail = true,
+  showWholesale = true,
+  showDiscount = true,
 }, ref) => {
   const [sizes, setSizes] = useState<string[]>(initialSizes)
   const [colors, setColors] = useState<string[]>(initialColors)
@@ -206,8 +220,8 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
   // ── Color (column) management ──────────────────────────────────────────────
   function addColor() {
-    // Generate a unique placeholder so it never collides with an existing color name
-    const base = 'nuevo'
+    // Generate a unique placeholder so it never collides with an existing color/column name
+    const base = columnType === 'text' ? 'columna' : 'nuevo'
     const existing = new Set(colors)
     let candidate = base
     let n = 2
@@ -331,12 +345,12 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
         <p className="text-xs font-semibold text-primary-700 mb-3">Editar todas las celdas a la vez</p>
         <div className="flex flex-wrap items-end gap-3">
           {[
-            { label: 'Stock', field: 'stock' as const, w: 'w-20' },
-            { label: '$ Minorista', field: 'retail' as const, w: 'w-28' },
-            { label: '$ Min. rebajado', field: 'compareRetail' as const, w: 'w-28' },
-            { label: '$ Mayorista', field: 'wholesale' as const, w: 'w-28' },
-            { label: '$ May. rebajado', field: 'compareWholesale' as const, w: 'w-28' },
-          ].map(({ label, field, w }) => (
+            { label: 'Stock', field: 'stock' as const, w: 'w-20', show: true },
+            { label: '$ Minorista', field: 'retail' as const, w: 'w-28', show: showRetail },
+            { label: '$ Min. rebajado', field: 'compareRetail' as const, w: 'w-28', show: showRetail && showDiscount },
+            { label: '$ Mayorista', field: 'wholesale' as const, w: 'w-28', show: showWholesale },
+            { label: '$ May. rebajado', field: 'compareWholesale' as const, w: 'w-28', show: showWholesale && showDiscount },
+          ].filter(f => f.show).map(({ label, field, w }) => (
             <div key={field}>
               <label className="block text-xs text-primary-600 mb-1">{label}</label>
               <input
@@ -365,31 +379,33 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
               <th className="px-3 py-3 text-left border-b border-r border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[90px]">
                 <button type="button" onClick={addColor}
                   className="text-[11px] text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium">
-                  <Plus size={11} /> Color
+                  <Plus size={11} /> {columnType === 'text' ? 'Columna' : 'Color'}
                 </button>
               </th>
 
-              {/* Color column headers */}
+              {/* Column headers — swatch+picker en modo 'color', texto libre en modo 'text' */}
               {colors.map((color, ci) => (
                 <th key={ci} className="px-2 py-2 border-b border-r border-zinc-200 last:border-r-0 min-w-[150px]">
                   <div className="flex items-center justify-center gap-1.5">
-                    {/* Color swatch — usa el hex guardado; si todavía no eligió uno, lo deriva del nombre */}
-                    <button type="button" onClick={() => openPicker(ci)}
-                      style={{ backgroundColor: colorHexes[ci] || colorToHex(color) }}
-                      title="Elegir color"
-                      className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
-                    {/* Color name input — texto libre, nunca se pisa automáticamente */}
+                    {columnType === 'color' && (
+                      // Color swatch — usa el hex guardado; si todavía no eligió uno, lo deriva del nombre
+                      <button type="button" onClick={() => openPicker(ci)}
+                        style={{ backgroundColor: colorHexes[ci] || colorToHex(color) }}
+                        title="Elegir color"
+                        className="w-5 h-5 rounded-full border border-zinc-300 flex-shrink-0 hover:scale-110 transition-transform shadow-sm" />
+                    )}
+                    {/* Nombre de columna — texto libre, nunca se pisa automáticamente */}
                     <input
                       className="text-xs font-semibold text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-primary-400 focus:outline-none text-center capitalize"
                       style={{ width: '80px' }}
                       value={color}
                       onChange={e => renameColor(ci, e.target.value)}
-                      placeholder="Color..."
+                      placeholder={columnType === 'text' ? 'Columna...' : 'Color...'}
                     />
                     {/* Borrar columna — en modo edición pide confirmación y borra las variantes reales */}
                     {colors.length > 1 && (
                       <button type="button" onClick={() => handleRemoveColorClick(ci)}
-                        title="Eliminar este color"
+                        title="Eliminar esta columna"
                         className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
                         <X size={11} />
                       </button>
@@ -445,52 +461,60 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                         </div>
 
                         {/* Fila 2 — Minorista | Minorista rebajado */}
-                        <div className="grid grid-cols-2 divide-x divide-zinc-100">
-                          <div className="p-1.5">
-                            <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Min.</p>
-                            <input
-                              className="w-full text-xs border border-zinc-200 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
-                              type="number" min="0" step="1"
-                              value={cell.retailPrice || ''}
-                              placeholder="0"
-                              onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
-                            />
+                        {showRetail && (
+                          <div className={showDiscount ? 'grid grid-cols-2 divide-x divide-zinc-100' : ''}>
+                            <div className="p-1.5">
+                              <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Min.</p>
+                              <input
+                                className="w-full text-xs border border-zinc-200 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
+                                type="number" min="0" step="1"
+                                value={cell.retailPrice || ''}
+                                placeholder="0"
+                                onChange={e => updateCell(size, color, 'retailPrice', Math.round(parseFloat(e.target.value) || 0))}
+                              />
+                            </div>
+                            {showDiscount && (
+                              <div className="p-1.5 bg-orange-50/50">
+                                <p className="text-[9px] text-orange-400 leading-none mb-1">$ Min. reb.</p>
+                                <input
+                                  className="w-full text-xs border border-orange-100 rounded px-1 py-1 focus:outline-none focus:border-orange-300 bg-white text-center"
+                                  type="number" min="0" step="1"
+                                  value={cell.retailCompareAt || ''}
+                                  placeholder="0"
+                                  onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+                                />
+                              </div>
+                            )}
                           </div>
-                          <div className="p-1.5 bg-orange-50/50">
-                            <p className="text-[9px] text-orange-400 leading-none mb-1">$ Min. reb.</p>
-                            <input
-                              className="w-full text-xs border border-orange-100 rounded px-1 py-1 focus:outline-none focus:border-orange-300 bg-white text-center"
-                              type="number" min="0" step="1"
-                              value={cell.retailCompareAt || ''}
-                              placeholder="0"
-                              onChange={e => updateCell(size, color, 'retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-                            />
-                          </div>
-                        </div>
+                        )}
 
                         {/* Fila 3 — Mayorista | Mayorista rebajado */}
-                        <div className="grid grid-cols-2 divide-x divide-primary-100">
-                          <div className="p-1.5 bg-primary-50/40">
-                            <p className="text-[9px] text-primary-500 leading-none mb-1">$ May.</p>
-                            <input
-                              className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
-                              type="number" min="0" step="1"
-                              value={cell.wholesalePrice || ''}
-                              placeholder="0"
-                              onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
-                            />
+                        {showWholesale && (
+                          <div className={showDiscount ? 'grid grid-cols-2 divide-x divide-primary-100' : ''}>
+                            <div className="p-1.5 bg-primary-50/40">
+                              <p className="text-[9px] text-primary-500 leading-none mb-1">$ May.</p>
+                              <input
+                                className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
+                                type="number" min="0" step="1"
+                                value={cell.wholesalePrice || ''}
+                                placeholder="0"
+                                onChange={e => updateCell(size, color, 'wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
+                              />
+                            </div>
+                            {showDiscount && (
+                              <div className="p-1.5 bg-primary-50/40">
+                                <p className="text-[9px] text-primary-400 leading-none mb-1">$ May. reb.</p>
+                                <input
+                                  className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
+                                  type="number" min="0" step="1"
+                                  value={cell.wholesaleCompareAt || ''}
+                                  placeholder="0"
+                                  onChange={e => updateCell(size, color, 'wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+                                />
+                              </div>
+                            )}
                           </div>
-                          <div className="p-1.5 bg-primary-50/40">
-                            <p className="text-[9px] text-primary-400 leading-none mb-1">$ May. reb.</p>
-                            <input
-                              className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
-                              type="number" min="0" step="1"
-                              value={cell.wholesaleCompareAt || ''}
-                              placeholder="0"
-                              onChange={e => updateCell(size, color, 'wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-                            />
-                          </div>
-                        </div>
+                        )}
 
                       </div>
                     </td>
@@ -514,7 +538,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
       </div>
 
       <p className="text-xs text-zinc-400">
-        Cada celda muestra: stock · precio minorista · precio min. rebajado (tachado) · precio mayorista · precio may. rebajado · Solo completá los campos que aplican
+        Cada celda muestra: stock{showRetail ? ' · precio minorista' : ''}{showRetail && showDiscount ? ' · precio min. rebajado (tachado)' : ''}{showWholesale ? ' · precio mayorista' : ''}{showWholesale && showDiscount ? ' · precio may. rebajado' : ''}. Solo completá los campos que aplican
       </p>
 
       {/* ── Color picker — modal fijo centrado, siempre arriba de todo y sin

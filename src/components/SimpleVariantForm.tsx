@@ -24,7 +24,14 @@ const empty = (): SimpleVariantData => ({
   stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleCompareAt: 0, wholesaleMinQty: 1,
 })
 
-const SimpleVariantForm = forwardRef<SimpleVariantHandle, { initial?: SimpleVariantData }>(({ initial }, ref) => {
+interface Props {
+  initial?: SimpleVariantData
+  showRetail?: boolean
+  showWholesale?: boolean
+  showDiscount?: boolean
+}
+
+const SimpleVariantForm = forwardRef<SimpleVariantHandle, Props>(({ initial, showRetail = true, showWholesale = true, showDiscount = true }, ref) => {
   const [data, setData] = useState<SimpleVariantData>(initial ?? empty())
 
   useImperativeHandle(ref, () => ({
@@ -47,47 +54,56 @@ const SimpleVariantForm = forwardRef<SimpleVariantHandle, { initial?: SimpleVari
             onChange={e => set('stock', parseInt(e.target.value, 10) || 0)}
           />
         </div>
-        <div>
-          <label className="block text-xs text-zinc-500 mb-1">$ Minorista</label>
-          <input
-            className="input text-sm" type="number" min="0" step="1"
-            value={data.retailPrice || ''} placeholder="0"
-            onChange={e => set('retailPrice', Math.round(parseFloat(e.target.value) || 0))}
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-orange-500 mb-1">$ Min. rebajado</label>
-          <input
-            className="input text-sm" type="number" min="0" step="1"
-            value={data.retailCompareAt || ''} placeholder="0"
-            onChange={e => set('retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-          />
-        </div>
-        <div />
-        <div>
-          <label className="block text-xs text-primary-600 mb-1">$ Mayorista</label>
-          <input
-            className="input text-sm" type="number" min="0" step="1"
-            value={data.wholesalePrice || ''} placeholder="0"
-            onChange={e => set('wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-primary-500 mb-1">$ May. rebajado</label>
-          <input
-            className="input text-sm" type="number" min="0" step="1"
-            value={data.wholesaleCompareAt || ''} placeholder="0"
-            onChange={e => set('wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-zinc-500 mb-1">May. mín. cant.</label>
-          <input
-            className="input text-sm" type="number" min="1"
-            value={data.wholesaleMinQty || ''} placeholder="6"
-            onChange={e => set('wholesaleMinQty', parseInt(e.target.value, 10) || 1)}
-          />
-        </div>
+        {showRetail && (
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">$ Minorista</label>
+            <input
+              className="input text-sm" type="number" min="0" step="1"
+              value={data.retailPrice || ''} placeholder="0"
+              onChange={e => set('retailPrice', Math.round(parseFloat(e.target.value) || 0))}
+            />
+          </div>
+        )}
+        {showRetail && showDiscount && (
+          <div>
+            <label className="block text-xs text-orange-500 mb-1">$ Min. rebajado</label>
+            <input
+              className="input text-sm" type="number" min="0" step="1"
+              value={data.retailCompareAt || ''} placeholder="0"
+              onChange={e => set('retailCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+            />
+          </div>
+        )}
+        {showWholesale && (
+          <div>
+            <label className="block text-xs text-primary-600 mb-1">$ Mayorista</label>
+            <input
+              className="input text-sm" type="number" min="0" step="1"
+              value={data.wholesalePrice || ''} placeholder="0"
+              onChange={e => set('wholesalePrice', Math.round(parseFloat(e.target.value) || 0))}
+            />
+          </div>
+        )}
+        {showWholesale && showDiscount && (
+          <div>
+            <label className="block text-xs text-primary-500 mb-1">$ May. rebajado</label>
+            <input
+              className="input text-sm" type="number" min="0" step="1"
+              value={data.wholesaleCompareAt || ''} placeholder="0"
+              onChange={e => set('wholesaleCompareAt', Math.round(parseFloat(e.target.value) || 0))}
+            />
+          </div>
+        )}
+        {showWholesale && (
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">May. mín. cant.</label>
+            <input
+              className="input text-sm" type="number" min="1"
+              value={data.wholesaleMinQty || ''} placeholder="6"
+              onChange={e => set('wholesaleMinQty', parseInt(e.target.value, 10) || 1)}
+            />
+          </div>
+        )}
       </div>
       <p className="text-xs text-zinc-400">Este producto no usa talle/color — es una sola variante con su propio stock y precio.</p>
     </div>

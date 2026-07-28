@@ -46,6 +46,12 @@ export default function GeneralPage() {
 
   async function handleSave() {
     if (!config) return
+    // No se puede apagar minorista y mayorista a la vez — no quedaría ningún
+    // precio posible de cargar.
+    if (!(config as any).enable_retail_pricing && !(config as any).enable_wholesale_pricing) {
+      setErrorGeneral('Tenés que dejar activo al menos un tipo de precio (minorista o mayorista).')
+      return
+    }
     setSaving(true)
     setErrorGeneral(null)
     const { error } = await supabase.from('store_config').update({
@@ -55,6 +61,9 @@ export default function GeneralPage() {
       price_visibility: config.price_visibility ?? 'all',
       registration_visibility: config.registration_visibility ?? 'both',
       ignore_stock:     (config as any).ignore_stock ?? false,
+      enable_retail_pricing:    (config as any).enable_retail_pricing ?? true,
+      enable_wholesale_pricing: (config as any).enable_wholesale_pricing ?? true,
+      enable_discount_pricing:  (config as any).enable_discount_pricing ?? true,
     }).eq('id', config.id)
     setSaving(false)
     if (error) {
@@ -179,6 +188,32 @@ export default function GeneralPage() {
             <option value="logged_in">Solo usuarios registrados</option>
             <option value="wholesale_only">Solo clientes mayoristas</option>
           </select>
+        </div>
+
+        {/* Tipos de precio */}
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-1">
+          <div className="mb-2">
+            <h2 className="text-sm font-semibold text-zinc-700">Tipos de precio</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Qué campos de precio aparecen al cargar productos — apagá lo que no uses para que la carga sea más simple</p>
+          </div>
+          <ToggleRow
+            label="Precio minorista"
+            desc={(config as any)?.enable_wholesale_pricing === false ? 'No se puede apagar — es el único tipo de precio activo' : 'Campo de precio minorista en cada producto'}
+            checked={(config as any)?.enable_retail_pricing ?? true}
+            onChange={v => update('enable_retail_pricing' as any, v)}
+          />
+          <ToggleRow
+            label="Precio mayorista"
+            desc={(config as any)?.enable_retail_pricing === false ? 'No se puede apagar — es el único tipo de precio activo' : 'Campo de precio mayorista en cada producto'}
+            checked={(config as any)?.enable_wholesale_pricing ?? true}
+            onChange={v => update('enable_wholesale_pricing' as any, v)}
+          />
+          <ToggleRow
+            label="Precio rebajado (descuento)"
+            desc="Campo de precio tachado/rebajado para los tipos de precio activos"
+            checked={(config as any)?.enable_discount_pricing ?? true}
+            onChange={v => update('enable_discount_pricing' as any, v)}
+          />
         </div>
 
         {/* Registro de cuentas */}
