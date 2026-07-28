@@ -6,12 +6,15 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  Bell, Settings, LogOut, Store, FolderOpen, Palette, ShieldCheck, Users, ArrowLeft, KeyRound, BarChart3
+  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3
 } from 'lucide-react'
 import clsx from 'clsx'
+import { SETTINGS_ROUTES } from '@/lib/settings-nav'
 
-// staffBlocked: true = oculto para cuentas con role='staff' (debe reflejar
-// STAFF_BLOCKED_PREFIXES en src/proxy.ts)
+// Los ítems de "Configuración" (General, Pagos, Envíos, Catálogo, Contacto,
+// Notificaciones, Apariencia, Legal, Cuentas) viven en src/lib/settings-nav.ts
+// — única fuente de verdad, compartida con src/proxy.ts para que el bloqueo
+// real de rutas y lo que se ve acá nunca queden desincronizados.
 const navItems = [
   { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard, staffBlocked: false },
   { label: 'Estadísticas',    href: '/dashboard/estadisticas',   icon: BarChart3,        staffBlocked: false },
@@ -19,10 +22,7 @@ const navItems = [
   { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users,            staffBlocked: false },
   { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt,            staffBlocked: false },
   { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen,       staffBlocked: false },
-  { label: 'Notificaciones',   href: '/dashboard/notificaciones',  icon: Bell,            staffBlocked: true },
-  { label: 'Mi tienda',        href: '/dashboard/tienda',          icon: Settings,        staffBlocked: true },
-  { label: 'Personalización',  href: '/dashboard/personalizacion', icon: Palette,         staffBlocked: true },
-  { label: 'Cuentas',          href: '/dashboard/cuentas',         icon: KeyRound,        staffBlocked: true },
+  ...SETTINGS_ROUTES.map(r => ({ label: r.label, href: r.href, icon: r.icon, staffBlocked: r.staffBlocked })),
 ]
 
 interface SidebarProps {

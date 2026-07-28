@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isSuperAdmin } from '@/lib/superadmin'
+import { STAFF_BLOCKED_PREFIXES as SETTINGS_STAFF_BLOCKED_PREFIXES } from '@/lib/settings-nav'
 
 function serviceClient() {
   return createClient(
@@ -18,12 +19,16 @@ function redirectTo(request: NextRequest, pathname: string) {
 }
 
 // Secciones bloqueadas para cuentas con role='staff' (empleados con acceso
-// limitado a Pedidos, Clientes, Productos, Categorias y Precios)
+// limitado a Pedidos, Clientes, Productos, Categorias y Precios).
+// La lista vive en src/lib/settings-nav.ts — única fuente de verdad,
+// compartida con el Sidebar para que nunca queden desincronizados.
+// /dashboard/tienda y /dashboard/personalizacion son rutas viejas (ahora
+// redirects) — se dejan bloqueadas acá también por las dudas de que alguien
+// llegue a ellas antes de que el redirect del cliente corra.
 const STAFF_BLOCKED_PREFIXES = [
+  ...SETTINGS_STAFF_BLOCKED_PREFIXES,
   '/dashboard/tienda',
-  '/dashboard/notificaciones',
   '/dashboard/personalizacion',
-  '/dashboard/cuentas',
   '/dashboard/test-mp',
 ]
 
