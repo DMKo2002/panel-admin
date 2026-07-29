@@ -11,7 +11,7 @@
 // paso futuro (ver Cuentas), pero cuando eso exista, esta lista sigue siendo
 // el default/piso mínimo de bloqueo para cuentas sin permisos explícitos.
 import type { LucideIcon } from 'lucide-react'
-import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound } from 'lucide-react'
+import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Gauge } from 'lucide-react'
 
 export interface SettingsRoute {
   key: string
@@ -31,6 +31,7 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'apariencia',     label: 'Apariencia',        href: '/dashboard/apariencia',     icon: Palette,    staffBlocked: true },
   { key: 'legal',          label: 'Legal',             href: '/dashboard/legal',          icon: FileText,   staffBlocked: true },
   { key: 'cuentas',        label: 'Cuentas',           href: '/dashboard/cuentas',        icon: KeyRound,   staffBlocked: true },
+  { key: 'uso',            label: 'Plan y uso',        href: '/dashboard/uso',            icon: Gauge,      staffBlocked: true },
 ]
 
 // Usado por src/proxy.ts (matcher de prefijos de ruta)
