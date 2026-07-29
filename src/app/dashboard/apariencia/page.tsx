@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { compressImage } from '@/lib/compress-image'
 import { ImageIcon, Upload, X, Loader2, Check } from 'lucide-react'
 import Toggle from '@/components/Toggle'
 
@@ -333,12 +334,18 @@ export default function AparienciaPage() {
     setSlots(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }))
   }
 
-  async function handleUpload(slotKey: string, file: File) {
+  async function handleUpload(slotKey: string, rawFile: File) {
     if (!tenantId) return
     setSlotState(slotKey, { uploading: true, error: null })
+    // Comprimir antes de subir — los heros crudos del celular (3-4 MB) fueron
+    // los que reventaron el egress de Supabase. Logos mantienen transparencia.
+    const esLogo = slotKey.startsWith('logo')
+    const file = rawFile.type.startsWith('image/')
+      ? await compressImage(rawFile, esLogo ? { maxDim: 800, keepAlpha: true } : { maxDim: 1920, targetKB: 400 })
+      : rawFile
     const ext = file.name.split('.').pop()
     const path = `${tenantId}/${slotKey}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('store-assets').upload(path, file, { upsert: true })
+    const { error: uploadError } = await supabase.storage.from('store-assets').upload(path, file, { upsert: true, cacheControl: '31536000' })
     if (uploadError) { setSlotState(slotKey, { uploading: false, error: `Error al subir: ${uploadError.message}` }); return }
     const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(path)
     const freshUrl = `${publicUrl}?t=${Date.now()}`

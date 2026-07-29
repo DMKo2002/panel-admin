@@ -435,7 +435,7 @@ export default function EditarProductoPage() {
       for (let i = 0; i < newImageFiles.length; i++) {
         const file = newImageFiles[i]
         const path = `${tenantId}/${id}/${Date.now()}-${i}.jpg`
-        const { data: up } = await supabase.storage.from('product-images').upload(path, file, { upsert: true, contentType: 'image/jpeg' })
+        const { data: up } = await supabase.storage.from('product-images').upload(path, file, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' })
         if (up) {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
           const { error: imgErr } = await supabase.from('product_images').insert({

@@ -224,7 +224,7 @@ export default function NuevoProductoPage() {
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i]
         const path = `${tenantId}/${product.id}/${Date.now()}-${i}.jpg`
-        const { data: up } = await supabase.storage.from('product-images').upload(path, file, { upsert: true, contentType: 'image/jpeg' })
+        const { data: up } = await supabase.storage.from('product-images').upload(path, file, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' })
         if (up) {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
           const { error: imgErr } = await supabase.from('product_images').insert({ product_id: product.id, url: publicUrl, sort_order: i, is_cover: i === 0 })

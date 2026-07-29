@@ -3,7 +3,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { HardDrive, Shirt, ShoppingCart, Eye } from 'lucide-react'
 import UsageRing from '@/components/UsageRing'
-import { getPlanForTenant, formatStorage } from '@/lib/plans'
+import { formatStorage } from '@/lib/plans'
+import { getTenantUsage, GRACE_DAYS } from '@/lib/usage'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,35 +25,11 @@ export default async function UsoPage() {
   const tenantId = _rows?.[0]?.tenant_id
   if (!tenantId) return <div className="p-8 text-zinc-500">No se encontró el tenant.</div>
 
-  const plan = getPlanForTenant()
-
-  // Primer día del mes actual (para pedidos del período)
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
-  const [storageRes, productsRes, ordersRes] = await Promise.all([
-    service.rpc('tenant_storage_bytes', { tid: tenantId }),
-    service.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-    service
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .gte('created_at', monthStart),
-  ])
-
-  // Si la función SQL no está creada todavía, mostrar aviso en vez de romper
-  const storageError = storageRes.error != null
-  const storageBytes = Number(storageRes.data ?? 0)
-  const storageMB = storageBytes / (1024 * 1024)
-  const storagePct = (storageMB / plan.storageMB) * 100
-
-  const productCount = productsRes.count ?? 0
-  const productPct = (productCount / plan.maxProductos) * 100
-
-  const orderCount = ordersRes.count ?? 0
-
-  const overLimit = storagePct >= 100 || productPct >= 100
-  const nearLimit = !overLimit && (storagePct >= 80 || productPct >= 80)
+  const {
+    plan, storageBytes, storageError, storagePct,
+    productCount, productPct, orderCount,
+    overLimit, nearLimit, graceDaysLeft,
+  } = await getTenantUsage(service, tenantId)
 
   return (
     <div>
@@ -69,7 +46,19 @@ export default async function UsoPage() {
       <div className="p-8">
         {overLimit && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Superaste un límite de tu plan. Pronto vas a poder subir de plan desde acá — mientras tanto tu tienda sigue funcionando con normalidad.
+            {graceDaysLeft !== null && graceDaysLeft > 0 ? (
+              <>
+                Superaste un límite de tu plan. Tenés <strong>{graceDaysLeft} {graceDaysLeft === 1 ? 'día' : 'días'}</strong> para
+                liberar espacio o subir de plan — pasado ese plazo tu tienda puede desactivarse. Mientras tanto sigue funcionando con normalidad.
+              </>
+            ) : graceDaysLeft !== null && graceDaysLeft <= 0 ? (
+              <>
+                Venció el período de gracia de {GRACE_DAYS} días: tu tienda puede desactivarse en cualquier momento.
+                Liberá espacio o subí de plan para regularizar tu cuenta.
+              </>
+            ) : (
+              <>Superaste un límite de tu plan. Liberá espacio o subí de plan para evitar que tu tienda se desactive.</>
+            )}
           </div>
         )}
         {nearLimit && (

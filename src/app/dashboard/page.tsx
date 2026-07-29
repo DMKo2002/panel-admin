@@ -4,6 +4,7 @@ import { isSuperAdmin } from '@/lib/superadmin'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react'
 import DashboardRefresher from '@/components/DashboardRefresher'
+import GraceBanner from '@/components/GraceBanner'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -65,6 +66,8 @@ export default async function DashboardPage() {
           {new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </div>
+
+      <GraceBanner tenantId={tenantId} />
 
       <div className="px-8 py-6 space-y-6">
 
