@@ -50,9 +50,12 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   },
 }
 
-// TODO (enero 2027): leer el plan real desde tenants.plan cuando exista la
-// lógica de suscripción + débito automático. Por ahora todos son Standard.
-export function getPlanForTenant(_tenantPlan?: string | null): PlanDef {
+// Devuelve el plan real del tenant si es un id válido; cualquier valor legacy
+// ('basic', null, etc.) cae a Standard — así los tenants existentes no quedan
+// de golpe en 'free' con warnings de exceso. Cuando arranque la suscripción
+// (enero 2027), el registro nuevo debe crear tenants con plan = 'free'.
+export function getPlanForTenant(tenantPlan?: string | null): PlanDef {
+  if (tenantPlan && tenantPlan in PLANS) return PLANS[tenantPlan as PlanDef['id']]
   return PLANS.standard
 }
 

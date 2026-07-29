@@ -29,8 +29,6 @@ export interface TenantUsage {
 }
 
 export async function getTenantUsage(service: SupabaseClient, tenantId: string): Promise<TenantUsage> {
-  const plan = getPlanForTenant()
-
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
@@ -38,8 +36,10 @@ export async function getTenantUsage(service: SupabaseClient, tenantId: string):
     service.rpc('tenant_storage_bytes', { tid: tenantId }),
     service.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     service.from('orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('created_at', monthStart),
-    service.from('tenants').select('over_limit_since').eq('id', tenantId).limit(1),
+    service.from('tenants').select('over_limit_since, plan, plan_status').eq('id', tenantId).limit(1),
   ])
+
+  const plan = getPlanForTenant(tenantRes.data?.[0]?.plan)
 
   const storageError = storageRes.error != null
   const storageBytes = Number(storageRes.data ?? 0)

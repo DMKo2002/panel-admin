@@ -5,6 +5,8 @@ import { HardDrive, Shirt, ShoppingCart, Eye } from 'lucide-react'
 import UsageRing from '@/components/UsageRing'
 import { formatStorage } from '@/lib/plans'
 import { getTenantUsage, GRACE_DAYS } from '@/lib/usage'
+import { billingEnabled } from '@/lib/billing'
+import UpgradePlans from '@/components/UpgradePlans'
 
 export const dynamic = 'force-dynamic'
 
@@ -139,6 +141,8 @@ export default async function UsoPage() {
         <p className="mt-6 text-xs text-zinc-400">
           El almacenamiento se calcula sobre las imágenes subidas. Consejo: subí fotos comprimidas (menos de 500 KB) para aprovechar mejor tu plan.
         </p>
+
+        {billingEnabled() && <UpgradePlans currentPlan={plan.id} />}
       </div>
     </div>
   )
