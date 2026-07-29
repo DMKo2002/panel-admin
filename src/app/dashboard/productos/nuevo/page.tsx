@@ -87,6 +87,8 @@ export default function NuevoProductoPage() {
   const [showWholesale, setShowWholesale] = useState(true)
   const [showDiscount, setShowDiscount] = useState(true)
   const [columnType, setColumnType] = useState<'color' | 'text'>('color')
+  const [rowLabel, setRowLabel] = useState('')
+  const [columnLabel, setColumnLabel] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -98,7 +100,7 @@ export default function NuevoProductoPage() {
       setTenantId(userRow?.tenant_id)
       const [{ data: cats }, { data: configData }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type').eq('tenant_id', userRow.tenant_id).single(),
+        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
@@ -108,6 +110,8 @@ export default function NuevoProductoPage() {
       setShowWholesale((configData as any)?.enable_wholesale_pricing ?? true)
       setShowDiscount((configData as any)?.enable_discount_pricing ?? true)
       setColumnType((configData as any)?.variant_column_type === 'text' ? 'text' : 'color')
+      setRowLabel((configData as any)?.variant_row_label ?? '')
+      setColumnLabel((configData as any)?.variant_column_label ?? '')
       const mode = (configData as any)?.variant_mode === 'simple' ? 'simple' : 'sizes_colors'
       setVariantMode(mode)
 
@@ -446,6 +450,8 @@ export default function NuevoProductoPage() {
               favoriteColors={favoriteColors}
               onToggleFavorite={toggleFavorite}
               columnType={columnType}
+              rowLabel={rowLabel}
+              columnLabel={columnLabel}
               showRetail={showRetail}
               showWholesale={showWholesale}
               showDiscount={showDiscount}

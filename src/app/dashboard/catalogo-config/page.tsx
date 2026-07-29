@@ -26,6 +26,9 @@ export default function CatalogoConfigPage() {
   const [savingVariants, setSavingVariants] = useState(false)
   const [savedVariants, setSavedVariants] = useState(false)
   const [errorVariants, setErrorVariants] = useState<string | null>(null)
+  const [savingAll, setSavingAll] = useState(false)
+  const [savedAll, setSavedAll] = useState(false)
+  const [errorAll, setErrorAll] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -83,6 +86,8 @@ export default function CatalogoConfigPage() {
     const { error } = await supabase.from('store_config').update({
       variant_mode: (config as any).variant_mode ?? 'sizes_colors',
       variant_column_type: (config as any).variant_column_type ?? 'color',
+      variant_row_label: (config as any).variant_row_label?.trim() || null,
+      variant_column_label: (config as any).variant_column_label?.trim() || null,
     }).eq('id', config.id)
     setSavingVariants(false)
     if (error) {
@@ -91,6 +96,18 @@ export default function CatalogoConfigPage() {
       return
     }
     setSavedVariants(true); setTimeout(() => setSavedVariants(false), 2000)
+  }
+
+  // Guarda las 3 secciones de la página a la vez — mismo patrón que el botón
+  // "Guardar todos los cambios" de Apariencia, para que Catálogo no sea la
+  // única página de Configuración sin un botón único arriba.
+  async function handleSaveAll() {
+    setSavingAll(true); setErrorAll(null); setSavedAll(false)
+    await Promise.all([handleSaveAttributes(), handleSaveFormat(), handleSaveVariants()])
+    setSavingAll(false)
+    if (!config) return
+    setSavedAll(true)
+    setTimeout(() => setSavedAll(false), 2000)
   }
 
   function addAttribute() {
@@ -120,9 +137,14 @@ export default function CatalogoConfigPage() {
 
   return (
     <div>
-      <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white">
-        <h1 className="text-xl font-semibold text-zinc-900">Catálogo</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">Cómo se cargan y muestran tus productos</p>
+      <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900">Catálogo</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">Cómo se cargan y muestran tus productos</p>
+        </div>
+        <button onClick={handleSaveAll} disabled={savingAll} className="btn-primary disabled:opacity-60">
+          {savedAll ? '✓ Guardado' : savingAll ? 'Guardando...' : 'Guardar cambios'}
+        </button>
       </div>
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
@@ -152,11 +174,35 @@ export default function CatalogoConfigPage() {
               <label className="block text-xs font-medium text-zinc-600 mb-1">Tipo de columna</label>
               <select className="input max-w-xs" value={(config as any)?.variant_column_type ?? 'color'} onChange={e => update('variant_column_type' as any, e.target.value)}>
                 <option value="color">Color — selector de color con paleta y cuentagotas</option>
-                <option value="text">Texto libre — sin selector de color (ej: modelo, material)</option>
+                <option value="text">Texto libre — sin selector de color (ej: modelo, material, ancho)</option>
               </select>
               <p className="text-xs text-zinc-400 mt-1">
-                Las filas (ej: talles) siempre son texto libre. Esto solo cambia cómo se cargan las columnas.
-                {(config as any)?.variant_column_type === 'text' && ' Nota: hasta que se actualice la tienda, las columnas de texto libre pueden mostrar un punto de color gris al lado del nombre — es solo visual, no afecta el stock ni el precio.'}
+                En modo "Color" las filas y columnas siempre dicen "Talle" y "Color", igual que hoy.
+              </p>
+            </div>
+          )}
+          {((config as any)?.variant_mode ?? 'sizes_colors') === 'sizes_colors' && (config as any)?.variant_column_type === 'text' && (
+            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-zinc-100">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Nombre de las filas</label>
+                <input
+                  className="input"
+                  value={(config as any)?.variant_row_label ?? ''}
+                  onChange={e => update('variant_row_label' as any, e.target.value)}
+                  placeholder="Ej: Ancho, Marca..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Nombre de las columnas</label>
+                <input
+                  className="input"
+                  value={(config as any)?.variant_column_label ?? ''}
+                  onChange={e => update('variant_column_label' as any, e.target.value)}
+                  placeholder="Ej: Largo, Color..."
+                />
+              </div>
+              <p className="text-xs text-zinc-400 col-span-2">
+                Así se van a ver en la carga de productos y en tu tienda — ej: filas "Ancho" (10, 15, 20...) × columnas "Largo" (10, 20, 30...) para armar cada combinación como una variante propia, con su stock y precio.
               </p>
             </div>
           )}

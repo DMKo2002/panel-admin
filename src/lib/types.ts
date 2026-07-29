@@ -128,6 +128,11 @@ export interface StoreConfig {
   // mantiene el selector de color con swatch/picker. 'text' = columnas de
   // texto libre, sin nada de color — para tenants que no son de indumentaria.
   variant_column_type: 'color' | 'text'
+  // Solo aplican cuando variant_column_type='text'. Nombran los ejes de la
+  // tabla (ej: fila="Ancho", columna="Largo"). En modo 'color' siempre se
+  // muestra "Talle"/"Color" sin importar estos campos.
+  variant_row_label: string | null
+  variant_column_label: string | null
 }
 
 export interface Customer {

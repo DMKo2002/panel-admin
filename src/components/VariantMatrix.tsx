@@ -80,6 +80,10 @@ interface Props {
   // 'text' = columnas de texto libre, sin nada de color — para tenants que
   // usan la tabla para otra cosa que no sea indumentaria.
   columnType?: 'color' | 'text'
+  // Solo se usan cuando columnType='text' — nombran los ejes (ej: "Ancho"/"Largo").
+  // Vacío = "Fila"/"Columna" genérico. En modo 'color' siempre dice "Talle"/"Color".
+  rowLabel?: string
+  columnLabel?: string
   // Qué filas de precio mostrar en cada celda — default true en los tres.
   // Al menos uno de showRetail/showWholesale debería quedar en true (lo
   // valida la página que configura esto, no este componente).
@@ -108,10 +112,14 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   favoriteColors = [],
   onToggleFavorite,
   columnType = 'color',
+  rowLabel = '',
+  columnLabel = '',
   showRetail = true,
   showWholesale = true,
   showDiscount = true,
 }, ref) => {
+  const effRowLabel = columnType === 'text' ? (rowLabel.trim() || 'Fila') : 'Talle'
+  const effColumnLabel = columnType === 'text' ? (columnLabel.trim() || 'Columna') : 'Color'
   const [sizes, setSizes] = useState<string[]>(initialSizes)
   const [colors, setColors] = useState<string[]>(initialColors)
   // Hex real elegido con cuentagotas/selector — paralelo a `colors` por índice,
@@ -379,7 +387,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
               <th className="px-3 py-3 text-left border-b border-r border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[90px]">
                 <button type="button" onClick={addColor}
                   className="text-[11px] text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium">
-                  <Plus size={11} /> {columnType === 'text' ? 'Columna' : 'Color'}
+                  <Plus size={11} /> {effColumnLabel}
                 </button>
               </th>
 
@@ -400,7 +408,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                       style={{ width: '80px' }}
                       value={color}
                       onChange={e => renameColor(ci, e.target.value)}
-                      placeholder={columnType === 'text' ? 'Columna...' : 'Color...'}
+                      placeholder={`${effColumnLabel}...`}
                     />
                     {/* Borrar columna — en modo edición pide confirmación y borra las variantes reales */}
                     {colors.length > 1 && (
@@ -427,7 +435,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                       style={{ width: '56px' }}
                       value={size}
                       onChange={e => renameSize(si, e.target.value)}
-                      placeholder="Talle..."
+                      placeholder={`${effRowLabel}...`}
                     />
                     {sizes.length > 1 && (
                       <button type="button" onClick={() => handleRemoveSizeClick(si)}
@@ -528,7 +536,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
               <td className="px-3 py-2 sticky left-0 bg-white">
                 <button type="button" onClick={addSize}
                   className="text-[11px] text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium">
-                  <Plus size={11} /> Talle
+                  <Plus size={11} /> {effRowLabel}
                 </button>
               </td>
               {colors.map((_, ci) => <td key={ci} />)}
