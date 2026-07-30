@@ -55,9 +55,11 @@ try {
 
 const APPLY = process.argv.includes('--apply')
 const BUCKETS = ['product-images', 'store-assets']
-const UMBRAL_BYTES = 200 * 1024 // solo tocar imágenes de más de 200 KB
+const UMBRAL_BYTES = 300 * 1024 // solo tocar imágenes de más de 300 KB
 const MAX_DIM = 1920
 const MEJORA_MINIMA = 0.9 // subir solo si queda al menos 10% más liviana
+// Backup local de cada original antes de sobrescribir — para poder deshacer.
+const BACKUP_DIR = path.join(__dirname, 'backup-imagenes')
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -121,9 +123,9 @@ async function main() {
       const original = Buffer.from(await blob.arrayBuffer())
 
       let pipeline = sharp(original).rotate().resize({ width: MAX_DIM, height: MAX_DIM, fit: 'inside', withoutEnlargement: true })
-      if (formato === 'jpeg') pipeline = pipeline.jpeg({ quality: 80, mozjpeg: true })
-      else if (formato === 'png') pipeline = pipeline.png({ compressionLevel: 9, palette: true })
-      else pipeline = pipeline.webp({ quality: 80 })
+      if (formato === 'jpeg') pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true })
+      else if (formato === 'png') pipeline = pipeline.png({ compressionLevel: 9 }) // sin palette: mantiene todos los colores
+      else pipeline = pipeline.webp({ quality: 85 })
 
       let comprimida
       try {
@@ -141,6 +143,11 @@ async function main() {
       console.log(`  ${APPLY ? '✔' : '→'} ${f.path}: ${mb(original.length)} → ${mb(comprimida.length)}`)
 
       if (APPLY) {
+        // Backup del original antes de pisar nada
+        const backupPath = path.join(BACKUP_DIR, bucket, f.path)
+        fs.mkdirSync(path.dirname(backupPath), { recursive: true })
+        fs.writeFileSync(backupPath, original)
+
         const contentType = formato === 'jpeg' ? 'image/jpeg' : formato === 'png' ? 'image/png' : 'image/webp'
         const { error: upErr } = await supabase.storage.from(bucket).upload(f.path, comprimida, {
           upsert: true,

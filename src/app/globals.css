@@ -8,6 +8,11 @@
   }
 
   * { box-sizing: border-box; }
+  /* Escala global del panel: todas las utilidades de Tailwind son rem-based,
+     así que subir el font-size raíz agranda tipografía, espaciados y anchos
+     de forma proporcional (pedido de Mykonos 2026-07: "todo un poco más
+     grande"). Ajustar acá si se quiere más/menos: 16px = tamaño original. */
+  html { font-size: 17px; }
   body { font-family: var(--font-sans); }
 
   /* ── Dark mode ──────────────────────────────────────────────────────────── */
