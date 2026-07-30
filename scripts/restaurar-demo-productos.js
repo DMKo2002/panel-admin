@@ -87,7 +87,9 @@ function cargarFotos() {
   // { 'falda-jean': ['falda-jean-1.jpg', 'falda-jean-2.jpg'], ... }
   const grupos = {}
   for (const f of fs.readdirSync(FOTOS_DIR).sort()) {
-    const m = f.match(/^(.+)-(\d+)\.(jpg|jpeg|png|webp)$/i)
+    // Acepta también la doble extensión típica de Windows (falda-1.jpg.png):
+    // lo que importa es el nombre y el número — el formato real lo detecta sharp.
+    const m = f.match(/^(.+?)-(\d+)(?:\.(?:jpg|jpeg|png|webp))*\.(jpg|jpeg|png|webp)$/i)
     if (!m) { console.warn(`  (ignorado: ${f} — no cumple el formato nombre-N.ext)`); continue }
     const clave = m[1].toLowerCase()
     grupos[clave] = grupos[clave] ?? []
