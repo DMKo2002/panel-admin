@@ -50,6 +50,8 @@ if (!RAW) {
   try { sharp = require('sharp') } catch { console.error('Falta sharp: npm install (o usar --raw)'); process.exit(1) }
 }
 
+const CSV_YENINE_DEMO = path.join(__dirname, '..', '..', 'wc-product-export.csv')
+
 const TENANTS = [
   {
     nombre: 'Caloria',
@@ -61,6 +63,15 @@ const TENANTS = [
     tenantId: '76876126-7cdb-45d7-abc5-335921cc0dc2',
     csv: path.join(__dirname, '..', '..', 'wc-yenine-export.csv'),
   },
+  // Demos — también fueron recomprimidos (sus UUIDs con ceros van primero en
+  // el orden alfabético del bucket). Sus catálogos salieron del export viejo
+  // de Yenine; los productos que no matcheen se saltean y se loguean.
+  // El demo de glow se restaura aparte: node scripts/upload-glow-cosmeticos-images.js --sobrescribir
+  { nombre: 'Demo Mono',        tenantId: '00000000-0000-0000-0000-000000000002', csv: CSV_YENINE_DEMO },
+  { nombre: 'Demo Atelier',     tenantId: '00000000-0000-0000-0000-000000000003', csv: CSV_YENINE_DEMO },
+  { nombre: 'Demo Axis',        tenantId: '00000000-0000-0000-0000-000000000004', csv: CSV_YENINE_DEMO },
+  { nombre: 'Demo Minimalista', tenantId: '00000000-0000-0000-0000-000000000005', csv: CSV_YENINE_DEMO },
+  { nombre: 'Demo Bazaar',      tenantId: '00000000-0000-0000-0000-000000000006', csv: CSV_YENINE_DEMO },
 ]
 
 const BUCKET = 'product-images'
@@ -182,9 +193,67 @@ async function procesarTenant({ nombre, tenantId, csv }) {
   return { ok, fail }
 }
 
+// ── Demo Glow: sus imágenes vienen del script upload-glow-cosmeticos-images.js
+// (URLs de stylekorean), pero se subieron a paths aleatorios — acá matcheamos
+// cada producto por nombre y pisamos el path REAL que figura en product_images.
+async function procesarGlow() {
+  const GLOW_TENANT_ID = '00000000-0000-0000-0000-000000000007'
+  console.log(`\n════ Demo Glow (${GLOW_TENANT_ID}) ════`)
+
+  const scriptSrc = fs.readFileSync(path.join(__dirname, 'upload-glow-cosmeticos-images.js'), 'utf8')
+  const m = scriptSrc.match(/const PRODUCTS = (\[[\s\S]*?\n\])/)
+  if (!m) { console.error('  No se pudo leer PRODUCTS del script de glow'); return }
+  // eslint-disable-next-line no-eval
+  const productos = eval(m[1])
+  console.log(`  ${productos.length} productos en el script original`)
+
+  let ok = 0, fail = 0
+  for (const p of productos) {
+    const { data: prods } = await supabase.from('products').select('id').eq('tenant_id', GLOW_TENANT_ID).eq('name', p.nombre).limit(1)
+    const prodId = prods?.[0]?.id
+    if (!prodId) { console.warn(`  ? sin match en DB: "${p.nombre}"`); fail++; continue }
+
+    const { data: imgs } = await supabase.from('product_images').select('url').eq('product_id', prodId).order('sort_order').limit(1)
+    const url = imgs?.[0]?.url
+    if (!url) { console.warn(`  ? "${p.nombre}" sin imagen en DB`); fail++; continue }
+
+    const marker = '/object/public/' + BUCKET + '/'
+    const i = url.indexOf(marker)
+    if (i === -1) { console.warn(`  ? URL rara: ${url}`); fail++; continue }
+    const storagePath = decodeURIComponent(url.slice(i + marker.length).split('?')[0])
+
+    let resp
+    try { resp = await fetch(p.imagen, { headers: { 'User-Agent': 'Mozilla/5.0' } }) } catch (e) { console.warn(`  ✗ ${p.imagen}: ${e.message}`); fail++; continue }
+    if (!resp.ok) { console.warn(`  ✗ HTTP ${resp.status}: ${p.imagen}`); fail++; continue }
+    let buf = Buffer.from(await resp.arrayBuffer())
+
+    const ext = extDe(storagePath)
+    if (!RAW && sharp) {
+      try {
+        let pipe = sharp(buf).rotate().resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+        if (ext === 'png') pipe = pipe.png({ compressionLevel: 9 })
+        else if (ext === 'webp') pipe = pipe.webp({ quality: 90 })
+        else pipe = pipe.jpeg({ quality: 90, mozjpeg: true })
+        const out = await pipe.toBuffer()
+        if (out.length < buf.length) buf = out
+      } catch { /* subir original */ }
+    }
+
+    console.log(`  ${APPLY ? '✔' : '→'} ${storagePath} (${mb(buf.length)})`)
+    if (APPLY) {
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+      const { error } = await supabase.storage.from(BUCKET).upload(storagePath, buf, { upsert: true, contentType, cacheControl: '31536000' })
+      if (error) { console.warn(`  ✗ upload: ${error.message}`); fail++; continue }
+    }
+    ok++
+  }
+  console.log(`  Resultado: ${ok} ${APPLY ? 'restauradas' : 'a restaurar'}, ${fail} problemas`)
+}
+
 async function main() {
   console.log(APPLY ? `── MODO APPLY${RAW ? ' (RAW, sin comprimir)' : ' (compresión suave q90)'} ──` : '── DRY RUN — usar --apply para restaurar ──')
   for (const t of TENANTS) await procesarTenant(t)
+  await procesarGlow()
   console.log('\nListo. Refrescar las pestañas de las tiendas después de aplicar (la URL no cambia, el cache del browser puede tardar).')
 }
 
