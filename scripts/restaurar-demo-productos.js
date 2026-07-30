@@ -129,11 +129,13 @@ async function main() {
     console.log(`════ ${tenant.nombre} ════`)
     const { data: prods, error } = await supabase.from('products').select('id, name').eq('tenant_id', tenant.id)
     if (error) { console.warn(`  error leyendo products: ${error.message}`); continue }
+    let matchesTenant = 0
 
     for (const prod of prods ?? []) {
       const clave = normalizar(prod.name)
       const grupo = fotos[clave]
       if (!grupo) continue
+      matchesTenant++
 
       const { data: imgs } = await supabase.from('product_images').select('id, url, sort_order').eq('product_id', prod.id).order('sort_order')
       if (!imgs?.length) { console.warn(`  ? "${prod.name}" no tiene imágenes en DB`); continue }
@@ -164,6 +166,13 @@ async function main() {
         }
         ok++
       }
+    }
+
+    // Diagnóstico: si no matcheó nada, mostrar qué productos tiene este tenant
+    if (matchesTenant === 0) {
+      const nombres = (prods ?? []).map(p => p.name)
+      if (nombres.length === 0) console.log('  (este tenant no tiene productos)')
+      else console.log(`  (sin matches — productos de este tenant: ${nombres.slice(0, 15).join(' | ')}${nombres.length > 15 ? ' …' : ''})`)
     }
   }
   console.log(`\nTotal: ${ok} imágenes ${APPLY ? 'restauradas' : 'a restaurar'}, ${fail} problemas.`)
