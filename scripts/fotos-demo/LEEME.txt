@@ -1,1 +1,0 @@
-Poner aca las fotos originales: falda-jean-1.jpg, sweater-capa-1.jpg, etc. Ver instrucciones en restaurar-demo-productos.js

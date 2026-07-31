@@ -19,3 +19,8 @@ build/
 .DS_Store
 *.pem
 npm-debug.log*
+
+# fotos/assets pesados usados como input local de scripts de carga —
+# se suben a Supabase Storage, no los sirve la app. No trackear nunca
+# (2026-07-31: 25 fotos sin comprimir sumaron 149MB a un solo push).
+scripts/fotos-demo/
