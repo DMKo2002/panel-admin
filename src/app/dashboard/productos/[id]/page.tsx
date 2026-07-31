@@ -140,8 +140,15 @@ export default function EditarProductoPage() {
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
   const [saved, setSaved] = useState(false)
 
+  // Límite de almacenamiento del plan — bloquea subir imágenes nuevas
+  const [canUploadImages, setCanUploadImages] = useState(true)
+
   useEffect(() => {
     load()
+    fetch('/api/usage')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j && j.canUploadImages === false) setCanUploadImages(false) })
+      .catch(() => {})
   }, [id])
 
   async function load() {
@@ -306,6 +313,11 @@ export default function EditarProductoPage() {
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!canUploadImages) {
+      setError('Superaste el almacenamiento de tu plan — no se pueden subir más imágenes. Subí de plan o liberá espacio desde Plan y uso.')
+      e.target.value = ''
+      return
+    }
     const files = Array.from(e.target.files ?? [])
     const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
     const resized = await Promise.all(files.map(resizeFn))
@@ -318,6 +330,10 @@ export default function EditarProductoPage() {
     e.preventDefault()
     e.stopPropagation()
     setDragOver(false)
+    if (!canUploadImages) {
+      setError('Superaste el almacenamiento de tu plan — no se pueden subir más imágenes. Subí de plan o liberá espacio desde Plan y uso.')
+      return
+    }
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
     if (files.length === 0) return
     const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)

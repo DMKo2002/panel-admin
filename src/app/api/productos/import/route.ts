@@ -119,6 +119,11 @@ export async function POST(req: NextRequest) {
 
         const producto_id = row['producto_id']?.trim()
         const categoria = row['categoria']?.trim() ?? ''
+        // Multi-categoría: columna opcional "categorias" (plural) con varios
+        // paths separados por ";" — ej: "Marca > Cosrx;Skin Care > Facial > Serum y Ampolla;Tipo de piel > Mixto".
+        // Van a la tabla puente product_categories, además de la "categoria"
+        // singular de siempre que sigue seteando products.category_id.
+        const categoriasMulti = (row['categorias'] ?? '').split(';').map(s => s.trim()).filter(Boolean)
         const groupKey = producto_id || `${nombre.toLowerCase()}|${categoria.toLowerCase()}`
 
         let productId = groupKeyToProductId.get(groupKey)
@@ -169,6 +174,25 @@ export async function POST(req: NextRequest) {
             }
           }
           groupKeyToProductId.set(groupKey, productId!)
+
+          // ── Multi-categoría (tabla puente product_categories) ──────────
+          // Solo se procesa una vez por producto (primera fila del grupo),
+          // igual que las imágenes. Reemplaza el set completo — así una
+          // reimportación del mismo CSV deja las categorías como en el
+          // archivo, no las va acumulando.
+          if (categoriasMulti.length > 0) {
+            const resolvedIds = new Set<string>()
+            for (const path of categoriasMulti) {
+              const id = await resolveCategoryPath(path)
+              if (id) resolvedIds.add(id)
+            }
+            if (resolvedIds.size > 0) {
+              await service.from('product_categories').delete().eq('product_id', productId)
+              await service.from('product_categories').insert(
+                [...resolvedIds].map(category_id => ({ product_id: productId, category_id }))
+              )
+            }
+          }
         }
 
         // ── Variante ──────────────────────────────────────────────────────

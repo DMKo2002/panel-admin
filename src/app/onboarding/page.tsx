@@ -4,35 +4,49 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Store, Check, ExternalLink, Loader2 } from 'lucide-react'
 
-// ── Templates — URLs vienen de env vars del Panel Admin ──────────────────────
+// ── Templates — los 6 disponibles; la demo de cada uno vive en {slug}.gounuri.com
 const TEMPLATES = [
   {
     id: 'minimalista',
     name: 'Minimalista',
     description: 'Elegante y limpio. Tipografía serif, paleta neutra, hero de pantalla completa.',
-    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? '',
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? 'https://minimalista.gounuri.com',
     available: true,
   },
   {
     id: 'mono',
     name: 'Mono',
     description: 'Tipografía monoespaciada, estética cruda y directa. Ideal para marcas con actitud.',
-    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MONO ?? '',
-    available: false,
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_MONO ?? 'https://mono.gounuri.com',
+    available: true,
   },
   {
     id: 'atelier',
     name: 'Atelier',
     description: 'Oscuro y editorial. Fondo negro, detalles dorados, estética luxury de alta costura.',
-    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_ATELIER ?? '',
-    available: false,
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_ATELIER ?? 'https://atelier.gounuri.com',
+    available: true,
   },
   {
     id: 'axis',
     name: 'Axis',
     description: 'Geométrico y contemporáneo. Grillas asimétricas, tipografía bold, ritmo visual fuerte.',
-    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_AXIS ?? '',
-    available: false,
+    previewUrl: process.env.NEXT_PUBLIC_PREVIEW_URL_AXIS ?? 'https://axis.gounuri.com',
+    available: true,
+  },
+  {
+    id: 'glow',
+    name: 'Glow',
+    description: 'Cálido y luminoso, con detalles suaves y foco en las fotos de producto.',
+    previewUrl: 'https://glow.gounuri.com',
+    available: true,
+  },
+  {
+    id: 'bazaar',
+    name: 'Bazaar',
+    description: 'Vivo y versátil, con secciones destacadas para ofertas y novedades.',
+    previewUrl: 'https://bazaar.gounuri.com',
+    available: true,
   },
 ]
 

@@ -30,7 +30,9 @@ export default async function UsoPage() {
   const {
     plan, storageBytes, storageError, storagePct,
     productCount, productPct, orderCount,
+    visitCount, visitPct,
     overLimit, nearLimit, graceDaysLeft,
+    accountState, trialDaysLeft, trialGraceDaysLeft, suspendedReason,
   } = await getTenantUsage(service, tenantId)
 
   return (
@@ -42,10 +44,39 @@ export default async function UsoPage() {
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 text-sm font-medium text-zinc-900">
           Plan {plan.nombre}
+          {accountState === 'trial' && <span className="text-xs font-normal text-zinc-500">· prueba gratis</span>}
         </span>
       </div>
 
       <div className="p-8">
+        {accountState === 'suspended' && (
+          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <strong>Tu tienda pública está suspendida</strong>
+            {suspendedReason === 'trial_expired' && ' porque venció tu período de prueba'}
+            {suspendedReason === 'over_limit' && ' porque superaste los límites de tu plan'}
+            . Tus datos y tu catálogo están intactos: activá un plan para volver a publicarla.
+          </div>
+        )}
+        {accountState === 'trial' && trialDaysLeft !== null && (
+          <div className="mb-6 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">
+            Estás en tu período de prueba gratis del plan {plan.nombre}:{' '}
+            <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'día restante' : 'días restantes'}</strong>.
+            Al finalizar vas a tener 7 días para activarlo antes de que la tienda se suspenda.
+          </div>
+        )}
+        {accountState === 'trial_grace' && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Tu período de prueba terminó.{' '}
+            {trialGraceDaysLeft !== null && trialGraceDaysLeft > 0 ? (
+              <>
+                Tenés <strong>{trialGraceDaysLeft} {trialGraceDaysLeft === 1 ? 'día' : 'días'}</strong> para activar
+                tu plan — pasado ese plazo la tienda se suspende (los datos no se pierden).
+              </>
+            ) : (
+              <>La gracia venció: tu tienda puede suspenderse en cualquier momento. Activá un plan para regularizar.</>
+            )}
+          </div>
+        )}
         {overLimit && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {graceDaysLeft !== null && graceDaysLeft > 0 ? (
@@ -123,18 +154,20 @@ export default async function UsoPage() {
             </span>
           </div>
 
-          {/* Visitas — medición pendiente */}
+          {/* Visitas — se miden, todavía sin bloqueo */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                 <Eye className="h-4 w-4 text-zinc-500" />
                 Visitas este mes
               </div>
-              <p className="mt-2 text-2xl font-semibold text-zinc-400">—</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Límite del plan: {plan.visitasMes.toLocaleString('es-AR')} · medición próximamente
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {visitCount.toLocaleString('es-AR')}
+                <span className="ml-1 text-sm font-normal text-zinc-500">/ {plan.visitasMes.toLocaleString('es-AR')}</span>
               </p>
+              <p className="mt-1 text-xs text-zinc-500">Vistas de página en tu tienda pública</p>
             </div>
+            <UsageRing pct={visitPct} />
           </div>
         </div>
 
@@ -142,7 +175,12 @@ export default async function UsoPage() {
           El almacenamiento se calcula sobre las imágenes subidas. Consejo: subí fotos comprimidas (menos de 500 KB) para aprovechar mejor tu plan.
         </p>
 
-        {billingEnabled() && <UpgradePlans currentPlan={plan.id} />}
+        {billingEnabled() && (
+          <UpgradePlans
+            currentPlan={plan.id}
+            trialing={accountState === 'trial' || accountState === 'trial_grace' || accountState === 'suspended'}
+          />
+        )}
       </div>
     </div>
   )

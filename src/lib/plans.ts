@@ -6,6 +6,12 @@
 // visitas mensuales (cap de seguridad, medición pendiente). Pedidos: SIEMPRE
 // ilimitados, sin comisión — es el diferenciador vs Tiendanube, no tocar.
 
+// Modelo de trial (2026-07-31): registro self-serve con 7 días gratis del plan
+// elegido, luego 7 días de gracia para pagar; plan pago que supera cupo tiene
+// 14 días de gracia (GRACE_DAYS en usage.ts) antes de suspenderse.
+export const TRIAL_DAYS = 7
+export const TRIAL_GRACE_DAYS = 7
+
 export interface PlanDef {
   id: 'free' | 'mini' | 'standard' | 'premium'
   nombre: string
@@ -35,7 +41,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   standard: {
     id: 'standard',
     nombre: 'Standard',
-    precioARS: 30_000,
+    precioARS: 29_999,
     storageMB: 2_048,
     maxProductos: 400,
     visitasMes: 50_000,
@@ -43,7 +49,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   premium: {
     id: 'premium',
     nombre: 'Premium',
-    precioARS: 80_000,
+    precioARS: 79_999,
     storageMB: 10_240,
     maxProductos: 1_000,
     visitasMes: 200_000,

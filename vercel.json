@@ -1,4 +1,7 @@
 {
   "installCommand": "rm -rf node_modules/@creart/tienda-core && npm install",
-  "buildCommand": "rm -rf .next/cache && next build"
+  "buildCommand": "rm -rf .next/cache && next build",
+  "crons": [
+    { "path": "/api/cron/enforce", "schedule": "0 9 * * *" }
+  ]
 }

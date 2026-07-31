@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
+import { PLANS } from '@/lib/plans'
 
 interface PlanCard {
   id: 'mini' | 'standard' | 'premium'
@@ -16,24 +17,25 @@ interface PlanCard {
   destacado?: boolean
 }
 
+// Precios desde la fuente única de verdad (plans.ts); acá solo el copy.
 const CARDS: PlanCard[] = [
   {
     id: 'mini',
-    nombre: 'Mini',
-    precioARS: 10_000,
+    nombre: PLANS.mini.nombre,
+    precioARS: PLANS.mini.precioARS,
     features: ['200 MB de almacenamiento', 'Hasta 50 productos', 'Pedidos ilimitados'],
   },
   {
     id: 'standard',
-    nombre: 'Standard',
-    precioARS: 30_000,
+    nombre: PLANS.standard.nombre,
+    precioARS: PLANS.standard.precioARS,
     destacado: true,
     features: ['2 GB de almacenamiento', 'Hasta 400 productos', 'Pedidos ilimitados', 'Personalización completa'],
   },
   {
     id: 'premium',
-    nombre: 'Premium',
-    precioARS: 80_000,
+    nombre: PLANS.premium.nombre,
+    precioARS: PLANS.premium.precioARS,
     features: ['10 GB de almacenamiento', 'Hasta 1.000 productos', 'Pedidos ilimitados', 'Todos los templates', 'Soporte prioritario'],
   },
 ]
@@ -42,7 +44,7 @@ function formatARS(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
 
-export default function UpgradePlans({ currentPlan }: { currentPlan: string }) {
+export default function UpgradePlans({ currentPlan, trialing = false }: { currentPlan: string; trialing?: boolean }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,7 +79,9 @@ export default function UpgradePlans({ currentPlan }: { currentPlan: string }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         {CARDS.map(card => {
-          const esActual = card.id === currentPlan
+          // Durante el trial el plan "actual" no está pago — el botón debe
+          // permitir activarlo.
+          const esActual = card.id === currentPlan && !trialing
           return (
             <div
               key={card.id}
@@ -111,7 +115,11 @@ export default function UpgradePlans({ currentPlan }: { currentPlan: string }) {
                 }`}
               >
                 {loading === card.id && <Loader2 size={15} className="animate-spin" />}
-                {esActual ? 'Tu plan actual' : `Pasar a ${card.nombre}`}
+                {esActual
+                  ? 'Tu plan actual'
+                  : trialing && card.id === currentPlan
+                    ? `Activar ${card.nombre}`
+                    : `Pasar a ${card.nombre}`}
               </button>
             </div>
           )

@@ -35,7 +35,17 @@ export async function POST(req: Request) {
         plan_status: 'active',
         mp_preapproval_id: pre.id,
         over_limit_since: null, // el upgrade regulariza la gracia
+        trial_ends_at: null,    // fin del trial: ya está pagando
+        trial_warned_at: null,
+        limit_warned_at: null,
       }).eq('id', ref.tenantId)
+
+      // Si estaba suspendida automáticamente (trial vencido / exceso de cupo),
+      // el pago la reactiva. Las suspensiones manuales no se tocan.
+      await service.from('tenants')
+        .update({ status: 'active', suspended_reason: null })
+        .eq('id', ref.tenantId)
+        .in('suspended_reason', ['trial_expired', 'over_limit'])
     } else if (pre.status === 'paused') {
       await service.from('tenants').update({ plan_status: 'past_due' }).eq('id', ref.tenantId)
     } else if (pre.status === 'cancelled') {

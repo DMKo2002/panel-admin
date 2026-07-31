@@ -73,6 +73,12 @@ export default function NuevoProductoPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
 
+  // Límites del plan (bloqueo de creación / subida al superar el cupo)
+  const [limits, setLimits] = useState<{
+    canCreateProduct: boolean; canUploadImages: boolean
+    productCount: number; maxProductos: number; planNombre: string | null
+  } | null>(null)
+
   // Custom tenant attributes (non-size, non-color) to show below the matrix
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
   const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
@@ -91,6 +97,12 @@ export default function NuevoProductoPage() {
   const [columnLabel, setColumnLabel] = useState('')
 
   useEffect(() => {
+    // Límites del plan — si el endpoint falla, no bloquear (best effort)
+    fetch('/api/usage')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j) setLimits(j) })
+      .catch(() => {})
+
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -187,6 +199,14 @@ export default function NuevoProductoPage() {
     e.preventDefault()
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     if (!tenantId) { setError('No se pudo determinar el tenant'); return }
+    if (limits && !limits.canCreateProduct) {
+      setError(`Llegaste al límite de ${limits.maxProductos} productos de tu plan${limits.planNombre ? ` ${limits.planNombre}` : ''}. Subí de plan o eliminá productos para seguir cargando.`)
+      return
+    }
+    if (limits && !limits.canUploadImages && imageFiles.length > 0) {
+      setError('Superaste el almacenamiento de tu plan — no se pueden subir más imágenes. Subí de plan o liberá espacio.')
+      return
+    }
 
     setLoading(true); setError(null)
     try {
@@ -274,6 +294,20 @@ export default function NuevoProductoPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="px-8 py-6 max-w-4xl space-y-6">
+
+        {limits && !limits.canCreateProduct && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Llegaste al límite de <strong>{limits.maxProductos} productos</strong> de tu plan
+            {limits.planNombre ? ` ${limits.planNombre}` : ''} ({limits.productCount} cargados).{' '}
+            <Link href="/dashboard/uso" className="font-medium underline underline-offset-2">Ver plan y uso</Link>
+          </div>
+        )}
+        {limits && limits.canCreateProduct && !limits.canUploadImages && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Superaste el almacenamiento de tu plan: podés crear el producto pero sin imágenes nuevas.{' '}
+            <Link href="/dashboard/uso" className="font-medium underline underline-offset-2">Ver plan y uso</Link>
+          </div>
+        )}
 
         {/* Datos básicos */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">

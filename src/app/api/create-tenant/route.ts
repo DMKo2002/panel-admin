@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendEmail, emailBienvenidaTenant } from '@/lib/email'
+import { PLANS, TRIAL_DAYS } from '@/lib/plans'
 
 export async function POST(req: Request) {
   // Verificar que el usuario está autenticado
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { name, domain, template } = await req.json()
+  const { name, domain, template, plan } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
 
   // Usar service role para bypass de RLS
@@ -26,12 +27,26 @@ export async function POST(req: Request) {
     .replace(/(^-|-$)/g, '')
     + '-' + Date.now().toString().slice(-4)
 
-  const validTemplates = ['minimalista', 'mono', 'atelier', 'axis']
+  const validTemplates = ['minimalista', 'mono', 'atelier', 'axis', 'glow', 'bazaar']
   const chosenTemplate = validTemplates.includes(template) ? template : 'minimalista'
+
+  // Modelo trial (2026-07-31): self-serve, tienda activa de entrada con
+  // 7 días gratis del plan elegido — la suspensión la maneja el cron.
+  const chosenPlan = plan && plan in PLANS && plan !== 'free' ? plan : 'standard'
+  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString()
 
   const { data: tenant, error: tenantError } = await serviceClient
     .from('tenants')
-    .insert({ slug, name: name.trim(), domain: domain?.trim() || null, plan: 'basic', status: 'pending', template: chosenTemplate })
+    .insert({
+      slug,
+      name: name.trim(),
+      domain: domain?.trim() || null,
+      plan: chosenPlan,
+      plan_status: 'trial',
+      trial_ends_at: trialEndsAt,
+      status: 'active',
+      template: chosenTemplate,
+    })
     .select()
     .single()
 
@@ -79,9 +94,8 @@ export async function POST(req: Request) {
             <h2>Nuevo tenant registrado</h2>
             <p><strong>Email:</strong> ${user.email}</p>
             <p><strong>Tienda:</strong> ${name.trim()}</p>
+            <p><strong>Plan:</strong> ${chosenPlan} (trial hasta ${trialEndsAt.slice(0, 10)}) · <strong>Template:</strong> ${chosenTemplate}</p>
             <p><strong>Tenant ID:</strong> <code>${tenant.id}</code></p>
-            <p>Para activar:</p>
-            <pre>UPDATE tenants SET status = 'active' WHERE id = '${tenant.id}';</pre>
           `,
         }),
       })
