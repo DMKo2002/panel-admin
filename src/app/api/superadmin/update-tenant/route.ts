@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Datos requeridos' }, { status: 400 })
   }
 
-  const validTemplates = ['minimalista', 'mono', 'atelier', 'axis']
+  const validTemplates = ['minimalista', 'mono', 'atelier', 'axis', 'glow', 'bazaar']
   if (template && !validTemplates.includes(template)) {
     return NextResponse.json({ error: 'Template inválido' }, { status: 400 })
   }
