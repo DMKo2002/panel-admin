@@ -626,7 +626,12 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {Object.entries(COLOR_MAP).map(([name, hex]) => (
                   <button key={name} type="button" title={name}
-                    onClick={() => setPickerHex(hex)}
+                    onClick={() => {
+                      setPickerHex(hex)
+                      // Mismo criterio que favoritos: autocompletar el nombre al
+                      // tocar el swatch, salvo que el tenant ya haya tipeado uno propio.
+                      if (isPlaceholderName(colors[ci])) renameColor(ci, name)
+                    }}
                     style={{ backgroundColor: hex }}
                     className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-primary-500 scale-110' : 'border-zinc-200'}`} />
                 ))}
