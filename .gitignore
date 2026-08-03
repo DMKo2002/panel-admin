@@ -20,6 +20,10 @@ build/
 *.pem
 npm-debug.log*
 
+# caché incremental de TypeScript — se regenera solo en cada build local,
+# no aporta nada versionado y genera "cambios" falsos constantemente.
+*.tsbuildinfo
+
 # fotos/assets pesados usados como input local de scripts de carga —
 # se suben a Supabase Storage, no los sirve la app. No trackear nunca
 # (2026-07-31: 25 fotos sin comprimir sumaron 149MB a un solo push).
