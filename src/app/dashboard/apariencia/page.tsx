@@ -66,6 +66,18 @@ const TEMPLATE_SLOTS: Record<string, { key: string; label: string; hint: string;
     { key: 'collection_2', label: 'Colección — Banner 2', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
     { key: 'collection_3', label: 'Colección — Banner 3', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
   ],
+  // Bazaar es un clon 1:1 del storefront de Glow (mismos slots de store_assets:
+  // banner_1/2/3 + collection_1/2/3), así que usa exactamente el mismo set.
+  bazaar: [
+    { key: 'logo',         label: 'Logo',                 hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo' },
+    { key: 'logo_favicon', label: 'Favicon',               hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'  },
+    { key: 'banner_1',     label: 'Banner — Foto 1',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
+    { key: 'banner_2',     label: 'Banner — Foto 2',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
+    { key: 'banner_3',     label: 'Banner — Foto 3',       hint: '1600 × 600 px recomendado',                                 aspect: '16/6' },
+    { key: 'collection_1', label: 'Colección — Banner 1', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'collection_2', label: 'Colección — Banner 2', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+    { key: 'collection_3', label: 'Colección — Banner 3', hint: '600 × 750 px recomendado',     aspect: '4/5'   },
+  ],
   mykonoslove: [
     { key: 'logo',         label: 'Logo',                hint: 'PNG o SVG transparente — alto fijo 160 px, ancho proporcional', aspect: 'logo'  },
     { key: 'logo_favicon', label: 'Favicon',              hint: 'PNG cuadrado — 512 × 512 px',                               aspect: '1/1'   },
@@ -496,7 +508,7 @@ export default function AparienciaPage() {
       handleSaveName(),
       handleSavePdf(),
     ]
-    if (template !== 'glow') tasks.push(handleSaveHero())
+    if (template !== 'glow' && template !== 'bazaar') tasks.push(handleSaveHero())
     if (!isMono) tasks.push(handleSaveColors())
     if (hasCollections) tasks.push(handleSaveCollectionPosts())
     if (hasBlogSections) tasks.push(handleSaveBlog(), handleSaveNewsletter())
@@ -522,7 +534,7 @@ export default function AparienciaPage() {
   }
   const isMono = template === 'mono' || template === 'axis'
   const hasBlogSections = template === 'atelier' || template === 'mykonoslove'
-  const hasCollections = template === 'atelier' || template === 'mykonoslove' || template === 'glow'
+  const hasCollections = template === 'atelier' || template === 'mykonoslove' || template === 'glow' || template === 'bazaar'
   const hasIntermediateBanner = template === 'minimalista'
 
   if (loading) {
@@ -608,8 +620,8 @@ export default function AparienciaPage() {
         ))}
       </section>
 
-      {/* ── Textos del Hero ── (Glow no usa hero de texto — su home es el carrusel de banners) */}
-      {template !== 'glow' && (
+      {/* ── Textos del Hero ── (Glow/Bazaar no usan hero de texto — su home es el carrusel de banners) */}
+      {template !== 'glow' && template !== 'bazaar' && (
       <section className="space-y-6">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
           Textos del Hero
