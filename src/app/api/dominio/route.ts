@@ -47,7 +47,11 @@ export async function POST(req: Request) {
 
   const { domain: rawDomain } = await req.json().catch(() => ({}))
   const normalized = normalizeDomain(rawDomain ?? '')
-  if (!normalized.ok) return NextResponse.json({ error: normalized.error }, { status: 400 })
+  // OJO: "normalized.ok === false" (no "!normalized.ok") a propósito. Con
+  // strict:false en tsconfig, TS no angosta bien el union discriminado con
+  // el operador "!" sobre un booleano literal — sí lo hace con "=== false".
+  // Confirmado con un repro aislado (ver incidente 2026-08-04).
+  if (normalized.ok === false) return NextResponse.json({ error: normalized.error }, { status: 400 })
   const domain = normalized.domain
 
   try {
