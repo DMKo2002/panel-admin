@@ -252,6 +252,12 @@ export default function AparienciaPage() {
   const [savedNewsletter, setSavedNewsletter] = useState(false)
   const [errorNewsletter, setErrorNewsletter] = useState<string | null>(null)
 
+  // ── Banner "Los Destacados" (solo Minimalista)
+  const [bannerBgColor, setBannerBgColor] = useState('#A4A49C')
+  const [savingBannerColor, setSavingBannerColor] = useState(false)
+  const [savedBannerColor, setSavedBannerColor] = useState(false)
+  const [errorBannerColor, setErrorBannerColor] = useState<string | null>(null)
+
   // ── Recibos PDF
   const [pdfShowVariant, setPdfShowVariant] = useState(true)
   const [pdfShowPricetype, setPdfShowPricetype] = useState(true)
@@ -307,6 +313,7 @@ export default function AparienciaPage() {
             setBlogPosts(rawBlogPosts.map((p: any) => ({ title: p?.title ?? '', excerpt: p?.excerpt ?? '' })))
           }
           setNewsletterBgColor((cfg as any).newsletter_bg_color ?? '#DBD1BA')
+          setBannerBgColor((cfg as any).banner_bg_color ?? '#A4A49C')
           setPdfShowVariant((cfg as any).pdf_show_variant ?? true)
           setPdfShowPricetype((cfg as any).pdf_show_pricetype ?? true)
           setPdfShowAddress((cfg as any).pdf_show_address ?? true)
@@ -446,6 +453,17 @@ export default function AparienciaPage() {
     setSavedNewsletter(true); setTimeout(() => setSavedNewsletter(false), 2000)
   }
 
+  async function handleSaveBannerColor(): Promise<string | undefined> {
+    if (!configId) return
+    setSavingBannerColor(true); setErrorBannerColor(null)
+    const { error } = await supabase.from('store_config').update({
+      banner_bg_color: bannerBgColor || null,
+    }).eq('id', configId)
+    setSavingBannerColor(false)
+    if (error) { const msg = 'Error al guardar: ' + error.message; setErrorBannerColor(msg); return msg }
+    setSavedBannerColor(true); setTimeout(() => setSavedBannerColor(false), 2000)
+  }
+
   async function handleSaveName(): Promise<string | undefined> {
     if (!tenantId) return
     setSavingName(true); setErrorName(null)
@@ -482,6 +500,7 @@ export default function AparienciaPage() {
     if (!isMono) tasks.push(handleSaveColors())
     if (hasCollections) tasks.push(handleSaveCollectionPosts())
     if (hasBlogSections) tasks.push(handleSaveBlog(), handleSaveNewsletter())
+    if (hasIntermediateBanner) tasks.push(handleSaveBannerColor())
 
     const results = await Promise.all(tasks)
     setSavingAll(false)
@@ -504,6 +523,7 @@ export default function AparienciaPage() {
   const isMono = template === 'mono' || template === 'axis'
   const hasBlogSections = template === 'atelier' || template === 'mykonoslove'
   const hasCollections = template === 'atelier' || template === 'mykonoslove' || template === 'glow'
+  const hasIntermediateBanner = template === 'minimalista'
 
   if (loading) {
     return (
@@ -711,6 +731,52 @@ export default function AparienciaPage() {
           </div>
         </div>
       </section>
+
+      {hasIntermediateBanner && (
+      <section className="space-y-6">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
+          Banner "Los Destacados"
+        </h2>
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-700">Color de fondo del banner intermedio</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Es el bloque "Conocé productos especialmente elegidos para vos", entre los productos destacados y el MoodBoard</p>
+            </div>
+            <button onClick={handleSaveBannerColor} disabled={savingBannerColor} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
+              {savedBannerColor ? '✓ Guardado' : savingBannerColor ? 'Guardando...' : 'Guardar color'}
+            </button>
+            {errorBannerColor && <p className="text-xs text-red-500 mt-1.5">{errorBannerColor}</p>}
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={bannerBgColor}
+              onChange={e => setBannerBgColor(e.target.value)}
+              className="w-10 h-10 rounded cursor-pointer border border-zinc-200 p-0.5 bg-white"
+            />
+            <input
+              className="input text-sm font-mono w-32"
+              value={bannerBgColor}
+              onChange={e => setBannerBgColor(e.target.value)}
+              placeholder="#A4A49C"
+            />
+            <div className="flex gap-2">
+              {['#A4A49C', '#1A1A1A', '#8B7355', '#C3C2BB'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setBannerBgColor(c)}
+                  className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
+                  style={{ backgroundColor: c, borderColor: bannerBgColor === c ? '#7C3AED' : '#E5E7EB' }}
+                  title={c}
+                />
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-zinc-400">El texto de ese bloque es siempre blanco, así que conviene elegir un color oscuro o de contraste medio</p>
+        </div>
+      </section>
+      )}
 
       {hasCollections && (
       <>
