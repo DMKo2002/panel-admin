@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Globe, Loader2, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react'
 
-type DomainStatus = 'none' | 'pending' | 'verified'
+type DomainStatus = 'none' | 'pending' | 'verified' | 'error'
 
 interface DnsRecord {
   type: string
@@ -166,12 +166,18 @@ export default function DominioPage() {
               </form>
             )}
 
-            {/* Pendiente de DNS */}
-            {status === 'pending' && domain && (
+            {/* Pendiente de DNS (o quedó en error en un intento anterior — mismo
+                bloque, con "Verificar" el usuario reintenta sin tener que
+                volver a escribir el dominio) */}
+            {(status === 'pending' || status === 'error') && domain && (
               <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
                 <div>
                   <h2 className="text-sm font-semibold text-zinc-700">{domain}</h2>
-                  <p className="text-xs text-amber-600 mt-0.5">Falta configurar el DNS — todavía no está en vivo.</p>
+                  {status === 'error' ? (
+                    <p className="text-xs text-red-600 mt-0.5">Hubo un error conectando el dominio. Probá "Verificar" para reintentar.</p>
+                  ) : (
+                    <p className="text-xs text-amber-600 mt-0.5">Falta configurar el DNS — todavía no está en vivo.</p>
+                  )}
                 </div>
 
                 {verification && verification.length > 0 ? (

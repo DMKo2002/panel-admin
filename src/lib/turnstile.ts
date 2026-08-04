@@ -100,7 +100,34 @@ export async function assignDomainToWidgetPool(domain: string): Promise<{ widget
       return { widgetId: widget.id, siteKey: widget.site_key }
     }
     const newDomains = [...widget.domains, domain]
-    await updateCloudflareWidgetDomains(widget.cf_widget_id, newDomains)
+    try {
+      await updateCloudflareWidgetDomains(widget.cf_widget_id, newDomains)
+    } catch (e) {
+      // Auto-recuperación: si la fila local quedó apuntando a un widget que
+      // ya no existe en Cloudflare (huérfano — ver comentario en
+      // src/app/api/dominio/route.ts sobre el bug de orden de borrado),
+      // limpiar la fila y crear un widget nuevo en vez de romper el alta.
+      const message = e instanceof Error ? e.message : String(e)
+      if (/deleted widget/i.test(message)) {
+        await supabase.from('turnstile_widgets').delete().eq('id', widget.id)
+      } else {
+        throw e
+      }
+      const created = await createCloudflareWidget(domain)
+      const { data: inserted, error: insertError } = await supabase
+        .from('turnstile_widgets')
+        .insert({
+          cf_widget_id: created.cfWidgetId,
+          site_key: created.siteKey,
+          secret_key: created.secretKey,
+          domains: [domain],
+          domain_count: 1,
+        })
+        .select('id, site_key')
+        .single()
+      if (insertError || !inserted) throw new Error(insertError?.message || 'No se pudo guardar el widget nuevo en la base.')
+      return { widgetId: inserted.id, siteKey: inserted.site_key }
+    }
     const { error: updateError } = await supabase
       .from('turnstile_widgets')
       .update({ domains: newDomains, domain_count: newDomains.length })

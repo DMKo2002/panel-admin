@@ -132,8 +132,18 @@ export async function DELETE() {
       .limit(1)
     const widgetId = _configs?.[0]?.turnstile_widget_id
     if (widgetId) {
-      await removeDomainFromWidgetPool(widgetId, tenant.domain)
+      // OJO: sacar la referencia ANTES de tocar turnstile_widgets, no después.
+      // store_config.turnstile_widget_id -> turnstile_widgets(id) es un FK sin
+      // ON DELETE CASCADE (a propósito). Si este era el último dominio del
+      // widget, removeDomainFromWidgetPool borra esa fila — y mientras
+      // store_config siga apuntando a ella, Postgres rechaza el DELETE con
+      // una violación de FK. Eso corta la función a la mitad: el widget ya
+      // se borró en Cloudflare pero la fila local queda huérfana con el
+      // dominio viejo, y el próximo alta de dominio pisa un widget que ya
+      // no existe del lado de Cloudflare ("Trying to access a deleted
+      // widget"). Bug real, visto el 2026-08-04 con base153.com.
       await service.from('store_config').update({ turnstile_widget_id: null, turnstile_site_key: null }).eq('tenant_id', tenant.id)
+      await removeDomainFromWidgetPool(widgetId, tenant.domain)
     }
 
     await service.from('tenants').update({ domain: null, domain_status: 'none' }).eq('id', tenant.id)
