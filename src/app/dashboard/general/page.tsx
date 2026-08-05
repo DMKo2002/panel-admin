@@ -57,6 +57,7 @@ export default function GeneralPage() {
     const { error } = await supabase.from('store_config').update({
       panel_theme:      panelTheme,
       min_order_amount: config.min_order_amount ?? null,
+      show_min_order_banner: (config as any).show_min_order_banner ?? false,
       min_qty_per_variant: config.min_qty_per_variant ?? 1,
       price_visibility: config.price_visibility ?? 'all',
       registration_visibility: config.registration_visibility ?? 'both',
@@ -153,6 +154,12 @@ export default function GeneralPage() {
             <span className="text-sm text-zinc-500 flex-shrink-0">ARS $</span>
             <input className="input flex-1" type="number" min={0} step={100} value={config?.min_order_amount ?? ''} onChange={e => update('min_order_amount', e.target.value === '' ? null : Number(e.target.value))} placeholder="Ej: 5000" />
           </div>
+          <ToggleRow
+            label="Mostrar cartel en la tienda"
+            desc="Cartel sutil en la tienda con el pedido mínimo. No aparece si el campo de arriba está vacío"
+            checked={Boolean((config as any)?.show_min_order_banner)}
+            onChange={v => update('show_min_order_banner' as any, v)}
+          />
         </div>
 
         {/* Mínimo de unidades por variante */}

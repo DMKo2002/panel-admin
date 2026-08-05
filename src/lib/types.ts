@@ -74,6 +74,7 @@ export interface StoreConfig {
   transfer_cbu: string | null
   transfer_alias: string | null
   min_order_amount: number | null
+  show_min_order_banner: boolean
   // Mínimo global de unidades por variante (talle/color) para poder agregarla
   // al carrito. Los productos pueden sobreescribirlo con Product.min_qty.
   min_qty_per_variant: number
