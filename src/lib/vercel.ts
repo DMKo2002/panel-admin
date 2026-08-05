@@ -73,7 +73,10 @@ export async function getDnsInstructions(template: string, domain: string): Prom
     { headers: vercelHeaders() }
   )
   const json = await res.json()
-  if (!res.ok) return []
+  if (!res.ok) {
+    console.error(`[vercel] getDnsInstructions falló para ${domain} (HTTP ${res.status}):`, JSON.stringify(json))
+    return []
+  }
 
   // Heurística: dominio con un solo nivel antes del TLD (ej. "mitienda.com")
   // es raíz. No cubre TLDs compuestos (.co.uk y similares) pero cubre bien
