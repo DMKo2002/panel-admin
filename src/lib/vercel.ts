@@ -53,6 +53,52 @@ export interface VercelDomainStatus {
   alreadyAdded?: boolean
 }
 
+export interface DnsInstruction {
+  type: 'A' | 'CNAME'
+  name: string
+  value: string
+}
+
+// `verification` (arriba) son los TXT de desafío de ownership que Vercel pide
+// en casos borde (dominio ya usado en otra cuenta, etc.) — la mayoría de las
+// veces viene vacío y ahí es donde el tenant se quedaba sin saber qué poner
+// en su proveedor de DNS. Esto es lo que realmente hace falta siempre: el
+// registro A (dominio raíz) o CNAME (subdominio) que apunta a Vercel, leído
+// en vivo de /v6/domains/{domain}/config en vez de hardcodear los valores
+// fijos (Vercel los puede cambiar).
+export async function getDnsInstructions(template: string, domain: string): Promise<DnsInstruction[]> {
+  const projectId = projectIdForTemplate(template)
+  const res = await fetch(
+    `${VERCEL_API}/v6/domains/${domain}/config?projectIdOrName=${projectId}${teamQuery() ? '&' + teamQuery().slice(1) : ''}`,
+    { headers: vercelHeaders() }
+  )
+  const json = await res.json()
+  if (!res.ok) return []
+
+  // Heurística: dominio con un solo nivel antes del TLD (ej. "mitienda.com")
+  // es raíz. No cubre TLDs compuestos (.co.uk y similares) pero cubre bien
+  // los casos reales de la plataforma (.com/.ar).
+  const labels = domain.split('.')
+  const isApex = labels.length <= 2
+  const ip = json.recommendedIPv4?.[0]?.value?.[0] ?? '76.76.21.21'
+  const cname = json.recommendedCNAME?.[0]?.value ?? 'cname.vercel-dns.com'
+  const instructions: DnsInstruction[] = []
+
+  if (isApex) {
+    // Dominio raíz: A en '@' para que funcione mitienda.com, más CNAME en
+    // 'www' — la mayoría de la gente escribe www.mitienda.com de memoria,
+    // sin este segundo registro esa versión no carga.
+    instructions.push({ type: 'A', name: '@', value: ip })
+    instructions.push({ type: 'CNAME', name: 'www', value: cname })
+  } else {
+    // Ya es un subdominio (ej. "shop.mitienda.com") — el A del dominio raíz
+    // no aplica acá, solo el CNAME de ESE label.
+    instructions.push({ type: 'CNAME', name: labels[0], value: cname })
+  }
+
+  return instructions
+}
+
 // POST — agrega el dominio al proyecto. Si ya estaba agregado (reintento
 // desde el panel, o el tenant lo había cargado antes), no falla: Vercel
 // devuelve 409 con el dominio existente y lo tratamos como éxito.
