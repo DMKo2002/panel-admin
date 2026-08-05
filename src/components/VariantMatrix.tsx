@@ -203,9 +203,15 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   // En modo "edit" esto puede implicar borrar variantes reales en la base
   // (ver onRemoveSize en el padre) — se espera su confirmación antes de
   // tocar el estado local. En modo "create" no hay callback, se borra directo.
+  // Si el talle todavía no tiene ninguna celda con variantId (columna/fila
+  // agregada en esta misma sesión y nunca guardada), no existe en la base
+  // todavía — llamar a la API de borrado siempre devolvía 404 ("no se
+  // encontraron variantes con ese valor") y la fila quedaba pegada sin poder
+  // borrarse nunca. En ese caso se borra directo del estado local, sin API.
   async function handleRemoveSizeClick(idx: number) {
     const size = sizes[idx]
-    if (onRemoveSize) {
+    const persisted = colors.some(c => cells[cellKey(size, c)]?.variantId)
+    if (onRemoveSize && persisted) {
       const ok = await onRemoveSize(size)
       if (!ok) return
     }
@@ -258,9 +264,16 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   // En modo "edit" esto puede implicar borrar variantes reales en la base
   // (ver onRemoveColor en el padre) — se espera su confirmación antes de
   // tocar el estado local. En modo "create" no hay callback, se borra directo.
+  // Si el color todavía no tiene ninguna celda con variantId (columna
+  // agregada en esta misma sesión y nunca guardada, sin precio/stock), no
+  // existe en la base todavía — llamar a la API de borrado siempre devolvía
+  // 404 ("no se encontraron variantes con ese valor") y la columna quedaba
+  // pegada sin poder borrarse nunca. En ese caso se borra directo del estado
+  // local, sin API.
   async function handleRemoveColorClick(idx: number) {
     const color = colors[idx]
-    if (onRemoveColor) {
+    const persisted = sizes.some(s => cells[cellKey(s, color)]?.variantId)
+    if (onRemoveColor && persisted) {
       const ok = await onRemoveColor(color)
       if (!ok) return
     }
