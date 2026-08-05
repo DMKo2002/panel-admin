@@ -2,35 +2,33 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, Loader2 } from 'lucide-react'
+import { CheckCheck, Loader2 } from 'lucide-react'
 
 interface Props {
   orderId: string
-  paymentStatus: string
-  paymentMethod: string
+  currentStatus: string
 }
 
-export default function MarkPaidButton({ orderId, paymentStatus, paymentMethod }: Props) {
+export default function MarkCompletedButton({ orderId, currentStatus }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
-  // Only show for pending bank transfer orders
-  if (paymentStatus === 'paid' || paymentMethod === 'mercadopago') return null
+  if (currentStatus === 'cancelled') return null
 
-  if (done) {
+  if (done || currentStatus === 'delivered') {
     return (
       <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-        <CheckCircle size={12} /> Pagado
+        <CheckCheck size={12} /> Completado
       </span>
     )
   }
 
   async function handleClick() {
-    if (!confirm('¿Marcar este pedido como pagado? El estado cambiará a "Confirmado".')) return
+    if (!confirm('¿Marcar este pedido como completado?')) return
     setLoading(true)
     try {
-      const res = await fetch('/api/mark-paid', {
+      const res = await fetch('/api/orders/mark-completed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId }),
@@ -55,8 +53,8 @@ export default function MarkPaidButton({ orderId, paymentStatus, paymentMethod }
       disabled={loading}
       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-emerald-200 bg-emerald-50 text-[11px] text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-colors disabled:opacity-60 font-medium"
     >
-      {loading ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
-      {loading ? 'Guardando...' : 'Marcar pagado'}
+      {loading ? <Loader2 size={11} className="animate-spin" /> : <CheckCheck size={11} />}
+      {loading ? 'Guardando...' : 'Completar'}
     </button>
   )
 }

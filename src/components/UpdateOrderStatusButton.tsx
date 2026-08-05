@@ -33,8 +33,8 @@ export default function UpdateOrderStatusButton({ orderId, currentStatus }: Prop
 
   if (isDone) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-        <Check size={12} /> {currentStatus === 'ready_pickup' || done ? 'Notificado' : 'Enviado'}
+      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
+        <Check size={11} /> {currentStatus === 'ready_pickup' || done ? 'Notificado' : 'Enviado'}
       </span>
     )
   }
@@ -44,11 +44,11 @@ export default function UpdateOrderStatusButton({ orderId, currentStatus }: Prop
       <button
         onClick={() => setOpen(v => !v)}
         disabled={loading}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40"
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 text-[11px] text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40"
       >
-        <Send size={12} />
+        <Send size={11} />
         {loading ? 'Enviando...' : 'Notificar'}
-        <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={10} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

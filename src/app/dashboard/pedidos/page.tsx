@@ -5,6 +5,7 @@ import { isSuperAdmin } from '@/lib/superadmin'
 import { OrderStatusBadge, PaymentStatusBadge, CustomerTypeBadge } from '@/components/Badge'
 import { Download, FileText, Package } from 'lucide-react'
 import MarkPaidButton from '@/components/MarkPaidButton'
+import MarkCompletedButton from '@/components/MarkCompletedButton'
 import UpdateOrderStatusButton from '@/components/UpdateOrderStatusButton'
 import CancelOrderButton from '@/components/CancelOrderButton'
 import DeleteOrderButton from '@/components/DeleteOrderButton'
@@ -115,87 +116,94 @@ export default async function PedidosPage({
       </div>
 
       <div className="px-8 py-6">
-        <div className="bg-white rounded-xl border border-zinc-200">
+        <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100">
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">#</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Cliente</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Total</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Tipo</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Pago</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado pago</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Fecha</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Recibo</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Pago</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Notificar</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3"></th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3"></th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">#</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Cliente</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Total</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Tipo</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Pago</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Estado pago</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Estado</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Fecha</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Recibo</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Pago</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Notificar</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap">Completar</th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap"></th>
+                <th className="text-left text-[11px] font-medium text-zinc-400 px-3 py-2 whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
               {orders?.map((order: any) => (
                 <tr key={order.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-400">#{order.id.slice(0, 6)}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-zinc-800 font-medium">{order.customers?.full_name ?? '—'}</p>
-                    <p className="text-zinc-400 text-xs">{order.customers?.email}</p>
+                  <td className="px-3 py-2 font-mono text-xs text-zinc-400 whitespace-nowrap">#{order.id.slice(0, 6)}</td>
+                  <td className="px-3 py-2">
+                    <p className="text-zinc-800 font-medium text-xs">{order.customers?.full_name ?? '—'}</p>
+                    <p className="text-zinc-400 text-[11px]">{order.customers?.email}</p>
                   </td>
-                  <td className="px-4 py-3 font-medium text-zinc-900">{formatPrice(order.total)}</td>
-                  <td className="px-4 py-3"><CustomerTypeBadge type={order.customers?.type ?? 'retail'} /></td>
-                  <td className="px-4 py-3 text-zinc-500">{order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia'}</td>
-                  <td className="px-4 py-3"><PaymentStatusBadge status={order.payment_status} /></td>
-                  <td className="px-4 py-3"><OrderStatusBadge status={order.status} /></td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs">{formatDate(order.created_at)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <td className="px-3 py-2 font-medium text-zinc-900 text-xs whitespace-nowrap">{formatPrice(order.total)}</td>
+                  <td className="px-3 py-2"><CustomerTypeBadge type={order.customers?.type ?? 'retail'} /></td>
+                  <td className="px-3 py-2 text-zinc-500 text-xs whitespace-nowrap">{order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia'}</td>
+                  <td className="px-3 py-2"><PaymentStatusBadge status={order.payment_status} /></td>
+                  <td className="px-3 py-2"><OrderStatusBadge status={order.status} /></td>
+                  <td className="px-3 py-2 text-zinc-400 text-[11px] whitespace-nowrap">{formatDate(order.created_at)}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
                       <a
                         href={`/api/pdf?order_id=${order.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 text-[11px] text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors whitespace-nowrap"
                       >
-                        <FileText size={13} />
+                        <FileText size={11} />
                         Recibo
                       </a>
                       <a
                         href={`/api/pdf/envio?order_id=${order.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 text-[11px] text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors whitespace-nowrap"
                       >
-                        <Package size={13} />
+                        <Package size={11} />
                         Envío
                       </a>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <MarkPaidButton
                       orderId={order.id}
                       paymentStatus={order.payment_status}
                       paymentMethod={order.payment_method}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <UpdateOrderStatusButton
                       orderId={order.id}
                       currentStatus={order.status}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <MarkCompletedButton
+                      orderId={order.id}
+                      currentStatus={order.status}
+                    />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <CancelOrderButton
                       orderId={order.id}
                       currentStatus={order.status}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <DeleteOrderButton orderId={order.id} />
                   </td>
                 </tr>
               ))}
               {(!orders || orders.length === 0) && (
-                <tr><td colSpan={13} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
+                <tr><td colSpan={14} className="px-4 py-12 text-center text-zinc-400">No hay pedidos con ese filtro</td></tr>
               )}
             </tbody>
           </table>

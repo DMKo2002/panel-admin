@@ -41,9 +41,9 @@ export default function CancelOrderButton({ orderId, currentStatus }: Props) {
     <button
       onClick={handleClick}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-40"
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 text-[11px] text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-40"
     >
-      {loading ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+      {loading ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />}
       {loading ? 'Cancelando...' : 'Cancelar'}
     </button>
   )
