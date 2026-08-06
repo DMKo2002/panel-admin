@@ -33,9 +33,10 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   mini: {
     id: 'mini',
     nombre: 'Mini',
-    // TEMPORAL (2026-08-06): $1 para probar el cobro real de MP end-to-end.
-    // Volver a 10_000 apenas termine el test — ver memoria/tarea de este día.
-    precioARS: 1,
+    // TEMPORAL (2026-08-06): $20 para probar el cobro real de MP end-to-end
+    // (MP no deja crear preapproval por menos de $15 ARS). Volver a 10_000
+    // apenas termine el test — ver memoria/tarea de este día.
+    precioARS: 20,
     storageMB: 200,
     maxProductos: 50,
     visitasMes: 10_000,
