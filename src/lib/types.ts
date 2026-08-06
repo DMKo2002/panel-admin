@@ -193,6 +193,10 @@ export interface Product {
   length_cm: number | null
   height_cm: number | null
   weight_kg: number | null
+  // Orden manual del tenant (menor = aparece primero). Se edita arrastrando
+  // en /dashboard/productos ("Editar orden") y se refleja en /tienda y en
+  // los destacados de la home de cada template.
+  sort_order: number
   product_images?: ProductImage[]
   variants?: Variant[]
   categories?: Category

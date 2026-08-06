@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Badge from '@/components/Badge'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, ImageOff, Search, X, SlidersHorizontal, LayoutGrid, List, Trash2, CheckSquare, Square } from 'lucide-react'
+import {
+  Plus, ImageOff, Search, X, SlidersHorizontal, LayoutGrid, List, Trash2, CheckSquare, Square,
+  ArrowUpDown, GripVertical, MoveVertical, ArrowUpToLine, ArrowDownToLine, Loader2, Check,
+} from 'lucide-react'
 
 interface ProductItem {
   id: string
@@ -19,6 +22,8 @@ interface ProductItem {
   totalStock: number
   colors: string[]
   category?: string
+  // Orden manual del tenant — menor aparece primero. Ver "Editar orden" abajo.
+  sortOrder: number
 }
 
 interface ProductosGridProps {
@@ -55,6 +60,66 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+
+  // ── Editar orden (drag & drop, estilo springboard de iOS) ──────────────────
+  // Modo aparte: mientras está activo se ignoran búsqueda/filtros/orden y se
+  // muestran TODOS los productos (activos e inactivos) en su sort_order
+  // actual, para que arrastrar tenga sentido (vecinos reales, no de una
+  // sublista filtrada). orderedList vive en estado propio, separado de
+  // `products` (prop), y se resincroniza cada vez que se entra al modo.
+  const [editingOrder, setEditingOrder] = useState(false)
+  const [orderedList, setOrderedList] = useState<ProductItem[]>([])
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [moveMenuFor, setMoveMenuFor] = useState<string | null>(null)
+  const [savingOrder, setSavingOrder] = useState(false)
+
+  function startEditingOrder() {
+    setOrderedList([...products].sort((a, b) => a.sortOrder - b.sortOrder))
+    setEditingOrder(true)
+  }
+
+  function finishEditingOrder() {
+    setEditingOrder(false)
+    setMoveMenuFor(null)
+    router.refresh()
+  }
+
+  async function persistOrder(list: ProductItem[]) {
+    setSavingOrder(true)
+    try {
+      await Promise.all(
+        list.map((p, i) => supabase.from('products').update({ sort_order: (i + 1) * 10 }).eq('id', p.id))
+      )
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
+  function reorder(fromId: string, toId: string) {
+    if (fromId === toId) return
+    setOrderedList(prev => {
+      const next = [...prev]
+      const fromIdx = next.findIndex(p => p.id === fromId)
+      const toIdx = next.findIndex(p => p.id === toId)
+      if (fromIdx === -1 || toIdx === -1) return prev
+      const [moved] = next.splice(fromIdx, 1)
+      next.splice(toIdx, 0, moved)
+      persistOrder(next)
+      return next
+    })
+  }
+
+  function moveToEnd(id: string, position: 'top' | 'bottom') {
+    setOrderedList(prev => {
+      const next = prev.filter(p => p.id !== id)
+      const moved = prev.find(p => p.id === id)
+      if (!moved) return prev
+      position === 'top' ? next.unshift(moved) : next.push(moved)
+      persistOrder(next)
+      return next
+    })
+    setMoveMenuFor(null)
+  }
 
   const filtered = useMemo(() => {
     let list = [...products]
@@ -182,7 +247,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
             value={orden} onChange={e => setOrden(e.target.value as any)}
             className="text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-zinc-400 transition-colors text-zinc-600 bg-white"
           >
-            <option value="reciente">Mas recientes</option>
+            <option value="reciente">Orden manual</option>
             <option value="precio-asc">Precio arriba</option>
             <option value="precio-desc">Precio abajo</option>
             <option value="nombre">Nombre A-Z</option>
@@ -206,6 +271,15 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
               <List size={15} />
             </button>
           </div>
+
+          <button
+            onClick={startEditingOrder}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-zinc-200 text-zinc-600 rounded-lg hover:border-zinc-400 transition-colors"
+            title="Arrastrar para reordenar los productos en la tienda"
+          >
+            <ArrowUpDown size={15} />
+            Editar orden
+          </button>
 
           <span className="text-sm text-zinc-400 ml-auto">{filtered.length} productos</span>
 
@@ -274,10 +348,87 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
         </div>
       )}
 
+      {editingOrder && (
+        <div className="sticky top-[73px] z-10 px-8 py-3 border-b border-amber-200 bg-amber-50 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-amber-800">
+            <ArrowUpDown size={15} />
+            <span>Arrastrá los productos para reordenarlos — así se van a ver en tu tienda.</span>
+            {savingOrder && <span className="flex items-center gap-1 text-amber-600"><Loader2 size={13} className="animate-spin" /> Guardando...</span>}
+          </div>
+          <button onClick={finishEditingOrder} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors">
+            <Check size={14} /> Listo
+          </button>
+        </div>
+      )}
+
       <div className="px-8 py-6">
 
+        {/* MODO EDITAR ORDEN — grilla arrastrable estilo springboard de iOS */}
+        {editingOrder && (
+          <div className="grid grid-cols-3 gap-4">
+            {orderedList.map((product) => (
+              <div
+                key={product.id}
+                draggable
+                onDragStart={() => setDraggingId(product.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => { if (draggingId) reorder(draggingId, product.id) }}
+                onDragEnd={() => setDraggingId(null)}
+                className={`relative bg-white rounded-xl border overflow-hidden cursor-grab active:cursor-grabbing transition-opacity ${draggingId === product.id ? 'opacity-40' : 'border-zinc-200'}`}
+              >
+                <div className="absolute top-2 left-2 z-10 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-zinc-400 shadow-sm">
+                  <GripVertical size={14} />
+                </div>
+
+                {/* Botón "Mover a" — alternativa al drag para no arriesgar un mover-arriba de más */}
+                <div className="absolute top-2 right-2 z-10">
+                  <button
+                    onClick={() => setMoveMenuFor(moveMenuFor === product.id ? null : product.id)}
+                    className="w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-white transition-colors shadow-sm"
+                    title="Mover a..."
+                  >
+                    <MoveVertical size={13} />
+                  </button>
+                  {moveMenuFor === product.id && (
+                    <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg border border-zinc-200 shadow-lg overflow-hidden">
+                      <button
+                        onClick={() => moveToEnd(product.id, 'top')}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      >
+                        <ArrowUpToLine size={13} /> Mover arriba de todo
+                      </button>
+                      <button
+                        onClick={() => moveToEnd(product.id, 'bottom')}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left text-zinc-600 hover:bg-zinc-50 transition-colors border-t border-zinc-100"
+                      >
+                        <ArrowDownToLine size={13} /> Mover abajo de todo
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="h-40 bg-zinc-50 flex items-center justify-center relative overflow-hidden pointer-events-none">
+                  {product.cover
+                    ? <img src={product.cover} alt={product.name} className="w-full h-full object-cover" />
+                    : <ImageOff size={28} className="text-zinc-300" />
+                  }
+                  {!product.active && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                      <Badge variant="zinc">Inactivo</Badge>
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 pointer-events-none">
+                  <p className="font-medium text-zinc-900 text-sm truncate">{product.name}</p>
+                  {product.sku && <p className="text-[11px] text-zinc-400 font-mono mt-0.5">{product.sku}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* VISTA GALERIA */}
-        {view === 'grid' && (
+        {!editingOrder && view === 'grid' && (
           <div>
             {filtered.length > 0 && (
               <div className="flex items-center gap-2 mb-3">
@@ -370,7 +521,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
         )}
 
         {/* VISTA LISTA */}
-        {view === 'list' && (
+        {!editingOrder && view === 'list' && (
           <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
             {filtered.length === 0 ? <EmptyState /> : (
               <table className="w-full text-sm">

@@ -18,8 +18,9 @@ export default async function ProductosPage() {
   const [{ data: rawProducts }, { data: categories }, { data: storeConfig }] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, sku, active, category_id, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty))')
+      .select('id, name, sku, active, category_id, sort_order, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty))')
       .eq('tenant_id', tenantId)
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false }),
     supabase
       .from('categories')
@@ -60,6 +61,7 @@ export default async function ProductosPage() {
       totalStock,
       colors,
       category: catMap[product.category_id] ?? undefined,
+      sortOrder: product.sort_order ?? 0,
     }
   })
 

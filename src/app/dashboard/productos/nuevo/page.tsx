@@ -216,12 +216,25 @@ export default function NuevoProductoPage() {
       // category_id = "categoría principal" (la primera tildada) — se mantiene
       // solo por compatibilidad con reportes/exports viejos que todavía la leen.
       const primaryCategoryId = categoryIdsArray[0] ?? null
+      // Producto nuevo entra al tope del orden manual (mismo lugar donde
+      // aparecía antes con "más recientes primero"). El default de la
+      // columna (0) ya cubre esto en la mayoría de los casos, pero calculamos
+      // el mínimo real para dejar espacio (-10) y no pisar otro producto que
+      // ya esté en 0.
+      const { data: minOrderRow } = await supabase
+        .from('products')
+        .select('sort_order')
+        .eq('tenant_id', tenantId)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+      const topSortOrder = (minOrderRow?.[0]?.sort_order ?? 10) - 10
       const { data: product, error: productError } = await supabase
         .from('products')
         .insert({
           tenant_id: tenantId, name: name.trim(), sku: sku.trim() || null, slug,
           description: description.trim() || null, active: true,
           category_id: primaryCategoryId, is_bestseller: isBestseller,
+          sort_order: topSortOrder,
           min_qty: minQty.trim() === '' ? null : Math.max(1, Number(minQty)),
           max_installments: maxInstallments.trim() === '' ? null : Math.max(1, Number(maxInstallments)),
           width_cm: widthCm ? Number(widthCm) : null,
