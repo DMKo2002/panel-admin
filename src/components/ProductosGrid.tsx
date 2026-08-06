@@ -95,18 +95,26 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
     }
   }
 
-  function reorder(fromId: string, toId: string) {
+  // Reordena en vivo mientras arrastrás por encima de otra tarjeta — así se
+  // ve de entrada dónde va a quedar (estilo iOS: los íconos se corren solos
+  // apenas pasás por arriba). No persiste todavía: eso pasa una sola vez al
+  // soltar (commitDrag), para no spamear updates en cada dragover.
+  function previewReorder(fromId: string, toId: string) {
     if (fromId === toId) return
     setOrderedList(prev => {
+      const fromIdx = prev.findIndex(p => p.id === fromId)
+      const toIdx = prev.findIndex(p => p.id === toId)
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return prev
       const next = [...prev]
-      const fromIdx = next.findIndex(p => p.id === fromId)
-      const toIdx = next.findIndex(p => p.id === toId)
-      if (fromIdx === -1 || toIdx === -1) return prev
       const [moved] = next.splice(fromIdx, 1)
       next.splice(toIdx, 0, moved)
-      persistOrder(next)
       return next
     })
+  }
+
+  function commitDrag() {
+    setDraggingId(null)
+    persistOrder(orderedList)
   }
 
   function moveToEnd(id: string, position: 'top' | 'bottom') {
@@ -352,7 +360,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
         <div className="sticky top-[73px] z-10 px-8 py-3 border-b border-amber-200 bg-amber-50 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-amber-800">
             <ArrowUpDown size={15} />
-            <span>Arrastrá los productos para reordenarlos — así se van a ver en tu tienda.</span>
+            <span>Mantené presionado y arrastrá — los demás productos se corren solos para mostrarte dónde va a quedar.</span>
             {savingOrder && <span className="flex items-center gap-1 text-amber-600"><Loader2 size={13} className="animate-spin" /> Guardando...</span>}
           </div>
           <button onClick={finishEditingOrder} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors">
@@ -370,13 +378,17 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
               <div
                 key={product.id}
                 draggable
-                onDragStart={() => setDraggingId(product.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => { if (draggingId) reorder(draggingId, product.id) }}
-                onDragEnd={() => setDraggingId(null)}
-                className={`relative bg-white rounded-xl border overflow-hidden cursor-grab active:cursor-grabbing transition-opacity ${draggingId === product.id ? 'opacity-40' : 'border-zinc-200'}`}
+                onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggingId(product.id) }}
+                onDragOver={(e) => { e.preventDefault(); if (draggingId) previewReorder(draggingId, product.id) }}
+                onDrop={(e) => e.preventDefault()}
+                onDragEnd={commitDrag}
+                className={`relative bg-white rounded-xl border-2 overflow-hidden cursor-grab active:cursor-grabbing transition-all duration-150 ${
+                  draggingId === product.id
+                    ? 'opacity-60 scale-105 shadow-xl border-zinc-900 rotate-1 z-20'
+                    : 'border-dashed border-zinc-300 hover:border-zinc-500 hover:shadow-md hover:-translate-y-0.5'
+                }`}
               >
-                <div className="absolute top-2 left-2 z-10 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center text-zinc-400 shadow-sm">
+                <div className="absolute top-2 left-2 z-10 w-6 h-6 bg-zinc-900/80 rounded-full flex items-center justify-center text-white shadow-sm">
                   <GripVertical size={14} />
                 </div>
 
