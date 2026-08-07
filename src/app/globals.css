@@ -54,4 +54,17 @@
   .dark .btn-secondary { background: #27272a; border-color: #3f3f46; color: #d4d4d8; }
   .dark .btn-secondary:hover { background: #3f3f46; }
   .dark select.input { background: #27272a; color: #f4f4f5; }
+
+  /* Scrollbar fina y sutil (menú lateral) — casi invisible en reposo, un
+     poco más marcada al hoverear el contenedor. Firefox vía scrollbar-color,
+     resto de navegadores vía ::-webkit-scrollbar. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #e4e4e7 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 9999px; }
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb { background-color: #a1a1aa; }
+  .scrollbar-thin:hover { scrollbar-color: #a1a1aa transparent; }
 }

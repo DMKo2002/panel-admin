@@ -135,11 +135,9 @@ export default function GeneralPage() {
   return (
     <div>
       <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div>
-            <h1 className="text-xl font-semibold text-zinc-900">General</h1>
-            <p className="text-sm text-zinc-500 mt-0.5">Reglas básicas de tu tienda y del panel</p>
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900">General</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">Reglas básicas de tu tienda y del panel</p>
           <PageTutorialButton pageKey="general" />
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
