@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { parseCsv, csvRowsToObjects } from '@/lib/csv'
+import { isSuperAdmin } from '@/lib/superadmin'
 
 function slugify(text: string) {
   return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -48,6 +49,8 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    // Import/export CSV es solo para superadmin — ver export/route.ts
+    if (!isSuperAdmin(user.email)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
     const service = createServiceClient()
     const { data: userRows } = await service.from('users').select('tenant_id').eq('id', user.id).limit(1)

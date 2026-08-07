@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { toCsv } from '@/lib/csv'
+import { isSuperAdmin } from '@/lib/superadmin'
 
 const HEADERS = [
   'producto_id', 'variante_id', 'categoria', 'nombre', 'descripcion', 'imagenes', 'sku',
@@ -15,6 +16,10 @@ export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  // Import/export CSV es solo para superadmin (dmko2002@gmail.com, arambeck1972@gmail.com) —
+  // el resto de las cuentas ni ve el botón en la UI, pero esto evita que alguien
+  // le pegue directo a la URL.
+  if (!isSuperAdmin(user.email)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const service = createServiceClient()
   const { data: userRows } = await service.from('users').select('tenant_id').eq('id', user.id).limit(1)

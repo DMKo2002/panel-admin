@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import ProductosGrid from '@/components/ProductosGrid'
 import CsvImportExportButtons from '@/components/CsvImportExportButtons'
+import { isSuperAdmin } from '@/lib/superadmin'
 
 export default async function ProductosPage() {
   const supabase = await createClient()
@@ -73,11 +74,13 @@ export default async function ProductosPage() {
           <p className="text-sm text-zinc-500 mt-0.5">{products.length} productos</p>
         </div>
         <div className="flex items-center gap-3 relative">
-          <CsvImportExportButtons
-            exportUrl="/api/productos/export"
-            importUrl="/api/productos/import"
-            entityLabel="productos"
-          />
+          {isSuperAdmin(user.email) && (
+            <CsvImportExportButtons
+              exportUrl="/api/productos/export"
+              importUrl="/api/productos/import"
+              entityLabel="productos"
+            />
+          )}
           <Link href="/dashboard/productos/nuevo" className="btn-primary">
             <Plus size={16} />
             Nuevo producto
