@@ -127,7 +127,9 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
       </div>
 
       <p className="mt-4 text-xs text-zinc-400">
-        El pago se procesa con MercadoPago. Vas a cargar tu tarjeta en el sitio seguro de MP — nunca guardamos los datos de tu tarjeta.
+        El pago se procesa con MercadoPago. Vas a cargar tu medio de pago en el sitio seguro de MP — nunca guardamos los datos de tu tarjeta.
+        Aceptamos tarjetas de crédito y débito bancarias habilitadas para débito automático, o dinero disponible en tu cuenta de MercadoPago.
+        No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para suscripciones recurrentes.
       </p>
     </div>
   )
