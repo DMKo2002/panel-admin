@@ -195,6 +195,8 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
         showSkipButton
         showProgress={steps.length > 1}
         disableOverlayClose={false}
+        scrollOffset={120}
+        scrollDuration={300}
         callback={handleCallback}
         locale={{ back: 'Atrás', close: 'Cerrar', last: 'Listo', next: 'Continuar', skip: 'Salir del tutorial' }}
         styles={{
@@ -205,13 +207,14 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
             primaryColor: '#18181b',
             textColor: '#3f3f46',
             zIndex: 10000,
+            width: 440,
           },
           tooltip: { borderRadius: 14, padding: 20 },
-          tooltipTitle: { fontSize: 15, fontWeight: 600, marginBottom: 4, textAlign: 'left' },
-          tooltipContent: { fontSize: 13, padding: '4px 0', textAlign: 'left', lineHeight: 1.5 },
-          buttonNext: { backgroundColor: '#18181b', borderRadius: 8, fontSize: 13, padding: '8px 14px' },
-          buttonBack: { color: '#71717a', fontSize: 13, marginRight: 8 },
-          buttonSkip: { color: '#a1a1aa', fontSize: 12 },
+          tooltipTitle: { fontSize: 27, fontWeight: 600, marginBottom: 6, textAlign: 'left' },
+          tooltipContent: { fontSize: 25, padding: '4px 0', textAlign: 'left', lineHeight: 1.5 },
+          buttonNext: { backgroundColor: '#18181b', borderRadius: 8, fontSize: 15, padding: '8px 14px' },
+          buttonBack: { color: '#71717a', fontSize: 15, marginRight: 8 },
+          buttonSkip: { color: '#a1a1aa', fontSize: 14 },
         }}
       />
 

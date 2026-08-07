@@ -81,7 +81,7 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">General</p>
         {general.map(item => <NavLink key={item.href} item={item} pathname={pathname} />)}
 
