@@ -42,6 +42,7 @@ interface TourPageDef {
 const TOUR_PAGES: TourPageDef[] = [
   { key: 'general', href: '/dashboard/general', label: 'General' },
   { key: 'pagos',   href: '/dashboard/pagos',   label: 'Pagos y Finanzas' },
+  { key: 'envios',  href: '/dashboard/envios',  label: 'Envíos' },
 ]
 
 type Mode = 'full' | 'page' | 'field' | null
@@ -207,14 +208,13 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
             primaryColor: '#18181b',
             textColor: '#3f3f46',
             zIndex: 10000,
-            width: 440,
           },
           tooltip: { borderRadius: 14, padding: 20 },
-          tooltipTitle: { fontSize: 25, fontWeight: 600, marginBottom: 6, textAlign: 'left' },
-          tooltipContent: { fontSize: 23, padding: '4px 0', textAlign: 'left', lineHeight: 1.5 },
-          buttonNext: { backgroundColor: '#18181b', borderRadius: 8, fontSize: 15, padding: '8px 14px' },
-          buttonBack: { color: '#71717a', fontSize: 15, marginRight: 8 },
-          buttonSkip: { color: '#a1a1aa', fontSize: 14 },
+          tooltipTitle: { fontSize: 15, fontWeight: 600, marginBottom: 4, textAlign: 'left' },
+          tooltipContent: { fontSize: 13, padding: '4px 0', textAlign: 'left', lineHeight: 1.5 },
+          buttonNext: { backgroundColor: '#18181b', borderRadius: 8, fontSize: 13, padding: '8px 14px' },
+          buttonBack: { color: '#71717a', fontSize: 13, marginRight: 8 },
+          buttonSkip: { color: '#a1a1aa', fontSize: 12 },
         }}
       />
 

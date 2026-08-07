@@ -3,15 +3,35 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+
+// Es una sola sección dinámica (lista de métodos), no varios bloques fijos
+// como en General/Pagos — un solo paso que cubre todo el feature.
+const ENVIOS_STEPS: TutorialStep[] = [
+  {
+    id: 'envios-methods',
+    target: '[data-tutorial="envios-methods"]',
+    title: 'Métodos de envío',
+    content: 'Agregá los métodos que tu cliente puede elegir al finalizar la compra (retiro en local, correo, moto, etc.): nombre, precio y si está activo — los inactivos no se muestran en el checkout. Marcá "A convenir" si no tenés un precio fijo (el cliente lo ve así y coordinás el costo aparte). El campo de "Transportes" es opcional, pensado para envíos tipo Expreso/Contrareembolso: cargá las empresas separadas por coma y el cliente va a poder elegir una (o escribir la suya).',
+  },
+]
 
 export default function EnviosPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [configId, setConfigId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [customShipping, setCustomShipping] = useState<{name:string;price:number;active:boolean;priceOnRequest?:boolean;carriers?:string[]}[]>([])
   const [carriersText, setCarriersText] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    registerSteps('envios', ENVIOS_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -60,6 +80,7 @@ export default function EnviosPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Envíos</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Métodos que ve el cliente al finalizar la compra</p>
+          <PageTutorialButton pageKey="envios" />
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
@@ -68,10 +89,13 @@ export default function EnviosPage() {
       </div>
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="envios-methods" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Métodos de envío</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Métodos de envío</h2>
+                <TutorialHint pageKey="envios" step={ENVIOS_STEPS[0]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">Los clientes eligen uno al finalizar la compra</p>
             </div>
             <button onClick={() => setCustomShipping(s => [...s, { name: '', price: 0, active: true }])} className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:border-zinc-400 transition-colors flex items-center gap-1">

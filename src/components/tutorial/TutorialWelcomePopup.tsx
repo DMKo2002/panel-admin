@@ -14,7 +14,6 @@ export default function TutorialWelcomePopup() {
   const supabase = createClient()
   const { startFullTour } = useTutorial()
   const [visible, setVisible] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     async function check() {
@@ -22,10 +21,7 @@ export default function TutorialWelcomePopup() {
       if (!user) return
       const { data: rows } = await supabase.from('users').select('tutorial_dismissed').eq('id', user.id).limit(1)
       const dismissed = rows?.[0]?.tutorial_dismissed
-      if (!dismissed) {
-        setUserId(user.id)
-        setVisible(true)
-      }
+      if (!dismissed) setVisible(true)
     }
     check()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -33,8 +29,11 @@ export default function TutorialWelcomePopup() {
 
   async function handleDontShowAgain() {
     setVisible(false)
-    if (userId) {
-      await supabase.from('users').update({ tutorial_dismissed: true }).eq('id', userId)
+    try {
+      const res = await fetch('/api/tutorial/dismiss', { method: 'POST' })
+      if (!res.ok) console.error('[tutorial] no se pudo guardar "no volver a mostrar"', await res.text())
+    } catch (e) {
+      console.error('[tutorial] no se pudo guardar "no volver a mostrar"', e)
     }
   }
 
