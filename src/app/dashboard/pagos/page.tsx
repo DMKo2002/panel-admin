@@ -30,6 +30,12 @@ const PAGOS_STEPS: TutorialStep[] = [
     title: 'Transferencia bancaria',
     content: 'Alternativa a MercadoPago: el cliente transfiere directo a tu CBU o alias, y vos confirmás el pago a mano desde Pedidos. No paga comisión, pero requiere que lo confirmes manualmente cada vez.',
   },
+  {
+    id: 'pagos-cash',
+    target: '[data-tutorial="pagos-cash"]',
+    title: 'Efectivo en el local',
+    content: 'El cliente elige pagar en efectivo al retirar o recibir el pedido, sin transferir nada de antemano. Vos confirmás el cobro a mano desde Pedidos, igual que con transferencia. Usa la dirección de retiro que cargaste en Contacto y Redes.',
+  },
 ]
 
 export default function PagosPage() {
@@ -79,6 +85,7 @@ export default function PagosPage() {
       transfer_enabled: config.transfer_enabled,
       transfer_cbu:     config.transfer_cbu,
       transfer_alias:   config.transfer_alias,
+      cash_enabled:     (config as any).cash_enabled,
     }).eq('id', config.id)
     setSaving(false)
     if (error) {
@@ -213,6 +220,20 @@ export default function PagosPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Efectivo en el local */}
+        <div data-tutorial="pagos-cash" className="bg-white rounded-xl border border-zinc-200 p-5">
+          <div className="flex items-center gap-1.5 mb-4">
+            <h2 className="text-sm font-semibold text-zinc-700">Efectivo en el local</h2>
+            <TutorialHint pageKey="pagos" step={PAGOS_STEPS[3]} />
+          </div>
+          <ToggleRow label="Habilitar pago en efectivo" desc="El cliente paga al retirar o recibir el pedido — vos confirmás el cobro manualmente" checked={Boolean((config as any)?.cash_enabled)} onChange={v => update('cash_enabled' as any, v)} />
+          <p className="text-xs text-zinc-400 mt-3">
+            Usa la dirección de retiro que cargaste en{' '}
+            <a href="/dashboard/contacto" className="text-primary-600 hover:underline">Contacto y Redes</a>
+            {' '}— no hace falta configurar nada más acá.
+          </p>
         </div>
 
       </div>

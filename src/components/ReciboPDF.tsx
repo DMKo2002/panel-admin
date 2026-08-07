@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 
 // Algunos colores se cargaron eligiendo el color con el selector visual de
 // Panel Admin (VariantMatrix), que guarda el código hex como si fuera el
@@ -144,10 +144,13 @@ const styles = StyleSheet.create({
   tableRow:    { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', alignItems: 'flex-start' },
   tableRowLast:{ flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 10, alignItems: 'flex-start' },
   tableRowAlt: { backgroundColor: '#FAFAFA' },
-  colProd:     { flex: 4 },
+  colImg:      { flex: 0.7 },
+  colProd:     { flex: 3.3 },
   colQty:      { flex: 1, textAlign: 'center' },
   colPrice:    { flex: 2, textAlign: 'right' },
   colTotal:    { flex: 2, textAlign: 'right' },
+  productImg:  { width: 26, height: 26, borderRadius: 3, objectFit: 'cover' },
+  productImgPlaceholder: { width: 26, height: 26, borderRadius: 3, backgroundColor: '#F0F0F0' },
   headerCell:  { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 },
   cellText:    { fontSize: 9, color: '#333' },
   cellBold:    { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1C1C1C' },
@@ -313,7 +316,7 @@ export function ReciboPDF({
           <View style={styles.col}>
             <Text style={styles.colLabel}>Método de pago</Text>
             <Text style={styles.colValue}>
-              {order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia bancaria'}
+              {order.payment_method === 'mercadopago' ? 'MercadoPago' : order.payment_method === 'cash' ? 'Efectivo en el local' : 'Transferencia bancaria'}
             </Text>
             {order.mp_payment_id && <Text style={[styles.colSmall, { color: '#AAA', marginTop: 3 }]}>ID MP: {order.mp_payment_id}</Text>}
             {(order.shipping_method || order.shipping_address?.method_name) && (
@@ -343,6 +346,7 @@ export function ReciboPDF({
         <View style={styles.tableContainer}>
           <Text style={styles.sectionTitle}>Detalle del pedido</Text>
           <View style={styles.tableHeader}>
+            <Text style={[styles.headerCell, styles.colImg]}></Text>
             <Text style={[styles.headerCell, styles.colProd]}>Producto</Text>
             <Text style={[styles.headerCell, styles.colQty]}>Cant.</Text>
             <Text style={[styles.headerCell, styles.colPrice]}>Precio unit.</Text>
@@ -356,6 +360,12 @@ export function ReciboPDF({
             const isAlt  = i % 2 === 1
             return (
               <View key={item.id ?? i} style={[isLast ? styles.tableRowLast : styles.tableRow, isAlt ? styles.tableRowAlt : {}]}>
+                <View style={styles.colImg}>
+                  {item.product_image_url
+                    ? <Image src={item.product_image_url} style={styles.productImg} />
+                    : <View style={styles.productImgPlaceholder} />
+                  }
+                </View>
                 <View style={styles.colProd}>
                   <Text style={styles.cellBold}>{item.product_name}</Text>
                                     {pdfShowVariant && item.variant_desc && (

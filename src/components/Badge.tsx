@@ -32,7 +32,7 @@ export default function Badge({ variant, children, className }: BadgeProps) {
 // Helpers para los estados más frecuentes
 export function OrderStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: BadgeVariant }> = {
-    pending:   { label: 'Pendiente',  variant: 'amber' },
+    pending:   { label: 'Procesando', variant: 'amber' },
     confirmed: { label: 'Confirmado', variant: 'blue' },
     shipped:   { label: 'Enviado',    variant: 'violet' },
     delivered: { label: 'Entregado',  variant: 'green' },

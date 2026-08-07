@@ -54,7 +54,7 @@ function PaymentBadge({ status }: { status: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    pending:      { label: 'Pendiente',  cls: 'bg-zinc-100 text-zinc-600' },
+    pending:      { label: 'Procesando', cls: 'bg-zinc-100 text-zinc-600' },
     confirmed:    { label: 'Confirmado', cls: 'bg-blue-50 text-blue-700' },
     shipped:      { label: 'Enviado',    cls: 'bg-violet-50 text-violet-700' },
     ready_pickup: { label: 'Para retirar', cls: 'bg-orange-50 text-orange-700' },
@@ -179,7 +179,7 @@ export default function OrderPreviewModal({ orderId, mode, label }: Props) {
                       <PaymentBadge status={order.payment_status} />
                       <StatusBadge status={order.status} />
                       <span className="text-xs text-zinc-500 ml-auto">
-                        {order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia'}
+                        {order.payment_method === 'mercadopago' ? 'MercadoPago' : order.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'}
                       </span>
                     </div>
                   </section>

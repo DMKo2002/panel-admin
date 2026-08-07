@@ -66,7 +66,7 @@ export default async function PedidosPage({
 
   const statusOptions = [
     { value: '', label: 'Todos' },
-    { value: 'pending', label: 'Pendiente' },
+    { value: 'pending', label: 'Procesando' },
     { value: 'confirmed', label: 'Confirmado' },
     { value: 'shipped', label: 'Enviado' },
     { value: 'delivered', label: 'Entregado' },
@@ -146,7 +146,7 @@ export default async function PedidosPage({
                   </td>
                   <td className="px-3 py-2 font-medium text-zinc-900 text-xs whitespace-nowrap">{formatPrice(order.total)}</td>
                   <td className="px-3 py-2"><CustomerTypeBadge type={order.customers?.type ?? 'retail'} /></td>
-                  <td className="px-3 py-2 text-zinc-500 text-xs whitespace-nowrap">{order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia'}</td>
+                  <td className="px-3 py-2 text-zinc-500 text-xs whitespace-nowrap">{order.payment_method === 'mercadopago' ? 'MercadoPago' : order.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'}</td>
                   <td className="px-3 py-2"><PaymentStatusBadge status={order.payment_status} /></td>
                   <td className="px-3 py-2"><OrderStatusBadge status={order.status} /></td>
                   <td className="px-3 py-2 text-zinc-400 text-[11px] whitespace-nowrap">{formatDate(order.created_at)}</td>

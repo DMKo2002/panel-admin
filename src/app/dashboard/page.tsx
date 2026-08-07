@@ -125,7 +125,7 @@ export default async function DashboardPage() {
                     <td className="px-4 py-3 text-zinc-700">{order.customers?.full_name ?? 'Sin nombre'}</td>
                     <td className="px-4 py-3 font-medium text-zinc-900">{formatPrice(order.total)}</td>
                     <td className="px-4 py-3"><CustomerTypeBadge type={order.customers?.type ?? 'retail'} /></td>
-                    <td className="px-4 py-3 text-zinc-500 capitalize">{order.payment_method === 'mercadopago' ? 'MercadoPago' : 'Transferencia'}</td>
+                    <td className="px-4 py-3 text-zinc-500 capitalize">{order.payment_method === 'mercadopago' ? 'MercadoPago' : order.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'}</td>
                     <td className="px-4 py-3"><OrderStatusBadge status={order.status} /></td>
                   </tr>
                 ))}

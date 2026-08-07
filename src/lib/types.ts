@@ -18,7 +18,7 @@ export interface PanelUser {
 }
 export type CustomerType = 'retail' | 'wholesale'
 export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
-export type PaymentMethod = 'mercadopago' | 'transfer'
+export type PaymentMethod = 'mercadopago' | 'transfer' | 'cash'
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed'
 export type PriceType = 'retail' | 'wholesale'
 export type NotifChannel = 'whatsapp' | 'email' | 'sms'
@@ -73,6 +73,9 @@ export interface StoreConfig {
   transfer_enabled: boolean
   transfer_cbu: string | null
   transfer_alias: string | null
+  // Pago en efectivo al retirar / recibir el pedido — reusa store_config.pickup_address
+  // (Contacto y Redes) para la dirección, no tiene campos propios.
+  cash_enabled: boolean
   min_order_amount: number | null
   show_min_order_banner: boolean
   // Mínimo global de unidades por variante (talle/color) para poder agregarla
@@ -270,6 +273,10 @@ export interface OrderItem {
   unit_price: number
   price_type: PriceType
   subtotal: number
+  // Foto de portada del producto al momento del pedido — se copia en
+  // crear-pedido.ts (tienda-core) para que el recibo PDF no dependa de que
+  // el producto siga existiendo o sin cambios después.
+  product_image_url: string | null
 }
 
 export interface NotificationLog {
