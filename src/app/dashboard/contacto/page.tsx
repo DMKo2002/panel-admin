@@ -3,9 +3,30 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+
+// Un solo array fuente de verdad: lo usa tanto el tour completo de la página
+// (Instrucciones de uso, en el header) como los botones (?) individuales.
+const CONTACTO_STEPS: TutorialStep[] = [
+  {
+    id: 'contacto-info',
+    target: '[data-tutorial="contacto-info"]',
+    title: 'Contacto y redes sociales',
+    content: 'Estos datos aparecen en el pie de tu tienda, la página de contacto y los PDFs (etiquetas de envío, recibos). El WhatsApp también es el número al que llegan los avisos automáticos de pedidos nuevos — eso se configura en Notificaciones.',
+  },
+  {
+    id: 'contacto-branches',
+    target: '[data-tutorial="contacto-branches"]',
+    title: 'Sucursales',
+    content: 'Si tenés más de un local físico, cargalos acá — nombre, dirección y teléfono opcional. Se muestran listadas en el pie de tu tienda.',
+  },
+]
 
 export default function ContactoPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [configId, setConfigId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -18,6 +39,11 @@ export default function ContactoPage() {
   const [storeAddress, setStoreAddress] = useState('')
   const [pickupAddress, setPickupAddress] = useState('')
   const [branches, setBranches] = useState<{ name: string; address: string; phone?: string }[]>([])
+
+  useEffect(() => {
+    registerSteps('contacto', CONTACTO_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -71,6 +97,7 @@ export default function ContactoPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Contacto y Redes</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Se muestran en el footer, la página de contacto y los PDFs de tu tienda</p>
+          <PageTutorialButton pageKey="contacto" />
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
@@ -80,8 +107,11 @@ export default function ContactoPage() {
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Contacto y redes sociales</h2>
+        <div data-tutorial="contacto-info" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-zinc-700">Contacto y redes sociales</h2>
+            <TutorialHint pageKey="contacto" step={CONTACTO_STEPS[0]} />
+          </div>
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">WhatsApp</label>
@@ -111,10 +141,13 @@ export default function ContactoPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="contacto-branches" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Sucursales</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Sucursales</h2>
+                <TutorialHint pageKey="contacto" step={CONTACTO_STEPS[1]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">Aparecen en el footer del sitio</p>
             </div>
             <button onClick={() => setBranches(prev => [...prev, { name: '', address: '', phone: '' }])} className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700">

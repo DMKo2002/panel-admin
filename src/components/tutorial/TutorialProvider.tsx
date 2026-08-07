@@ -40,9 +40,18 @@ interface TourPageDef {
 // agregarla acá (en el orden en que se debe mostrar) y hacer que esa página
 // llame a registerSteps con sus propios pasos.
 const TOUR_PAGES: TourPageDef[] = [
-  { key: 'general', href: '/dashboard/general', label: 'General' },
-  { key: 'pagos',   href: '/dashboard/pagos',   label: 'Pagos y Finanzas' },
-  { key: 'envios',  href: '/dashboard/envios',  label: 'Envíos' },
+  { key: 'general',         href: '/dashboard/general',         label: 'General' },
+  { key: 'pagos',            href: '/dashboard/pagos',           label: 'Pagos y Finanzas' },
+  { key: 'envios',           href: '/dashboard/envios',          label: 'Envíos' },
+  { key: 'catalogo-config',  href: '/dashboard/catalogo-config', label: 'Catálogo' },
+  { key: 'contacto',         href: '/dashboard/contacto',        label: 'Contacto y Redes' },
+  { key: 'dominio',          href: '/dashboard/dominio',         label: 'Dominio' },
+  { key: 'notificaciones',  href: '/dashboard/notificaciones',  label: 'Notificaciones' },
+  { key: 'apariencia',      href: '/dashboard/apariencia',      label: 'Apariencia' },
+  { key: 'seo',             href: '/dashboard/seo',             label: 'SEO' },
+  { key: 'legal',           href: '/dashboard/legal',           label: 'Legal' },
+  { key: 'cuentas',         href: '/dashboard/cuentas',         label: 'Cuentas' },
+  { key: 'uso',             href: '/dashboard/uso',             label: 'Plan y uso' },
 ]
 
 type Mode = 'full' | 'page' | 'field' | null

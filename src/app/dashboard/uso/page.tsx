@@ -7,8 +7,27 @@ import { formatStorage } from '@/lib/plans'
 import { getTenantUsage, GRACE_DAYS } from '@/lib/usage'
 import { billingEnabled } from '@/lib/billing'
 import UpgradePlans from '@/components/UpgradePlans'
+import type { TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialRegister from '@/components/tutorial/TutorialRegister'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 export const dynamic = 'force-dynamic'
+
+const USO_STEPS: TutorialStep[] = [
+  {
+    id: 'uso-metrics',
+    target: '[data-tutorial="uso-metrics"]',
+    title: 'Consumo de tu plan',
+    content: 'Almacenamiento y productos tienen un límite según tu plan — si te acercás o lo superás, vas a ver un aviso arriba. Pedidos son siempre ilimitados y sin comisión en todos los planes; visitas se miden pero todavía no bloquean nada.',
+  },
+  {
+    id: 'uso-upgrade',
+    target: '[data-tutorial="uso-upgrade"]',
+    title: 'Cambiar de plan',
+    content: 'Desde acá podés subir (o bajar) de plan cuando lo necesites. Si superás un límite, tenés unos días de gracia para regularizar antes de que la tienda pública se suspenda — tus datos nunca se pierden.',
+  },
+]
 
 function formatBytes(bytes: number): string {
   const mb = bytes / (1024 * 1024)
@@ -37,10 +56,12 @@ export default async function UsoPage() {
 
   return (
     <div>
+      <TutorialRegister pageKey="uso" steps={USO_STEPS} />
       <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Plan y uso</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Consumo de recursos de tu tienda en el período actual</p>
+          <PageTutorialButton pageKey="uso" />
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-1.5 text-sm font-medium text-zinc-900">
           Plan {plan.nombre}
@@ -100,13 +121,14 @@ export default async function UsoPage() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div data-tutorial="uso-metrics" className="grid gap-4 sm:grid-cols-2">
           {/* Almacenamiento */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-900">
                 <HardDrive className="h-4 w-4 text-zinc-500" />
                 Almacenamiento
+                <TutorialHint pageKey="uso" step={USO_STEPS[0]} />
               </div>
               {storageError ? (
                 <p className="mt-2 text-sm text-zinc-400">
@@ -176,10 +198,15 @@ export default async function UsoPage() {
         </p>
 
         {billingEnabled() && (
-          <UpgradePlans
-            currentPlan={plan.id}
-            trialing={accountState === 'trial' || accountState === 'trial_grace' || accountState === 'suspended'}
-          />
+          <div data-tutorial="uso-upgrade" className="flex items-center gap-1.5 mt-6">
+            <TutorialHint pageKey="uso" step={USO_STEPS[1]} />
+            <div className="flex-1">
+              <UpgradePlans
+                currentPlan={plan.id}
+                trialing={accountState === 'trial' || accountState === 'trial_grace' || accountState === 'suspended'}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

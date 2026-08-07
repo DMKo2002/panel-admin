@@ -5,6 +5,25 @@ import CreateAccountForm from '@/components/CreateAccountForm'
 import DeleteAccountButton from '@/components/DeleteAccountButton'
 import EditPermissionsButton from '@/components/EditPermissionsButton'
 import { GRANTABLE_SETTINGS_ROUTES } from '@/lib/settings-nav'
+import type { TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialRegister from '@/components/tutorial/TutorialRegister'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+
+const CUENTAS_STEPS: TutorialStep[] = [
+  {
+    id: 'cuentas-create',
+    target: '[data-tutorial="cuentas-create"]',
+    title: 'Crear cuenta',
+    content: 'Invitá a alguien de tu equipo a usar el panel con su propio login. Podés darle acceso solo a Pedidos, Clientes, Productos, Categorías y Precios, o sumarle secciones de configuración puntuales al crearla.',
+  },
+  {
+    id: 'cuentas-table',
+    target: '[data-tutorial="cuentas-table"]',
+    title: 'Cuentas y permisos',
+    content: 'El Dueño tiene acceso total y no se puede editar ni borrar. Las cuentas de Empleado muestran a qué secciones tienen acceso — usá el lápiz para cambiar sus permisos en cualquier momento, o la papelera para eliminarlas.',
+  },
+]
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })
@@ -37,22 +56,32 @@ export default async function CuentasPage() {
 
   return (
     <div>
+      <TutorialRegister pageKey="cuentas" steps={CUENTAS_STEPS} />
       <div className="px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Cuentas</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Accesos al panel para vos y tu equipo</p>
+          <PageTutorialButton pageKey="cuentas" />
         </div>
-        <CreateAccountForm />
+        <div data-tutorial="cuentas-create" className="flex items-center gap-1.5">
+          <CreateAccountForm />
+          <TutorialHint pageKey="cuentas" step={CUENTAS_STEPS[0]} />
+        </div>
       </div>
 
       <div className="px-8 py-6">
-        <div className="bg-white rounded-xl border border-zinc-200">
+        <div data-tutorial="cuentas-table" className="bg-white rounded-xl border border-zinc-200">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100">
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Email</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Rol</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Acceso</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">
+                  <span className="inline-flex items-center gap-1">
+                    Acceso
+                    <TutorialHint pageKey="cuentas" step={CUENTAS_STEPS[1]} />
+                  </span>
+                </th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Creada</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3"></th>
               </tr>

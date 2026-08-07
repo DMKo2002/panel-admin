@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { StoreConfig } from '@/lib/types'
 import { Plus, Trash2, X } from 'lucide-react'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 interface VariantAttribute {
   key: string
@@ -12,8 +15,32 @@ interface VariantAttribute {
   options?: string[]
 }
 
+// Un solo array fuente de verdad: lo usa tanto el tour completo de la página
+// (Instrucciones de uso, en el header) como los botones (?) individuales.
+const CATALOGO_STEPS: TutorialStep[] = [
+  {
+    id: 'catalogo-variants',
+    target: '[data-tutorial="catalogo-variants"]',
+    title: 'Tabla de variantes',
+    content: 'Definí cómo se cargan las variantes de cada producto. Con la tabla activada armás combinaciones tipo talle × color; si tu catálogo no usa esa lógica (ej. cosmética), elegí "una sola variante" para que cada producto tenga un único stock y precio. También podés cambiar la columna a "Texto libre" si no es color (ej. modelo, ancho) y renombrar filas/columnas.',
+  },
+  {
+    id: 'catalogo-attributes',
+    target: '[data-tutorial="catalogo-attributes"]',
+    title: 'Atributos de productos',
+    content: 'Agregá campos extra que se cargan en cada producto (ej. material, género). Pueden ser de texto libre o una lista de opciones fijas para elegir — útil para mantener los datos consistentes entre productos.',
+  },
+  {
+    id: 'catalogo-format',
+    target: '[data-tutorial="catalogo-format"]',
+    title: 'Formato y unidades',
+    content: 'El formato de imagen define cómo se recortan las fotos al subirlas y cómo se ven en el grid de la tienda (retrato para indumentaria, cuadrada para otros rubros). La unidad de peso solo cambia la etiqueta del campo "Peso" en la ficha de producto.',
+  },
+]
+
 export default function CatalogoConfigPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [attributes, setAttributes] = useState<VariantAttribute[]>([])
   const [savingAttrs, setSavingAttrs] = useState(false)
@@ -29,6 +56,11 @@ export default function CatalogoConfigPage() {
   const [savingAll, setSavingAll] = useState(false)
   const [savedAll, setSavedAll] = useState(false)
   const [errorAll, setErrorAll] = useState<string | null>(null)
+
+  useEffect(() => {
+    registerSteps('catalogo-config', CATALOGO_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -141,6 +173,7 @@ export default function CatalogoConfigPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Catálogo</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Cómo se cargan y muestran tus productos</p>
+          <PageTutorialButton pageKey="catalogo-config" />
         </div>
         <button onClick={handleSaveAll} disabled={savingAll} className="btn-primary disabled:opacity-60">
           {savedAll ? '✓ Guardado' : savingAll ? 'Guardando...' : 'Guardar cambios'}
@@ -150,10 +183,13 @@ export default function CatalogoConfigPage() {
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
         {/* Tabla de variantes */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="catalogo-variants" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Tabla de variantes</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Tabla de variantes</h2>
+                <TutorialHint pageKey="catalogo-config" step={CATALOGO_STEPS[0]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">Cómo se cargan las variantes (talle/color) de cada producto</p>
             </div>
             <button onClick={handleSaveVariants} disabled={savingVariants} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
@@ -209,10 +245,13 @@ export default function CatalogoConfigPage() {
         </div>
 
         {/* Atributos de productos */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="catalogo-attributes" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Atributos de productos</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Atributos de productos</h2>
+                <TutorialHint pageKey="catalogo-config" step={CATALOGO_STEPS[1]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">Campos que aparecen al cargar cada producto</p>
             </div>
             <button onClick={handleSaveAttributes} disabled={savingAttrs} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
@@ -265,10 +304,13 @@ export default function CatalogoConfigPage() {
         </div>
 
         {/* Formato y unidades */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="catalogo-format" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Formato y unidades</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Formato y unidades</h2>
+                <TutorialHint pageKey="catalogo-config" step={CATALOGO_STEPS[2]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">Cómo se procesan las fotos de producto y en qué unidad se carga el peso</p>
             </div>
             <button onClick={handleSaveFormat} disabled={savingFormat} className="btn-secondary text-xs py-1.5 disabled:opacity-60">

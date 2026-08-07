@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/compress-image'
 import { ImageIcon, Upload, X, Loader2, Check } from 'lucide-react'
 import Toggle from '@/components/Toggle'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 // ─── Slots de imágenes por template ──────────────────────────────────────────
 const MINIMALISTA_SLOTS = [
@@ -201,9 +204,72 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
   )
 }
 
+const APARIENCIA_STEPS: TutorialStep[] = [
+  {
+    id: 'apariencia-save-all',
+    target: '[data-tutorial="apariencia-save-all"]',
+    title: 'Guardar todos los cambios',
+    content: 'Las imágenes se suben y guardan solas al elegir el archivo (mirá el "✓ Guardado" en cada foto). Este botón guarda de una vez todos los textos, colores y demás datos de esta página.',
+  },
+  {
+    id: 'apariencia-name',
+    target: '[data-tutorial="apariencia-name"]',
+    title: 'Nombre de la tienda',
+    content: 'Aparece en el sitio, el footer y los comprobantes de compra.',
+  },
+  {
+    id: 'apariencia-images',
+    target: '[data-tutorial="apariencia-images"]',
+    title: 'Imágenes',
+    content: 'Los slots disponibles dependen de tu template — cada uno indica el tamaño recomendado. Arrastrá o hacé click para subir; el cambio se ve al instante en tu tienda.',
+  },
+  {
+    id: 'apariencia-mono-hero',
+    target: '[data-tutorial="apariencia-mono-hero"]',
+    title: 'Hero',
+    content: 'Subí las imágenes del hero y editá su texto (temporada, título y bajada) en el mismo bloque — en tu template van juntos.',
+  },
+  {
+    id: 'apariencia-hero-text',
+    target: '[data-tutorial="apariencia-hero-text"]',
+    title: 'Textos del Hero',
+    content: 'Editá el título, la bajada y el color de texto de la portada de tu tienda. Usá blanco para fotos oscuras y negro para fotos claras.',
+  },
+  {
+    id: 'apariencia-nav-color',
+    target: '[data-tutorial="apariencia-nav-color"]',
+    title: 'Color del menú',
+    content: 'El texto del menú siempre está sobre el hero — elegí blanco o negro según el contraste de esa foto.',
+  },
+  {
+    id: 'apariencia-collections',
+    target: '[data-tutorial="apariencia-collections"]',
+    title: 'Colecciones',
+    content: 'Título y bajada de cada banner de colección. Si dejás un título vacío, se usa el nombre de la categoría automáticamente.',
+  },
+  {
+    id: 'apariencia-blog',
+    target: '[data-tutorial="apariencia-blog"]',
+    title: 'Blog',
+    content: 'Título, bajada y las 3 notas de la sección "Fashion news & tips". Las fotos se cargan arriba, en Imágenes → Blog. Justo debajo también podés elegir el color de fondo del bloque de Newsletter.',
+  },
+  {
+    id: 'apariencia-pdf',
+    target: '[data-tutorial="apariencia-pdf"]',
+    title: 'Recibos PDF',
+    content: 'Elegí qué datos mostrar en los comprobantes de compra: variante, tipo de precio, dirección y notas del pedido.',
+  },
+]
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function AparienciaPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
+
+  useEffect(() => {
+    registerSteps('apariencia', APARIENCIA_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Image slots
   const [template, setTemplate] = useState<string>('minimalista')
@@ -553,6 +619,7 @@ export default function AparienciaPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Apariencia</h1>
         <p className="text-sm text-zinc-500 mt-1">Imágenes y contenido de tu tienda. Los cambios se ven al instante.</p>
+        <PageTutorialButton pageKey="apariencia" />
         <div className="mt-2 inline-flex items-center gap-1.5 bg-primary-50 text-primary-700 text-xs font-medium px-2.5 py-1 rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-primary-400 inline-block" />
           Template: {template}
@@ -560,9 +627,12 @@ export default function AparienciaPage() {
       </div>
 
       {/* ── Guardar todo (barra fija arriba) ── */}
-      <div className="sticky top-0 z-20 -mx-8 px-8 py-3 bg-white/95 backdrop-blur border-b border-zinc-200 flex items-center justify-between">
+      <div data-tutorial="apariencia-save-all" className="sticky top-0 z-20 -mx-8 px-8 py-3 bg-white/95 backdrop-blur border-b border-zinc-200 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-zinc-700">Guardar todos los cambios</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-zinc-700">Guardar todos los cambios</p>
+            <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[0]} />
+          </div>
           <p className="text-xs text-zinc-400">Las imágenes se suben y guardan solas (mirá el "✓ Guardado" en cada foto). Este botón guarda de una vez todos los textos, colores y datos de esta página.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -578,10 +648,13 @@ export default function AparienciaPage() {
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
           Identidad de marca
         </h2>
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="apariencia-name" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-zinc-700">Nombre de la tienda</h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-zinc-700">Nombre de la tienda</h3>
+                <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[1]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">Aparece en el sitio, footer y comprobantes</p>
             </div>
             <button onClick={handleSaveName} disabled={savingName} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
@@ -596,10 +669,11 @@ export default function AparienciaPage() {
       {!isMono && (
       <>
       {/* ── Imágenes (Hero, colecciones, blog, etc.) ── */}
-      <section className="space-y-10">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          Imágenes
-        </h2>
+      <section data-tutorial="apariencia-images" className="space-y-10">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Imágenes</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[2]} />
+        </div>
         {Object.entries(groups).map(([prefix, groupSlots]) => (
           <div key={prefix}>
             <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
@@ -622,10 +696,11 @@ export default function AparienciaPage() {
 
       {/* ── Textos del Hero ── (Glow/Bazaar no usan hero de texto — su home es el carrusel de banners) */}
       {template !== 'glow' && template !== 'bazaar' && (
-      <section className="space-y-6">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          Textos del Hero
-        </h2>
+      <section data-tutorial="apariencia-hero-text" className="space-y-6">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Textos del Hero</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[4]} />
+        </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -701,10 +776,11 @@ export default function AparienciaPage() {
       )}
 
       {/* ── Color del menú ── */}
-      <section className="space-y-6">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          Color del menú
-        </h2>
+      <section data-tutorial="apariencia-nav-color" className="space-y-6">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Color del menú</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[5]} />
+        </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -793,10 +869,11 @@ export default function AparienciaPage() {
       {hasCollections && (
       <>
       {/* ── Colecciones ── */}
-      <section className="space-y-6">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          Colecciones
-        </h2>
+      <section data-tutorial="apariencia-collections" className="space-y-6">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Colecciones</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[6]} />
+        </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
           <div className="flex items-center justify-between">
             <div>
@@ -883,10 +960,11 @@ export default function AparienciaPage() {
       {hasBlogSections && (
       <>
       {/* ── Blog ── */}
-      <section className="space-y-6">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          Blog
-        </h2>
+      <section data-tutorial="apariencia-blog" className="space-y-6">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Blog</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[7]} />
+        </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
           <div className="flex items-center justify-between">
             <div>
@@ -1007,10 +1085,11 @@ export default function AparienciaPage() {
       </section>
 
       {/* ── 1. Hero ── */}
-      <section className="space-y-6">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          1. Hero
-        </h2>
+      <section data-tutorial="apariencia-mono-hero" className="space-y-6">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">1. Hero</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[3]} />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
           {(groups['hero'] ?? []).map(slotDef => (
             <AssetSlot
@@ -1140,10 +1219,11 @@ export default function AparienciaPage() {
       )}
 
       {/* ── Recibos PDF ── */}
-      <section className="space-y-6">
-        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-200 pb-3">
-          Recibos PDF
-        </h2>
+      <section data-tutorial="apariencia-pdf" className="space-y-6">
+        <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-3">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Recibos PDF</h2>
+          <TutorialHint pageKey="apariencia" step={APARIENCIA_STEPS[8]} />
+        </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>

@@ -2,6 +2,30 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+
+const LEGAL_STEPS: TutorialStep[] = [
+  {
+    id: 'legal-terms',
+    target: '[data-tutorial="legal-terms"]',
+    title: 'Términos y condiciones',
+    content: 'Se muestran en la página legal de tu tienda. Si no tenés uno propio, usá el botón "Usar texto predeterminado" como punto de partida y editalo a gusto.',
+  },
+  {
+    id: 'legal-privacy',
+    target: '[data-tutorial="legal-privacy"]',
+    title: 'Política de privacidad',
+    content: 'Explica qué datos de tus clientes recopilás y cómo los usás. También tiene un texto predeterminado que podés adaptar.',
+  },
+  {
+    id: 'legal-cookies',
+    target: '[data-tutorial="legal-cookies"]',
+    title: 'Política de cookies',
+    content: 'Describe el uso de cookies en tu tienda (sesión, carrito, análisis). Igual que las otras dos, podés partir del texto predeterminado.',
+  },
+]
 
 const DEFAULT_COOKIES = `POLÍTICA DE COOKIES
 
@@ -67,6 +91,7 @@ Si tenés preguntas sobre esta política, podés contactarnos a través de los m
 
 export default function LegalPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [configId, setConfigId] = useState<string | null>(null)
   const [terms, setTerms] = useState('')
   const [privacy, setPrivacy] = useState('')
@@ -74,6 +99,11 @@ export default function LegalPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+
+  useEffect(() => {
+    registerSteps('legal', LEGAL_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -118,6 +148,7 @@ export default function LegalPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Legal</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Textos que aparecen en las páginas legales de tu tienda</p>
+          <PageTutorialButton pageKey="legal" />
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
@@ -127,9 +158,12 @@ export default function LegalPage() {
 
       <div className="px-8 py-6 max-w-2xl space-y-5">
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
-          <div>
+          <div data-tutorial="legal-terms">
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-zinc-600">Términos y condiciones</label>
+              <div className="flex items-center gap-1.5">
+                <label className="block text-xs font-medium text-zinc-600">Términos y condiciones</label>
+                <TutorialHint pageKey="legal" step={LEGAL_STEPS[0]} />
+              </div>
               {!terms && (
                 <button onClick={() => setTerms(DEFAULT_TERMS)} className="text-xs text-primary-600 hover:text-primary-700">
                   Usar texto predeterminado
@@ -143,9 +177,12 @@ export default function LegalPage() {
               placeholder="Escribí acá los términos y condiciones de tu tienda..."
             />
           </div>
-          <div>
+          <div data-tutorial="legal-privacy">
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-zinc-600">Política de privacidad</label>
+              <div className="flex items-center gap-1.5">
+                <label className="block text-xs font-medium text-zinc-600">Política de privacidad</label>
+                <TutorialHint pageKey="legal" step={LEGAL_STEPS[1]} />
+              </div>
               {!privacy && (
                 <button onClick={() => setPrivacy(DEFAULT_PRIVACY)} className="text-xs text-primary-600 hover:text-primary-700">
                   Usar texto predeterminado
@@ -159,9 +196,12 @@ export default function LegalPage() {
               placeholder="Escribí acá la política de privacidad de tu tienda..."
             />
           </div>
-          <div>
+          <div data-tutorial="legal-cookies">
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-zinc-600">Política de cookies</label>
+              <div className="flex items-center gap-1.5">
+                <label className="block text-xs font-medium text-zinc-600">Política de cookies</label>
+                <TutorialHint pageKey="legal" step={LEGAL_STEPS[2]} />
+              </div>
               {!cookies && (
                 <button onClick={() => setCookies(DEFAULT_COOKIES)} className="text-xs text-primary-600 hover:text-primary-700">
                   Usar texto predeterminado

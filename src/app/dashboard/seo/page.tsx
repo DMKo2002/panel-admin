@@ -2,12 +2,36 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 const TITLE_MAX = 70
 const DESCRIPTION_MAX = 160
 
+const SEO_STEPS: TutorialStep[] = [
+  {
+    id: 'seo-preview',
+    target: '[data-tutorial="seo-preview"]',
+    title: 'Vista previa en Google',
+    content: 'Así se ve tu tienda en un resultado de búsqueda de Google — se actualiza en vivo mientras escribís el título y la descripción de abajo.',
+  },
+  {
+    id: 'seo-fields',
+    target: '[data-tutorial="seo-fields"]',
+    title: 'Título y descripción',
+    content: 'Si los dejás vacíos, se usa el nombre de tu tienda y una descripción genérica. La descripción también aparece como bajada al compartir el link de tu tienda por WhatsApp o redes.',
+  },
+]
+
 export default function SeoPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
+
+  useEffect(() => {
+    registerSteps('seo', SEO_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [configId, setConfigId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -71,6 +95,7 @@ export default function SeoPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">SEO</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Así aparece tu tienda cuando alguien te busca en Google</p>
+          <PageTutorialButton pageKey="seo" />
         </div>
         <div className="flex flex-col items-end gap-1">
           <button onClick={handleSave} disabled={saving || !configId} className="btn-primary disabled:opacity-60">
@@ -83,8 +108,11 @@ export default function SeoPage() {
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
         {/* Preview estilo resultado de Google */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <h2 className="text-sm font-semibold text-zinc-700 mb-3">Vista previa en Google</h2>
+        <div data-tutorial="seo-preview" className="bg-white rounded-xl border border-zinc-200 p-5">
+          <div className="flex items-center gap-1.5 mb-3">
+            <h2 className="text-sm font-semibold text-zinc-700">Vista previa en Google</h2>
+            <TutorialHint pageKey="seo" step={SEO_STEPS[0]} />
+          </div>
           <div className="border border-zinc-100 rounded-lg p-4 bg-zinc-50/50">
             <p className="text-xs text-zinc-500 truncate">{storeUrl}</p>
             <p className="text-[#1a0dab] text-lg leading-snug truncate mt-0.5">{previewTitle}</p>
@@ -92,8 +120,11 @@ export default function SeoPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Título y descripción</h2>
+        <div data-tutorial="seo-fields" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-zinc-700">Título y descripción</h2>
+            <TutorialHint pageKey="seo" step={SEO_STEPS[1]} />
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">

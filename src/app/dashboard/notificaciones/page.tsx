@@ -5,9 +5,45 @@ import { createClient } from '@/lib/supabase/client'
 import Toggle from '@/components/Toggle'
 import { MessageCircle, Mail, CheckCircle, XCircle, Clock } from 'lucide-react'
 import type { StoreConfig, NotificationLog } from '@/lib/types'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+
+const NOTIFICACIONES_STEPS: TutorialStep[] = [
+  {
+    id: 'notif-channels',
+    target: '[data-tutorial="notif-channels"]',
+    title: 'Canales de notificación',
+    content: 'El WhatsApp se edita en Contacto y Redes — acá solo se muestra de referencia. El email de notificaciones es a donde te llegan los avisos cuando marcás las opciones de abajo.',
+  },
+  {
+    id: 'notif-when',
+    target: '[data-tutorial="notif-when"]',
+    title: '¿Cuándo notificar?',
+    content: 'Elegí qué avisos querés recibir y por qué canal: pedido nuevo (WhatsApp y/o email), stock bajo, y recordatorio de transferencia pendiente después de 24hs sin confirmar el pago.',
+  },
+  {
+    id: 'notif-email',
+    target: '[data-tutorial="notif-email"]',
+    title: 'Identidad y mensajes de email',
+    content: 'Configurá cómo aparecen tus mails: el nombre de remitente que ve el cliente, el email de respuesta (reply-to), y los mensajes personalizados que se muestran al confirmar un pedido o al marcarlo como enviado.',
+  },
+  {
+    id: 'notif-log',
+    target: '[data-tutorial="notif-log"]',
+    title: 'Últimas notificaciones',
+    content: 'Acá ves el historial de las últimas notificaciones enviadas, con su estado: enviado, pendiente o falló.',
+  },
+]
 
 export default function NotificacionesPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
+
+  useEffect(() => {
+    registerSteps('notificaciones', NOTIFICACIONES_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [logs, setLogs] = useState<NotificationLog[]>([])
 
@@ -98,15 +134,19 @@ export default function NotificacionesPage() {
       <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white">
         <h1 className="text-xl font-semibold text-zinc-900">Notificaciones</h1>
         <p className="text-sm text-zinc-500 mt-0.5">Configurá cómo te avisamos de cada venta</p>
+        <PageTutorialButton pageKey="notificaciones" />
       </div>
 
       <div className="px-8 py-6 grid grid-cols-5 gap-6">
 
         {/* Config */}
         <div className="col-span-3 space-y-5">
-          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div data-tutorial="notif-channels" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-700">Canales de notificación</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Canales de notificación</h2>
+                <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[0]} />
+              </div>
               <button onClick={handleSaveChannels} disabled={savingChannels} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
                 {savedChannels ? '✓ Guardado' : savingChannels ? 'Guardando...' : 'Guardar canales'}
               </button>
@@ -142,8 +182,11 @@ export default function NotificacionesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-zinc-200 p-5">
-            <h2 className="text-sm font-semibold text-zinc-700 mb-4">¿Cuándo notificar?</h2>
+          <div data-tutorial="notif-when" className="bg-white rounded-xl border border-zinc-200 p-5">
+            <div className="flex items-center gap-1.5 mb-4">
+              <h2 className="text-sm font-semibold text-zinc-700">¿Cuándo notificar?</h2>
+              <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[1]} />
+            </div>
             <div className="space-y-1">
               {[
                 { field: 'notify_wa_new_order', label: 'WhatsApp al recibir un pedido', desc: 'Mensaje instantáneo con el detalle del pedido', icon: <MessageCircle size={14} className="text-green-500" /> },
@@ -169,10 +212,13 @@ export default function NotificacionesPage() {
           </div>
 
           {/* Identidad y mensajes de email */}
-          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div data-tutorial="notif-email" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-zinc-700">Identidad y mensajes de email</h2>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-zinc-700">Identidad y mensajes de email</h2>
+                  <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[2]} />
+                </div>
                 <p className="text-xs text-zinc-400 mt-0.5">Cómo aparecen y qué dicen los correos de tu tienda</p>
               </div>
               <button onClick={handleSaveEmail} disabled={savingEmail} className="btn-secondary text-xs py-1.5 disabled:opacity-60">
@@ -236,8 +282,11 @@ export default function NotificacionesPage() {
         </div>
 
         {/* Log */}
-        <div className="col-span-2">
-          <h2 className="text-sm font-semibold text-zinc-700 mb-3">Últimas notificaciones</h2>
+        <div data-tutorial="notif-log" className="col-span-2">
+          <div className="flex items-center gap-1.5 mb-3">
+            <h2 className="text-sm font-semibold text-zinc-700">Últimas notificaciones</h2>
+            <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[3]} />
+          </div>
           <div className="space-y-2">
             {logs.map(log => (
               <div key={log.id} className="bg-white rounded-xl border border-zinc-200 p-3 flex items-start gap-3">

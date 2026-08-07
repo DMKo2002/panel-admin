@@ -3,8 +3,32 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Globe, Loader2, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 type DomainStatus = 'none' | 'pending' | 'verified' | 'error'
+
+// Un solo array fuente de verdad: lo usa tanto el tour completo de la página
+// (Instrucciones de uso, en el header) como los botones (?) individuales.
+// "dominio-connect" apunta al mismo data-tutorial en los 3 bloques
+// mutuamente excluyentes (sin dominio / pendiente / verificado) — solo uno
+// existe en el DOM en cada momento, así que el selector siempre encuentra
+// el correcto sin importar en qué estado esté el tenant.
+const DOMINIO_STEPS: TutorialStep[] = [
+  {
+    id: 'dominio-default',
+    target: '[data-tutorial="dominio-default"]',
+    title: 'Tu dirección en gounuri',
+    content: 'Esta dirección (tuslug.gounuri.com) siempre funciona, tengas o no un dominio propio conectado — es tu respaldo, nunca se cae.',
+  },
+  {
+    id: 'dominio-connect',
+    target: '[data-tutorial="dominio-connect"]',
+    title: 'Conectar tu dominio propio',
+    content: 'Si ya compraste un dominio (ej. mitienda.com), cargalo acá. Te mostramos los registros DNS exactos para copiar y pegar en tu proveedor (Cloudflare, Whois, etc.). Puede tardar minutos u horas en propagar — tocá "Ya lo configuré, verificar" una vez que lo hayas cargado.',
+  },
+]
 
 interface DnsRecord {
   type: string
@@ -13,12 +37,37 @@ interface DnsRecord {
   reason: string
 }
 
+interface DnsInstruction {
+  type: string
+  name: string
+  value: string
+}
+
+function CopyableRow({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-zinc-400 flex-shrink-0">{label}:</span>
+      <button
+        type="button"
+        onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+        className="flex-1 text-right break-all hover:text-primary-700 transition-colors"
+        title="Copiar"
+      >
+        {copied ? 'Copiado ✓' : value}
+      </button>
+    </div>
+  )
+}
+
 export default function DominioPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [slug, setSlug] = useState('')
   const [domain, setDomain] = useState<string | null>(null)
   const [status, setStatus] = useState<DomainStatus>('none')
   const [verification, setVerification] = useState<DnsRecord[] | null>(null)
+  const [dns, setDns] = useState<DnsInstruction[]>([])
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -26,6 +75,11 @@ export default function DominioPage() {
   const [checking, setChecking] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    registerSteps('dominio', DOMINIO_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -39,12 +93,19 @@ export default function DominioPage() {
       if (tenant) {
         setSlug(tenant.slug)
         setDomain(tenant.domain)
-        setStatus((tenant.domain_status as DomainStatus) ?? 'none')
+        const domainStatus = (tenant.domain_status as DomainStatus) ?? 'none'
+        setStatus(domainStatus)
         // Si ya había tipeado un dominio en el onboarding pero nunca se llegó
         // a conectar (domain_status sigue 'none'), precargarlo acá para que
         // no tenga que volver a escribirlo.
-        if ((tenant.domain_status ?? 'none') === 'none' && tenant.domain) {
+        if (domainStatus === 'none' && tenant.domain) {
           setInput(tenant.domain)
+        }
+        // Pendiente/error: los registros DNS no se guardan en la base (se
+        // piden en vivo a Vercel) — sin esto, al refrescar la página el
+        // tenant se quedaba sin verlos hasta tocar "Verificar" a mano.
+        if ((domainStatus === 'pending' || domainStatus === 'error') && tenant.domain) {
+          fetch('/api/dominio').then(r => r.json()).then(json => setDns(json.dns ?? [])).catch(() => {})
         }
       }
       setLoading(false)
@@ -67,6 +128,7 @@ export default function DominioPage() {
       setDomain(json.domain)
       setStatus(json.verified ? 'verified' : 'pending')
       setVerification(json.verification)
+      setDns(json.dns ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo agregar el dominio.')
     } finally {
@@ -83,6 +145,7 @@ export default function DominioPage() {
       if (!res.ok || json.error) throw new Error(json.error ?? 'No se pudo verificar el dominio.')
       setStatus(json.status)
       setVerification(json.verification)
+      setDns(json.dns ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo verificar el dominio.')
     } finally {
@@ -115,6 +178,7 @@ export default function DominioPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Dominio</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Usá tu propio dominio en vez de {slug || 'tu-tienda'}.gounuri.com</p>
+          <PageTutorialButton pageKey="dominio" />
         </div>
       </div>
 
@@ -126,8 +190,11 @@ export default function DominioPage() {
         ) : (
           <>
             {/* Dominio por defecto — siempre activo */}
-            <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-2">
-              <h2 className="text-sm font-semibold text-zinc-700">Tu dirección en gounuri</h2>
+            <div data-tutorial="dominio-default" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Tu dirección en gounuri</h2>
+                <TutorialHint pageKey="dominio" step={DOMINIO_STEPS[0]} />
+              </div>
               <div className="flex items-center gap-2 text-sm text-zinc-600">
                 <Globe size={14} className="text-zinc-400" />
                 <span>{slug || 'tu-tienda'}.gounuri.com</span>
@@ -144,9 +211,12 @@ export default function DominioPage() {
 
             {/* Sin dominio propio todavía */}
             {status === 'none' && (
-              <form onSubmit={handleAdd} className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+              <form data-tutorial="dominio-connect" onSubmit={handleAdd} className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
                 <div>
-                  <h2 className="text-sm font-semibold text-zinc-700">Dominio propio</h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm font-semibold text-zinc-700">Dominio propio</h2>
+                    <TutorialHint pageKey="dominio" step={DOMINIO_STEPS[1]} />
+                  </div>
                   <p className="text-xs text-zinc-400 mt-0.5">Si ya tenés un dominio comprado (ej: mitienda.com), lo conectamos acá.</p>
                 </div>
                 <div>
@@ -170,9 +240,12 @@ export default function DominioPage() {
                 bloque, con "Verificar" el usuario reintenta sin tener que
                 volver a escribir el dominio) */}
             {(status === 'pending' || status === 'error') && domain && (
-              <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+              <div data-tutorial="dominio-connect" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
                 <div>
-                  <h2 className="text-sm font-semibold text-zinc-700">{domain}</h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm font-semibold text-zinc-700">{domain}</h2>
+                    <TutorialHint pageKey="dominio" step={DOMINIO_STEPS[1]} />
+                  </div>
                   {status === 'error' ? (
                     <p className="text-xs text-red-600 mt-0.5">Hubo un error conectando el dominio. Probá "Verificar" para reintentar.</p>
                   ) : (
@@ -180,20 +253,39 @@ export default function DominioPage() {
                   )}
                 </div>
 
-                {verification && verification.length > 0 ? (
+                {dns.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs text-zinc-500">
-                      Entrá a donde compraste el dominio (o donde manejás el DNS) y agregá este registro:
+                      Entrá a donde compraste el dominio (o donde manejás el DNS) y cargá este registro — tocá el valor para copiarlo:
                     </p>
-                    {verification.map((rec, i) => (
-                      <div key={i} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs font-mono space-y-1">
-                        <p><span className="text-zinc-400">Tipo:</span> {rec.type}</p>
-                        <p><span className="text-zinc-400">Nombre:</span> {rec.domain}</p>
-                        <p className="break-all"><span className="text-zinc-400">Valor:</span> {rec.value}</p>
+                    {dns.map((rec, i) => (
+                      <div key={i} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs font-mono space-y-1.5">
+                        <CopyableRow label="Tipo" value={rec.type} />
+                        <CopyableRow label="Nombre" value={rec.name} />
+                        <CopyableRow label="Valor" value={rec.value} />
                       </div>
                     ))}
                   </div>
-                ) : (
+                )}
+
+                {/* Caso borde: Vercel pide probar que el dominio es tuyo (ya
+                    está usado en otra cuenta, etc.) — casi nunca aparece. */}
+                {verification && verification.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-amber-600">
+                      Vercel además pide verificar la propiedad del dominio con este registro:
+                    </p>
+                    {verification.map((rec, i) => (
+                      <div key={i} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-mono space-y-1.5">
+                        <CopyableRow label="Tipo" value={rec.type} />
+                        <CopyableRow label="Nombre" value={rec.domain} />
+                        <CopyableRow label="Valor" value={rec.value} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {dns.length === 0 && (!verification || verification.length === 0) && (
                   <p className="text-xs text-zinc-500">
                     Apuntá el dominio a Vercel (CNAME a <code className="bg-zinc-100 px-1 rounded">cname.vercel-dns.com</code> si es un subdominio, o los registros que te haya indicado tu proveedor para el dominio raíz).
                   </p>
@@ -215,10 +307,11 @@ export default function DominioPage() {
 
             {/* Verificado y en vivo */}
             {status === 'verified' && domain && (
-              <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+              <div data-tutorial="dominio-connect" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={16} className="text-green-600" />
                   <h2 className="text-sm font-semibold text-zinc-700">{domain}</h2>
+                  <TutorialHint pageKey="dominio" step={DOMINIO_STEPS[1]} />
                 </div>
                 <p className="text-xs text-zinc-500">Tu tienda ya está en vivo en tu dominio propio.</p>
                 <div className="flex gap-3">
