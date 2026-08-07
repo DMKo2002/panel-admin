@@ -5,9 +5,36 @@ import { createClient } from '@/lib/supabase/client'
 import Toggle from '@/components/Toggle'
 import type { StoreConfig } from '@/lib/types'
 import { CheckCircle, XCircle } from 'lucide-react'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+
+// Un solo array fuente de verdad: lo usa tanto el tour completo de la página
+// (botón (?) del header) como cada botón (?) individual de cada bloque.
+const PAGOS_STEPS: TutorialStep[] = [
+  {
+    id: 'pagos-mp',
+    target: '[data-tutorial="pagos-mp"]',
+    title: 'MercadoPago',
+    content: 'Activá MercadoPago para que tus clientes paguen con tarjeta, débito o QR. Si ofrecés cuotas sin interés, elegí acá cuántas — pero primero tenés que activarlo en tu propia cuenta de MercadoPago; esto solo controla el cartel que se muestra en tu tienda, no activa nada por sí solo.',
+  },
+  {
+    id: 'pagos-mp-creds',
+    target: '[data-tutorial="pagos-mp-creds"]',
+    title: 'Credenciales de MercadoPago',
+    content: 'Acá cargás el Public Key y el Access Token de TU cuenta de MercadoPago (los conseguís en mercadopago.com.ar/developers → Credenciales). El Access Token es la clave real que cobra en tu nombre — nunca la compartas con nadie.',
+  },
+  {
+    id: 'pagos-transfer',
+    target: '[data-tutorial="pagos-transfer"]',
+    title: 'Transferencia bancaria',
+    content: 'Alternativa a MercadoPago: el cliente transfiere directo a tu CBU o alias, y vos confirmás el pago a mano desde Pedidos. No paga comisión, pero requiere que lo confirmes manualmente cada vez.',
+  },
+]
 
 export default function PagosPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -17,6 +44,11 @@ export default function PagosPage() {
   const [savingMp, setSavingMp] = useState(false)
   const [savedMp, setSavedMp] = useState(false)
   const [errorMp, setErrorMp] = useState<string | null>(null)
+
+  useEffect(() => {
+    registerSteps('pagos', PAGOS_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -80,9 +112,12 @@ export default function PagosPage() {
   return (
     <div>
       <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Pagos y Finanzas</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Cómo cobrás — es la sección más sensible del panel</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-xl font-semibold text-zinc-900">Pagos y Finanzas</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">Cómo cobrás — es la sección más sensible del panel</p>
+          </div>
+          <PageTutorialButton pageKey="pagos" />
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
@@ -93,9 +128,12 @@ export default function PagosPage() {
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
         {/* MercadoPago */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="pagos-mp" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-700">MercadoPago</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">MercadoPago</h2>
+              <TutorialHint pageKey="pagos" step={PAGOS_STEPS[0]} />
+            </div>
             {hasMpToken
               ? <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium"><CheckCircle size={13} />Conectado</span>
               : <span className="flex items-center gap-1.5 text-xs text-zinc-400"><XCircle size={13} />No conectado</span>
@@ -129,9 +167,12 @@ export default function PagosPage() {
 
         {/* Credenciales MercadoPago — bloque separado por sensibilidad */}
         {config?.mp_enabled && (
-          <div className="bg-white rounded-xl border border-amber-200 p-5 space-y-4">
+          <div data-tutorial="pagos-mp-creds" className="bg-white rounded-xl border border-amber-200 p-5 space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Credenciales de MercadoPago</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-zinc-700">Credenciales de MercadoPago</h2>
+                <TutorialHint pageKey="pagos" step={PAGOS_STEPS[1]} />
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">El Access Token es la clave real de cobro de tu cuenta — no la compartas.</p>
             </div>
             <div>
@@ -156,8 +197,11 @@ export default function PagosPage() {
         )}
 
         {/* Transferencia */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <h2 className="text-sm font-semibold text-zinc-700 mb-4">Transferencia bancaria</h2>
+        <div data-tutorial="pagos-transfer" className="bg-white rounded-xl border border-zinc-200 p-5">
+          <div className="flex items-center gap-1.5 mb-4">
+            <h2 className="text-sm font-semibold text-zinc-700">Transferencia bancaria</h2>
+            <TutorialHint pageKey="pagos" step={PAGOS_STEPS[2]} />
+          </div>
           <ToggleRow label="Habilitar transferencia" desc="El cliente transfiere y vos confirmás el pago manualmente" checked={Boolean(config?.transfer_enabled)} onChange={v => update('transfer_enabled', v)} />
           {config?.transfer_enabled && (
             <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-zinc-100">

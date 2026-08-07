@@ -5,19 +5,75 @@ import { createClient } from '@/lib/supabase/client'
 import Toggle from '@/components/Toggle'
 import type { StoreConfig } from '@/lib/types'
 import { applyTheme } from '@/components/ThemeProvider'
+import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 const THEMES = [
   { id: 'default', label: 'Default', preview: { sidebar: 'bg-primary-600', bg: 'bg-zinc-100' } },
   { id: 'dark',    label: 'Dark',    preview: { sidebar: 'bg-zinc-900',   bg: 'bg-zinc-800' } },
 ]
 
+// Un solo array fuente de verdad: lo usa tanto el tour completo de la página
+// (botón (?) del header) como cada botón (?) individual de cada bloque.
+const GENERAL_STEPS: TutorialStep[] = [
+  {
+    id: 'general-theme',
+    target: '[data-tutorial="general-theme"]',
+    title: 'Tema del panel',
+    content: 'Elegí cómo se ve ESTE panel para vos — Default o Dark. Es solo estético: no cambia nada en tu tienda pública ni en lo que ven tus clientes.',
+  },
+  {
+    id: 'general-stock',
+    target: '[data-tutorial="general-stock"]',
+    title: 'Modo sin stock',
+    content: 'Si lo activás, todos tus productos se muestran como disponibles sin importar el stock cargado. Pensado para quienes venden por WhatsApp y no llevan un stock exacto en el sistema.',
+  },
+  {
+    id: 'general-min-order',
+    target: '[data-tutorial="general-min-order"]',
+    title: 'Pedido mínimo',
+    content: 'Definí un monto mínimo de compra para poder finalizar el pedido. Dejalo vacío o en 0 si no querés exigir mínimo. El cartel opcional avisa el mínimo directamente en tu tienda, arriba del catálogo.',
+  },
+  {
+    id: 'general-min-qty',
+    target: '[data-tutorial="general-min-qty"]',
+    title: 'Mínimo de unidades por variante',
+    content: 'Cantidad mínima que hay que sumar de un mismo talle/color para poder agregarlo al carrito — útil para forzar venta por pack o docena. Cada producto puede tener su propio mínimo distinto; esto es el valor por defecto.',
+  },
+  {
+    id: 'general-price-visibility',
+    target: '[data-tutorial="general-price-visibility"]',
+    title: 'Visibilidad de precios',
+    content: 'Controlá quién puede ver los precios en tu tienda: todos sin loguearse, solo usuarios registrados, o solo tus clientes mayoristas.',
+  },
+  {
+    id: 'general-price-types',
+    target: '[data-tutorial="general-price-types"]',
+    title: 'Tipos de precio',
+    content: 'Activá o desactivá los campos de precio al cargar un producto: minorista, mayorista, y el precio rebajado/tachado para mostrar descuentos. Apagá lo que no uses para simplificar la carga de productos.',
+  },
+  {
+    id: 'general-registration',
+    target: '[data-tutorial="general-registration"]',
+    title: 'Registro de cuentas',
+    content: 'Elegí qué tipo de cuenta puede crearse desde "Crear cuenta" en tu tienda: minorista, mayorista, o ambas.',
+  },
+]
+
 export default function GeneralPage() {
   const supabase = createClient()
+  const { registerSteps } = useTutorial()
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [panelTheme, setPanelTheme] = useState<'default' | 'dark'>('default')
+
+  useEffect(() => {
+    registerSteps('general', GENERAL_STEPS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -79,9 +135,12 @@ export default function GeneralPage() {
   return (
     <div>
       <div className="sticky top-0 z-10 px-8 py-6 border-b border-zinc-200 bg-white flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900">General</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Reglas básicas de tu tienda y del panel</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-xl font-semibold text-zinc-900">General</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">Reglas básicas de tu tienda y del panel</p>
+          </div>
+          <PageTutorialButton pageKey="general" />
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar cambios'}
@@ -92,9 +151,12 @@ export default function GeneralPage() {
       <div className="px-8 py-6 max-w-2xl space-y-5">
 
         {/* Apariencia del panel */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="general-theme" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Apariencia del panel</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Apariencia del panel</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[0]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">
               Esto solo cambia cómo se ve este panel para vos — no afecta tu tienda. Las imágenes y colores de tu tienda se gestionan en{' '}
               <a href="/dashboard/apariencia" className="text-primary-600 hover:underline">Apariencia</a>.
@@ -131,9 +193,12 @@ export default function GeneralPage() {
         </div>
 
         {/* Stock */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+        <div data-tutorial="general-stock" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Gestión de stock</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Gestión de stock</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[1]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Útil para mayoristas que manejan disponibilidad por WhatsApp</p>
           </div>
           <ToggleRow
@@ -145,9 +210,12 @@ export default function GeneralPage() {
         </div>
 
         {/* Pedido mínimo */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+        <div data-tutorial="general-min-order" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Pedido mínimo</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Pedido mínimo</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[2]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Monto mínimo requerido para finalizar la compra. Dejá en 0 para no aplicar.</p>
           </div>
           <div className="flex items-center gap-3 max-w-xs">
@@ -163,9 +231,12 @@ export default function GeneralPage() {
         </div>
 
         {/* Mínimo de unidades por variante */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+        <div data-tutorial="general-min-qty" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Mínimo de unidades por variante</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Mínimo de unidades por variante</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[3]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">
               Cantidad mínima que hay que agregar de un mismo talle/color para poder sumarlo al carrito (aplica a minoristas y mayoristas). Dejá en 1 para no exigir mínimo.
               Cada producto puede tener su propio mínimo distinto desde su ficha — esto es el valor por defecto.
@@ -185,9 +256,12 @@ export default function GeneralPage() {
         </div>
 
         {/* Visibilidad de precios */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+        <div data-tutorial="general-price-visibility" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Visibilidad de precios</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Visibilidad de precios</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[4]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Quién puede ver los precios en tu tienda</p>
           </div>
           <select className="input max-w-xs" value={config?.price_visibility ?? 'all'} onChange={e => update('price_visibility', e.target.value as any)}>
@@ -198,9 +272,12 @@ export default function GeneralPage() {
         </div>
 
         {/* Tipos de precio */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-1">
+        <div data-tutorial="general-price-types" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-1">
           <div className="mb-2">
-            <h2 className="text-sm font-semibold text-zinc-700">Tipos de precio</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Tipos de precio</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[5]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Qué campos de precio aparecen al cargar productos — apagá lo que no uses para que la carga sea más simple</p>
           </div>
           <ToggleRow
@@ -224,9 +301,12 @@ export default function GeneralPage() {
         </div>
 
         {/* Registro de cuentas */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+        <div data-tutorial="general-registration" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Registro de cuentas</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Registro de cuentas</h2>
+              <TutorialHint pageKey="general" step={GENERAL_STEPS[6]} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Qué tipo de cuenta puede crearse desde "Crear cuenta" en tu tienda</p>
           </div>
           <select className="input max-w-xs" value={config?.registration_visibility ?? 'both'} onChange={e => update('registration_visibility', e.target.value as any)}>
