@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export type TenantRow = {
@@ -11,8 +11,15 @@ export type TenantRow = {
   domain: string | null
   template: string
   status: string
+  plan: string
   ownerEmail: string | null
   frontendUrl: string | null
+  // Vista agregada de superadmin — ver visitas/pedidos/GA4 de TODOS los
+  // tenants acá nunca depende del plan de cada uno (a diferencia de
+  // /dashboard/uso y /dashboard/google-analytics, que sí lo respetan).
+  visitCount: number
+  orderCount: number
+  ga4Linked: boolean
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -124,6 +131,10 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     setDeleteConfirmText('')
   }
 
+  const totalVisits = tenants.reduce((sum, t) => sum + t.visitCount, 0)
+  const totalOrders = tenants.reduce((sum, t) => sum + t.orderCount, 0)
+  const ga4LinkedCount = tenants.filter(t => t.ga4Linked).length
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between">
@@ -142,6 +153,32 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
         </form>
       </div>
 
+      {/* Resumen agregado — todos los tenants, sin importar su plan */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-xs text-zinc-500">Tiendas activas</p>
+          <p className="text-xl font-semibold text-zinc-100 mt-1">
+            {tenants.filter(t => t.status === 'active').length}
+            <span className="text-sm font-normal text-zinc-500"> / {tenants.length}</span>
+          </p>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-xs text-zinc-500 flex items-center gap-1"><Eye size={11} /> Visitas este mes</p>
+          <p className="text-xl font-semibold text-zinc-100 mt-1">{totalVisits.toLocaleString('es-AR')}</p>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-xs text-zinc-500 flex items-center gap-1"><ShoppingBag size={11} /> Pedidos este mes</p>
+          <p className="text-xl font-semibold text-zinc-100 mt-1">{totalOrders.toLocaleString('es-AR')}</p>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-xs text-zinc-500 flex items-center gap-1"><BarChart3 size={11} /> Con Google Analytics</p>
+          <p className="text-xl font-semibold text-zinc-100 mt-1">
+            {ga4LinkedCount}
+            <span className="text-sm font-normal text-zinc-500"> / {tenants.length}</span>
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -151,6 +188,8 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Estado</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Dominio / URL</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Owner</th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Visitas / Pedidos</th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Google Analytics</th>
               <th className="text-right px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
@@ -231,6 +270,33 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 {/* Owner */}
                 <td className="px-5 py-4">
                   <span className="text-zinc-400 text-xs">{tenant.ownerEmail ?? '—'}</span>
+                </td>
+
+                {/* Visitas / Pedidos — mismos números que "Plan y uso" del tenant,
+                    acá visibles sin importar el plan que tenga contratado */}
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-3 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1" title="Visitas este mes">
+                      <Eye size={12} className="text-zinc-500" />
+                      {tenant.visitCount.toLocaleString('es-AR')}
+                    </span>
+                    <span className="flex items-center gap-1" title="Pedidos este mes">
+                      <ShoppingBag size={12} className="text-zinc-500" />
+                      {tenant.orderCount.toLocaleString('es-AR')}
+                    </span>
+                  </div>
+                </td>
+
+                {/* Google Analytics — vinculado o no, independiente de si el
+                    plan del tenant le da acceso a esta sección en su panel */}
+                <td className="px-5 py-4">
+                  {tenant.ga4Linked ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-300">
+                      <BarChart3 size={11} /> Vinculado
+                    </span>
+                  ) : (
+                    <span className="text-xs text-zinc-600">Sin vincular</span>
+                  )}
                 </td>
 
                 {/* Acciones */}
