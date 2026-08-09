@@ -9,6 +9,8 @@ import { useState, useImperativeHandle, forwardRef } from 'react'
 export interface SimpleVariantData {
   id?: string
   stock: number
+  // Ver nota en VariantMatrix.CellData — false = "Sin stock" tildado.
+  active: boolean
   retailPrice: number
   retailCompareAt: number
   wholesalePrice: number
@@ -21,7 +23,7 @@ export interface SimpleVariantHandle {
 }
 
 const empty = (): SimpleVariantData => ({
-  stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleCompareAt: 0, wholesaleMinQty: 1,
+  stock: 0, active: true, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleCompareAt: 0, wholesaleMinQty: 1,
 })
 
 interface Props {
@@ -49,10 +51,20 @@ const SimpleVariantForm = forwardRef<SimpleVariantHandle, Props>(({ initial, sho
         <div>
           <label className="block text-xs text-zinc-500 mb-1">Stock</label>
           <input
-            className="input text-sm" type="number" min="0"
+            className="input text-sm disabled:opacity-40 disabled:bg-zinc-50" type="number" min="0"
             value={data.stock || ''} placeholder="0"
+            disabled={data.active === false}
             onChange={e => set('stock', parseInt(e.target.value, 10) || 0)}
           />
+          <label className="flex items-center gap-1 mt-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="w-3 h-3 accent-red-500"
+              checked={data.active === false}
+              onChange={e => set('active', !e.target.checked)}
+            />
+            <span className="text-[10px] text-red-500 leading-none">Sin stock</span>
+          </label>
         </div>
         {showRetail && (
           <div>

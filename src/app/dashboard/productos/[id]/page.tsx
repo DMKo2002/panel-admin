@@ -261,6 +261,7 @@ export default function EditarProductoPage() {
           setSimpleInitial({
             id: v.id,
             stock: v.stock ?? 0,
+            active: v.active ?? true,
             retailPrice: Math.round(retail?.price ?? 0),
             retailCompareAt: Math.round(retail?.compare_at_price ?? 0),
             wholesalePrice: Math.round(wholesale?.price ?? 0),
@@ -295,6 +296,7 @@ export default function EditarProductoPage() {
         cells[cellKey(s, c)] = {
           variantId: v.id,
           stock: v.stock ?? 0,
+          active: v.active ?? true,
           retailPrice: Math.round(retail?.price ?? 0),
           retailCompareAt: Math.round(retail?.compare_at_price ?? 0),
           wholesalePrice: Math.round(wholesale?.price ?? 0),
@@ -473,7 +475,7 @@ export default function EditarProductoPage() {
 
         if (v.id) {
           const { error: varErr } = await supabase.from('variants').update({
-            size: v.size, color: v.color, color_hex: v.colorHex, stock: v.stock, attributes: attrs,
+            size: v.size, color: v.color, color_hex: v.colorHex, stock: v.stock, active: v.active ?? true, attributes: attrs,
           }).eq('id', v.id)
           if (varErr) throw varErr
           await supabase.from('price_rules').delete().eq('variant_id', v.id)
@@ -482,7 +484,7 @@ export default function EditarProductoPage() {
           if (rules.length > 0) { const { error: rErr } = await supabase.from('price_rules').insert(rules); if (rErr) throw rErr }
         } else {
           const { data: nv, error: nvErr } = await supabase.from('variants')
-            .insert({ product_id: id, size: v.size, color: v.color, color_hex: v.colorHex, stock: v.stock, attributes: attrs })
+            .insert({ product_id: id, size: v.size, color: v.color, color_hex: v.colorHex, stock: v.stock, active: v.active ?? true, attributes: attrs })
             .select().single()
           if (nvErr) throw nvErr
           if (nv) {

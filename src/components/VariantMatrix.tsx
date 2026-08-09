@@ -35,6 +35,12 @@ function colorToHex(name: string): string {
 export interface CellData {
   variantId?: string   // defined for existing variants (edit mode)
   stock: number
+  // Override manual — el tenant marca esta variante puntual como no
+  // disponible para la venta, sin importar el stock cargado. Pensado sobre
+  // todo para tenants con ignore_stock (stock "infinito"/no controlado),
+  // donde no hay forma de que un talle/color se quede "sin stock" solo.
+  // false = "Sin stock" tildado. Default true (disponible).
+  active: boolean
   retailPrice: number
   retailCompareAt: number
   wholesalePrice: number
@@ -49,6 +55,7 @@ export interface VariantForSave {
   colorHex: string | null
   attrs: Record<string, string>
   stock: number
+  active: boolean
   retailPrice: number
   retailCompareAt: number
   wholesalePrice: number
@@ -98,7 +105,7 @@ const DEFAULT_COLORS = ['nuevo']
 // Key separator — chosen to be unlikely in real size/color names
 export const SEP = '\x00'
 export const cellKey = (size: string, color: string) => `${size}${SEP}${color}`
-const emptyCell = (): CellData => ({ stock: 0, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleCompareAt: 0, wholesaleMinQty: 6 })
+const emptyCell = (): CellData => ({ stock: 0, active: true, retailPrice: 0, retailCompareAt: 0, wholesalePrice: 0, wholesaleCompareAt: 0, wholesaleMinQty: 6 })
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
@@ -454,18 +461,28 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
                   return (
                     <td key={ci} className="p-1.5 border-r border-zinc-100 last:border-r-0 align-top">
-                      <div className="rounded-lg border border-zinc-100 bg-white hover:border-zinc-200 transition-all divide-y divide-zinc-100">
+                      <div className={`rounded-lg border transition-all divide-y divide-zinc-100 ${cell.active === false ? 'border-red-200 bg-red-50/40' : 'border-zinc-100 bg-white hover:border-zinc-200'}`}>
 
                         {/* Fila 1 — Stock (ancho completo) */}
                         <div className="p-1.5">
                           <p className="text-[9px] text-zinc-400 leading-none mb-1">Stock</p>
                           <input
-                            className="w-full text-sm font-semibold border border-zinc-200 rounded px-1.5 py-1.5 focus:outline-none focus:border-primary-400 bg-white text-center"
+                            className="w-full text-sm font-semibold border border-zinc-200 rounded px-1.5 py-1.5 focus:outline-none focus:border-primary-400 bg-white text-center disabled:opacity-40 disabled:bg-zinc-50"
                             type="number" min="0"
                             value={cell.stock || ''}
                             placeholder="0"
+                            disabled={cell.active === false}
                             onChange={e => updateCell(size, color, 'stock', parseInt(e.target.value, 10) || 0)}
                           />
+                          <label className="flex items-center gap-1 mt-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              className="w-3 h-3 accent-red-500"
+                              checked={cell.active === false}
+                              onChange={e => updateCell(size, color, 'active', !e.target.checked)}
+                            />
+                            <span className="text-[9px] text-red-500 leading-none">Sin stock</span>
+                          </label>
                         </div>
 
                         {/* Fila 2 — Minorista | Minorista rebajado */}
