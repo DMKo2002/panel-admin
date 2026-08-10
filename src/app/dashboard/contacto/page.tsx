@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, ExternalLink } from 'lucide-react'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
@@ -22,7 +22,17 @@ const CONTACTO_STEPS: TutorialStep[] = [
     title: 'Sucursales',
     content: 'Si tenés más de un local físico, cargalos acá — nombre, dirección y teléfono opcional. Se muestran listadas en el pie de tu tienda.',
   },
+  {
+    id: 'contacto-pixeles',
+    target: '[data-tutorial="contacto-pixeles"]',
+    title: 'Píxeles de seguimiento',
+    content: 'Si vos o tu Community Manager corren campañas de Meta, Google Ads o TikTok, pegá acá los IDs correspondientes para medir y armar públicos de esas campañas.',
+  },
 ]
+
+const META_PIXEL_RE = /^[0-9]{10,20}$/
+const GOOGLE_ADS_RE = /^AW-[0-9]+$/
+const TIKTOK_PIXEL_RE = /^[A-Za-z0-9]+$/
 
 export default function ContactoPage() {
   const supabase = createClient()
@@ -39,6 +49,9 @@ export default function ContactoPage() {
   const [storeAddress, setStoreAddress] = useState('')
   const [pickupAddress, setPickupAddress] = useState('')
   const [branches, setBranches] = useState<{ name: string; address: string; phone?: string }[]>([])
+  const [metaPixelId, setMetaPixelId] = useState('')
+  const [googleAdsId, setGoogleAdsId] = useState('')
+  const [tiktokPixelId, setTiktokPixelId] = useState('')
 
   useEffect(() => {
     registerSteps('contacto', CONTACTO_STEPS)
@@ -63,6 +76,9 @@ export default function ContactoPage() {
         setPickupAddress((data as any).pickup_address ?? '')
         const rawBranches = (data as any).branches
         setBranches(Array.isArray(rawBranches) ? rawBranches : [])
+        setMetaPixelId((data as any).meta_pixel_id ?? '')
+        setGoogleAdsId((data as any).google_ads_id ?? '')
+        setTiktokPixelId((data as any).tiktok_pixel_id ?? '')
       }
     }
     load()
@@ -70,6 +86,21 @@ export default function ContactoPage() {
 
   async function handleSave() {
     if (!configId) return
+    const metaTrim = metaPixelId.trim()
+    const adsTrim = googleAdsId.trim()
+    const tiktokTrim = tiktokPixelId.trim()
+    if (metaTrim && !META_PIXEL_RE.test(metaTrim)) {
+      setErrorGeneral('El Meta Pixel ID solo tiene números (10 a 20 dígitos).')
+      return
+    }
+    if (adsTrim && !GOOGLE_ADS_RE.test(adsTrim)) {
+      setErrorGeneral('El Google Ads ID tiene que tener el formato "AW-XXXXXXXXX".')
+      return
+    }
+    if (tiktokTrim && !TIKTOK_PIXEL_RE.test(tiktokTrim)) {
+      setErrorGeneral('El TikTok Pixel ID no puede tener espacios ni símbolos.')
+      return
+    }
     setSaving(true)
     setErrorGeneral(null)
     const { error } = await supabase.from('store_config').update({
@@ -80,6 +111,9 @@ export default function ContactoPage() {
       store_address:   storeAddress.trim()  || null,
       pickup_address:  pickupAddress.trim() || null,
       branches,
+      meta_pixel_id:   metaTrim   || null,
+      google_ads_id:   adsTrim    || null,
+      tiktok_pixel_id: tiktokTrim || null,
     }).eq('id', configId)
     setSaving(false)
     if (error) {
@@ -137,6 +171,48 @@ export default function ContactoPage() {
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Dirección de despacho (aparece en PDFs)</label>
               <input className="input text-sm" value={storeAddress} onChange={e => setStoreAddress(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
+            </div>
+          </div>
+        </div>
+
+        {/* Píxeles de seguimiento — Meta, Google Ads, TikTok. Instalación
+            básica (mide visitas, sin eventos de compra con valor real) —
+            si el tenant quiere retargeting/conversiones avanzadas, lo arma
+            su Community Manager con su propio Google Tag Manager. */}
+        <div data-tutorial="contacto-pixeles" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Píxeles de seguimiento</h2>
+              <TutorialHint pageKey="contacto" step={CONTACTO_STEPS[2]} />
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Para campañas de publicidad en Meta, Google Ads o TikTok. Instalan el píxel base de cada plataforma
+              (mide visitas y arma públicos para retargeting) — si vos o tu Community Manager necesitan medir
+              conversiones con el valor exacto de cada venta, se puede sumar un contenedor de Google Tag Manager
+              configurado por su cuenta, sin depender de Gounuri.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Meta Pixel ID (Facebook / Instagram)</label>
+              <input className="input text-sm font-mono" value={metaPixelId} onChange={e => setMetaPixelId(e.target.value)} placeholder="123456789012345" />
+              <p className="text-xs text-zinc-400 mt-1">
+                Lo conseguís en{' '}
+                <a href="https://business.facebook.com/events_manager2" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline inline-flex items-center gap-0.5">
+                  Meta Events Manager <ExternalLink className="h-3 w-3" />
+                </a>{' '}
+                — Orígenes de datos → tu píxel → Detalles del píxel.
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Google Ads ID</label>
+              <input className="input text-sm font-mono" value={googleAdsId} onChange={e => setGoogleAdsId(e.target.value)} placeholder="AW-123456789" />
+              <p className="text-xs text-zinc-400 mt-1">Herramientas → Medición → Conversiones, en tu cuenta de Google Ads.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">TikTok Pixel ID</label>
+              <input className="input text-sm font-mono" value={tiktokPixelId} onChange={e => setTiktokPixelId(e.target.value)} placeholder="C4A1B2C3D4E5F6G7H8I9" />
+              <p className="text-xs text-zinc-400 mt-1">TikTok Ads Manager → Recursos → Eventos → tu píxel.</p>
             </div>
           </div>
         </div>

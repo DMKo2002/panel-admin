@@ -119,6 +119,11 @@ export interface StoreConfig {
   // Measurement ID de GA4 (formato "G-XXXXXXXXXX") que el tenant carga desde
   // Configuración > Google Analytics — ver migracion_ga4_store_config.sql.
   ga4_measurement_id: string | null
+  // Píxeles de marketing (Meta, Google Ads, TikTok) — Configuración > Contacto
+  // y Redes, ver migracion_pixeles_marketing_store_config.sql.
+  meta_pixel_id: string | null
+  google_ads_id: string | null
+  tiktok_pixel_id: string | null
   // Ratio con el que se procesan y muestran las imágenes de producto.
   // '2:3' retrato (default) | '1:1' cuadrada (ej. cosmética con grid cuadrado)
   product_image_ratio: '2:3' | '1:1'
