@@ -165,8 +165,9 @@ export default function ContactoPage() {
               <input className="input text-sm" value={tiktok} onChange={e => setTiktok(e.target.value)} placeholder="https://tiktok.com/@tutienda" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-600 mb-1">Dirección de retiro (visible en la tienda)</label>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Dirección</label>
               <input className="input text-sm" value={pickupAddress} onChange={e => setPickupAddress(e.target.value)} placeholder="Av. Corrientes 1234, CABA" />
+              <p className="text-xs text-zinc-400 mt-1">Aparece en el pie de tu tienda (home, catálogo, contacto y páginas legales).</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Dirección de despacho (aparece en PDFs)</label>
