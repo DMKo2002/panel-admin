@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
-import { PLANS } from '@/lib/plans'
+import { PLANS, formatStorage, TERM_DISCOUNTS, priceForTerm, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import BillingCardBrick from '@/components/BillingCardBrick'
 
@@ -19,26 +19,28 @@ interface PlanCard {
   destacado?: boolean
 }
 
-// Precios desde la fuente única de verdad (plans.ts); acá solo el copy.
+// Precios Y límites desde la fuente única de verdad (plans.ts) — así esta
+// tabla nunca vuelve a desincronizarse de los límites reales (pasó con la
+// recalibración del 2026-08-12).
 const CARDS: PlanCard[] = [
   {
     id: 'mini',
     nombre: PLANS.mini.nombre,
     precioARS: PLANS.mini.precioARS,
-    features: ['200 MB de almacenamiento', 'Hasta 50 productos', 'Pedidos ilimitados'],
+    features: [`${formatStorage(PLANS.mini.storageMB)} de almacenamiento`, `Hasta ${PLANS.mini.maxProductos} productos`, 'Pedidos ilimitados'],
   },
   {
     id: 'standard',
     nombre: PLANS.standard.nombre,
     precioARS: PLANS.standard.precioARS,
     destacado: true,
-    features: ['2 GB de almacenamiento', 'Hasta 400 productos', 'Pedidos ilimitados', 'Personalización completa'],
+    features: [`${formatStorage(PLANS.standard.storageMB)} de almacenamiento`, `Hasta ${PLANS.standard.maxProductos} productos`, 'Pedidos ilimitados', 'Personalización completa'],
   },
   {
     id: 'premium',
     nombre: PLANS.premium.nombre,
     precioARS: PLANS.premium.precioARS,
-    features: ['10 GB de almacenamiento', 'Hasta 1.000 productos', 'Pedidos ilimitados', 'Todos los templates', 'Soporte prioritario'],
+    features: [`${formatStorage(PLANS.premium.storageMB)} de almacenamiento`, `Hasta ${PLANS.premium.maxProductos} productos`, 'Pedidos ilimitados', 'Todos los templates', 'Soporte prioritario'],
   },
 ]
 
@@ -74,6 +76,11 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
   const [cardPlan, setCardPlan] = useState<PlanCard['id'] | null>(null)
   const [cardSuccess, setCardSuccess] = useState(false)
 
+  // Plazo de pago — solo aplica a Mercado Pago (Preapproval permite cobrar de
+  // una N meses con auto_recurring.frequency = N). La tarjeta directa siempre
+  // cobra mes a mes, no tiene plazo para elegir acá.
+  const [term, setTerm] = useState<BillingTerm>(1)
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
@@ -92,7 +99,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
       const res = await fetch('/api/billing/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId, payerEmail: payerEmail.trim() }),
+        body: JSON.stringify({ plan: planId, payerEmail: payerEmail.trim(), months: term }),
       })
       const json = await res.json()
       if (!res.ok || !json.init_point) throw new Error(json.error ?? 'Error desconocido')
@@ -149,6 +156,32 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
         )}
       </div>
 
+      {metodo === 'mp' && (
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Plazo de pago</label>
+          <div className="inline-flex rounded-lg border border-zinc-200 p-1 bg-zinc-50">
+            {([1, 6, 12] as BillingTerm[]).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTerm(t)}
+                className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${term === t ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+              >
+                {t === 1 ? 'Mensual' : `${t} meses`}
+                {TERM_DISCOUNTS[t] > 0 && (
+                  <span className="ml-1 text-emerald-600">-{TERM_DISCOUNTS[t] * 100}%</span>
+                )}
+              </button>
+            ))}
+          </div>
+          {term > 1 && (
+            <p className="mt-1 text-xs text-zinc-400">
+              Se cobra el total de los {term} meses de una sola vez — recién vuelve a cobrarte cuando se cumpla el plazo, no todos los meses.
+            </p>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
@@ -169,10 +202,22 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
                 </span>
               )}
               <h3 className="font-semibold text-zinc-900">{card.nombre}</h3>
-              <p className="mt-1 text-2xl font-bold text-zinc-900">
-                {formatARS(card.precioARS)}
-                <span className="text-sm font-normal text-zinc-500"> /mes</span>
-              </p>
+              {metodo === 'mp' && term > 1 ? (
+                <div className="mt-1">
+                  <p className="text-2xl font-bold text-zinc-900">
+                    {formatARS(priceForTerm(PLANS[card.id], term))}
+                    <span className="text-sm font-normal text-zinc-500"> total / {term} meses</span>
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    equivale a {formatARS(Math.round(priceForTerm(PLANS[card.id], term) / term))}/mes
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-2xl font-bold text-zinc-900">
+                  {formatARS(card.precioARS)}
+                  <span className="text-sm font-normal text-zinc-500"> /mes</span>
+                </p>
+              )}
               <ul className="mt-4 flex-1 space-y-2">
                 {card.features.map(f => (
                   <li key={f} className="flex items-start gap-2 text-sm text-zinc-600">
@@ -235,6 +280,18 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
           ✓ Pago aprobado. Actualizando tu plan...
         </div>
       )}
+
+      <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        ¿Necesitás más de lo que ofrece Premium? Escribinos por{' '}
+        <a href="https://wa.me/541131351972" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 underline">
+          WhatsApp
+        </a>{' '}
+        o a{' '}
+        <a href="mailto:info@gounuri.com" className="font-medium text-zinc-900 underline">
+          info@gounuri.com
+        </a>{' '}
+        y armamos un plan a medida.
+      </div>
 
       <p className="mt-4 text-xs text-zinc-400">
         {metodo === 'mp' ? (

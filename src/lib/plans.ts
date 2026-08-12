@@ -21,6 +21,13 @@ export interface PlanDef {
   visitasMes: number
 }
 
+// Límites recalibrados 2026-08-12 contra el uso real de las tiendas en
+// producción (Yenine, la más grande, tenía 205 productos / 159 MB — Standard
+// le sobraba por 2x en productos y 12x en storage, y Premium era un salto a
+// un número de marketing que ninguna tienda real se acerca a pisar). Mini
+// además le quedaba justo pisando los talones a la tienda real más chica
+// (Conor's, 44 productos contra un tope de 50). Objetivo: Standard cómodo
+// para la gran mayoría de clientes sin sentir la necesidad de subir de plan.
 export const PLANS: Record<PlanDef['id'], PlanDef> = {
   free: {
     id: 'free',
@@ -37,25 +44,25 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
     // (MP no deja crear preapproval por menos de $15 ARS). Volver a 10_000
     // apenas termine el test — ver memoria/tarea de este día.
     precioARS: 20,
-    storageMB: 200,
-    maxProductos: 50,
-    visitasMes: 10_000,
+    storageMB: 300,
+    maxProductos: 100,
+    visitasMes: 15_000,
   },
   standard: {
     id: 'standard',
     nombre: 'Standard',
-    precioARS: 29_999,
-    storageMB: 2_048,
-    maxProductos: 400,
-    visitasMes: 50_000,
+    precioARS: 35_000,
+    storageMB: 1_024,
+    maxProductos: 300,
+    visitasMes: 75_000,
   },
   premium: {
     id: 'premium',
     nombre: 'Premium',
     precioARS: 79_999,
-    storageMB: 10_240,
-    maxProductos: 1_000,
-    visitasMes: 200_000,
+    storageMB: 3_072,
+    maxProductos: 600,
+    visitasMes: 300_000,
   },
 }
 
@@ -71,4 +78,28 @@ export function getPlanForTenant(tenantPlan?: string | null): PlanDef {
 export function formatStorage(mb: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB`
   return `${Math.round(mb)} MB`
+}
+
+// ── Descuento por pago adelantado (2026-08-12) ──────────────────────────────
+// El tenant puede pagar 1 mes (sin descuento), 6 meses de una (10% off sobre
+// el total) o 12 meses de una (20% off). Se cobra como UN solo preapproval de
+// MP con auto_recurring.frequency = esos meses — MP vuelve a cobrar recién
+// cuando se cumple el plazo, no todos los meses.
+export type BillingTerm = 1 | 6 | 12
+
+export const TERM_DISCOUNTS: Record<BillingTerm, number> = {
+  1: 0,
+  6: 0.10,
+  12: 0.20,
+}
+
+export function isBillingTerm(v: unknown): v is BillingTerm {
+  return v === 1 || v === 6 || v === 12
+}
+
+// Precio TOTAL a cobrar por el plazo elegido (ya con el descuento aplicado),
+// redondeado al peso — no es el precio mensual.
+export function priceForTerm(plan: PlanDef, months: BillingTerm): number {
+  const discount = TERM_DISCOUNTS[months]
+  return Math.round(plan.precioARS * months * (1 - discount))
 }

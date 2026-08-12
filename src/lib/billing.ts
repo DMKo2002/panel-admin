@@ -8,7 +8,7 @@
 // crea el preapproval (status pending) y devuelve init_point → el tenant
 // autoriza su tarjeta en MP → MP pega al webhook → se actualiza tenants.plan.
 
-import { PLANS, type PlanDef } from '@/lib/plans'
+import { PLANS, priceForTerm, type PlanDef, type BillingTerm } from '@/lib/plans'
 
 const MP_API = 'https://api.mercadopago.com'
 
@@ -43,20 +43,28 @@ export async function createPreapproval(opts: {
   planId: Exclude<PlanDef['id'], 'free'>
   payerEmail: string
   backUrl: string
+  // 1 = mensual (sin descuento), 6 = -10% pagando 6 meses de una, 12 = -20%
+  // pagando 12 meses de una. Default 1 para no romper llamadas viejas.
+  months?: BillingTerm
 }): Promise<Preapproval> {
   const plan = PLANS[opts.planId]
+  const months = opts.months ?? 1
+  const amount = priceForTerm(plan, months)
+  const reason = months === 1
+    ? `Gounuri — Plan ${plan.nombre}`
+    : `Gounuri — Plan ${plan.nombre} (${months} meses)`
   const res = await fetch(`${MP_API}/preapproval`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      reason: `Gounuri — Plan ${plan.nombre}`,
+      reason,
       external_reference: buildExternalReference(opts.tenantId, opts.planId),
       payer_email: opts.payerEmail,
       back_url: opts.backUrl,
       auto_recurring: {
-        frequency: 1,
+        frequency: months,
         frequency_type: 'months',
-        transaction_amount: plan.precioARS,
+        transaction_amount: amount,
         currency_id: 'ARS',
       },
       status: 'pending',

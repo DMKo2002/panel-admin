@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createPreapproval, billingEnabled } from '@/lib/billing'
+import { isBillingTerm } from '@/lib/plans'
 
 export async function POST(req: Request) {
   if (!billingEnabled()) {
@@ -17,10 +18,13 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { plan, payerEmail: payerEmailInput } = await req.json()
+  const { plan, payerEmail: payerEmailInput, months: monthsInput } = await req.json()
   if (plan !== 'mini' && plan !== 'standard' && plan !== 'premium') {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
   }
+  // Plazo de pago: 1 (mensual), 6 (-10%) o 12 (-20%) — default 1 si no viene
+  // o viene algo raro, nunca romper la suscripción por esto.
+  const months = isBillingTerm(monthsInput) ? monthsInput : 1
 
   // El email que autoriza en MP no tiene por qué ser el email de login del
   // Panel Admin — son cosas distintas (ver incidente 2026-08-12: el owner
@@ -46,6 +50,7 @@ export async function POST(req: Request) {
       planId: plan,
       payerEmail,
       backUrl: `${origin}/dashboard/uso?sub=pendiente`,
+      months,
     })
     // Guardar el id ya mismo — el webhook confirma la activación después
     await service.from('tenants').update({ mp_preapproval_id: preapproval.id }).eq('id', userRow.tenant_id)
