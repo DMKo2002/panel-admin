@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { PLANS } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
+import BillingCardBrick from '@/components/BillingCardBrick'
 
 interface PlanCard {
   id: 'mini' | 'standard' | 'premium'
@@ -56,6 +57,15 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
   // email de login como punto de partida, pero es editable.
   const [payerEmail, setPayerEmail] = useState('')
 
+  // Dos formas de pagar en paralelo, para no perder la que ya funciona:
+  // 'mp' = redirect al checkout de Mercado Pago (Preapproval, necesita
+  // cuenta de MP con el mismo email). 'tarjeta' = Card Payment Brick acá
+  // mismo, sin cuenta, con tarjeta guardada para el débito de los meses
+  // siguientes (ver /api/billing/card/setup).
+  const [metodo, setMetodo] = useState<'mp' | 'tarjeta'>('mp')
+  const [cardPlan, setCardPlan] = useState<PlanCard['id'] | null>(null)
+  const [cardSuccess, setCardSuccess] = useState(false)
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
@@ -92,9 +102,24 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
         El débito es automático todos los meses. Podés cancelar cuando quieras y tu tienda vuelve al plan gratuito.
       </p>
 
+      <div className="mt-4 inline-flex rounded-lg border border-zinc-200 p-1 bg-zinc-50">
+        <button
+          onClick={() => { setMetodo('mp'); setCardPlan(null); setError(null) }}
+          className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${metodo === 'mp' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+        >
+          Mercado Pago (con cuenta)
+        </button>
+        <button
+          onClick={() => { setMetodo('tarjeta'); setCardPlan(null); setError(null) }}
+          className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${metodo === 'tarjeta' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+        >
+          Tarjeta directa (sin cuenta)
+        </button>
+      </div>
+
       <div className="mt-4">
         <label className="block text-sm font-medium text-zinc-700 mb-1">
-          Email de tu cuenta de Mercado Pago
+          {metodo === 'mp' ? 'Email de tu cuenta de Mercado Pago' : 'Email de contacto para el pago'}
         </label>
         <input
           type="email"
@@ -103,9 +128,15 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
           onChange={e => setPayerEmail(e.target.value)}
           placeholder="tu@email.com"
         />
-        <p className="mt-1 text-xs text-zinc-400">
-          Tiene que ser el email de la cuenta de Mercado Pago con la que vas a autorizar el pago — no hace falta que sea el mismo con el que entrás acá. Si no coincide con la cuenta de MP que uses al pagar, Mercado Pago va a rechazar el pago.
-        </p>
+        {metodo === 'mp' ? (
+          <p className="mt-1 text-xs text-zinc-400">
+            Tiene que ser el email de la cuenta de Mercado Pago con la que vas a autorizar el pago — no hace falta que sea el mismo con el que entrás acá. Si no coincide con la cuenta de MP que uses al pagar, Mercado Pago va a rechazar el pago.
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-zinc-400">
+            No hace falta que tengas cuenta de Mercado Pago — pagás directo con los datos de la tarjeta. Este email es solo de referencia para el pago.
+          </p>
+        )}
       </div>
 
       {error && (
@@ -141,7 +172,13 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
                 ))}
               </ul>
               <button
-                onClick={() => subscribe(card.id)}
+                onClick={() => {
+                  if (metodo === 'mp') { subscribe(card.id); return }
+                  if (!EMAIL_RE.test(payerEmail.trim())) { setError('Ingresá un email de contacto para el pago.'); return }
+                  setError(null)
+                  setCardSuccess(false)
+                  setCardPlan(card.id)
+                }}
                 disabled={esActual || loading !== null}
                 className={`mt-5 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                   card.destacado
@@ -154,17 +191,54 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
                   ? 'Tu plan actual'
                   : trialing && card.id === currentPlan
                     ? `Activar ${card.nombre}`
-                    : `Pasar a ${card.nombre}`}
+                    : metodo === 'mp'
+                      ? `Pasar a ${card.nombre}`
+                      : `Pagar ${card.nombre} con tarjeta`}
               </button>
             </div>
           )
         })}
       </div>
 
+      {metodo === 'tarjeta' && cardPlan && !cardSuccess && (
+        <div className="mt-6 max-w-md rounded-xl border border-zinc-200 bg-white p-5">
+          <h3 className="text-sm font-semibold text-zinc-900">
+            Pagar {CARDS.find(c => c.id === cardPlan)?.nombre} con tarjeta
+          </h3>
+          <p className="mt-1 text-xs text-zinc-400">
+            Guardamos la tarjeta para cobrar automáticamente el mismo día cada mes. Podés cambiarla o cancelar cuando quieras.
+          </p>
+          <div className="mt-4">
+            <BillingCardBrick
+              plan={cardPlan}
+              amount={PLANS[cardPlan].precioARS}
+              payerEmail={payerEmail.trim()}
+              onApproved={() => { setCardSuccess(true); setTimeout(() => window.location.reload(), 1500) }}
+              onRejected={() => {}}
+            />
+          </div>
+        </div>
+      )}
+
+      {cardSuccess && (
+        <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          ✓ Pago aprobado. Actualizando tu plan...
+        </div>
+      )}
+
       <p className="mt-4 text-xs text-zinc-400">
-        El pago se procesa con MercadoPago. Vas a cargar tu medio de pago en el sitio seguro de MP — nunca guardamos los datos de tu tarjeta.
-        Aceptamos tarjetas de crédito y débito bancarias habilitadas para débito automático, o dinero disponible en tu cuenta de MercadoPago.
-        No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para suscripciones recurrentes.
+        {metodo === 'mp' ? (
+          <>
+            El pago se procesa con MercadoPago. Vas a cargar tu medio de pago en el sitio seguro de MP — nunca guardamos los datos de tu tarjeta.
+            Aceptamos tarjetas de crédito y débito bancarias habilitadas para débito automático, o dinero disponible en tu cuenta de MercadoPago.
+            No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para suscripciones recurrentes.
+          </>
+        ) : (
+          <>
+            Pagás directo con los datos de tu tarjeta, sin necesidad de cuenta de Mercado Pago. Nunca guardamos los datos de tu tarjeta nosotros —
+            quedan tokenizados en Mercado Pago. No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para cobros recurrentes.
+          </>
+        )}
       </p>
     </div>
   )
