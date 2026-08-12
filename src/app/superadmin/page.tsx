@@ -1,14 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import SuperadminClient, { TenantRow } from './SuperadminClient'
 
-// URLs de los deployments por template (para tenants sin dominio propio)
-const TEMPLATE_URLS: Record<string, string> = {
-  minimalista: process.env.NEXT_PUBLIC_PREVIEW_URL_MINIMALISTA ?? '',
-  mono:        process.env.NEXT_PUBLIC_PREVIEW_URL_MONO        ?? '',
-  atelier:     process.env.NEXT_PUBLIC_PREVIEW_URL_ATELIER     ?? '',
-  axis:        process.env.NEXT_PUBLIC_PREVIEW_URL_AXIS        ?? '',
-}
-
 export default async function SuperadminPage() {
   const serviceClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,9 +56,11 @@ export default async function SuperadminPage() {
     status:      t.status,
     plan:        t.plan ?? 'basic',
     ownerEmail:  ownerByTenant[t.id] ?? null,
-    frontendUrl: t.domain
-      ? `https://${t.domain}`
-      : (TEMPLATE_URLS[t.template ?? 'minimalista'] || null),
+    // La dirección real del tenant siempre es {slug}.gounuri.com de fallback
+    // (o su dominio propio si tiene uno) — antes acá se mostraba una URL fija
+    // de preview por template (*.vercel.app), que no correspondía a ESE
+    // tenant en particular. Ver bug de dominios del 2026-08-12.
+    frontendUrl: t.domain ? `https://${t.domain}` : `https://${t.slug}.gounuri.com`,
     visitCount:  visitsByTenant[t.id] ?? 0,
     orderCount:  orderCountByTenant[t.id] ?? 0,
     ga4Linked:   ga4ByTenant[t.id] ?? false,
