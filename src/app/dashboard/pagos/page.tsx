@@ -50,6 +50,7 @@ export default function PagosPage() {
   const [savingMp, setSavingMp] = useState(false)
   const [savedMp, setSavedMp] = useState(false)
   const [errorMp, setErrorMp] = useState<string | null>(null)
+  const [mpConectado, setMpConectado] = useState(false)
 
   useEffect(() => {
     registerSteps('pagos', PAGOS_STEPS)
@@ -63,10 +64,22 @@ export default function PagosPage() {
       const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
       const userRow = _userRows?.[0]
       if (!userRow) return
-      const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+      // mp_access_token NO va en este select a propósito: desde 2026-08-11
+      // "authenticated" ya no tiene permiso de leerlo (ver credenciales-status
+      // route). Solo se piden acá las columnas que esta página realmente usa.
+      const { data } = await supabase
+        .from('store_config')
+        .select('id, mp_enabled, interest_free_installments, transfer_enabled, transfer_cbu, transfer_alias, cash_enabled, mp_public_key')
+        .eq('tenant_id', userRow.tenant_id)
+        .single()
       setConfig(data)
-      if ((data as any)?.mp_access_token) setMpToken((data as any).mp_access_token as string)
-      if ((data as any)?.mp_public_key)   setMpPublicKey((data as any).mp_public_key as string)
+      if ((data as any)?.mp_public_key) setMpPublicKey((data as any).mp_public_key as string)
+
+      const statusRes = await fetch('/api/mp/credenciales-status')
+      if (statusRes.ok) {
+        const { conectado } = await statusRes.json()
+        setMpConectado(conectado)
+      }
     }
     load()
   }, [])
@@ -101,20 +114,41 @@ export default function PagosPage() {
     if (!config) return
     setSavingMp(true)
     setErrorMp(null)
-    const { error } = await supabase.from('store_config').update({
-      mp_access_token: mpToken.trim() || null,
-      mp_public_key:   mpPublicKey.trim() || null,
-    }).eq('id', config.id)
+    // Si el campo de Access Token quedó vacío, no se manda esa columna en el
+    // update — así no se pisa el token ya guardado solo porque el campo
+    // arranca vacío por seguridad (ya no se prellena con el valor real).
+    // Para borrar el token de verdad está el botón "Quitar credenciales".
+    const updates: Record<string, unknown> = { mp_public_key: mpPublicKey.trim() || null }
+    if (mpToken.trim()) updates.mp_access_token = mpToken.trim()
+
+    const { error } = await supabase.from('store_config').update(updates).eq('id', config.id)
     setSavingMp(false)
     if (error) {
       console.error('Error guardando token MP:', error)
       setErrorMp(error.message || 'No se pudo guardar. Reintentá o contactá a soporte.')
       return
     }
+    if (mpToken.trim()) { setMpConectado(true); setMpToken('') }
     setSavedMp(true); setTimeout(() => setSavedMp(false), 2000)
   }
 
-  const hasMpToken = Boolean((config as any)?.mp_access_token || mpToken)
+  async function handleRemoveMpToken() {
+    if (!config) return
+    if (!confirm('¿Quitar el Access Token de MercadoPago? Dejarás de poder cobrar con tarjeta hasta cargar uno nuevo.')) return
+    setSavingMp(true)
+    setErrorMp(null)
+    const { error } = await supabase.from('store_config').update({ mp_access_token: null }).eq('id', config.id)
+    setSavingMp(false)
+    if (error) {
+      console.error('Error quitando token MP:', error)
+      setErrorMp(error.message || 'No se pudo quitar. Reintentá o contactá a soporte.')
+      return
+    }
+    setMpConectado(false)
+    setMpToken('')
+  }
+
+  const hasMpToken = mpConectado
 
   return (
     <div>
@@ -187,16 +221,29 @@ export default function PagosPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Access Token de tu cuenta MP</label>
-              <input className="input font-mono text-xs" type="password" value={mpToken} onChange={e => setMpToken(e.target.value)} placeholder="APP_USR-... o TEST-..." />
+              <input
+                className="input font-mono text-xs"
+                type="password"
+                value={mpToken}
+                onChange={e => setMpToken(e.target.value)}
+                placeholder={mpConectado ? '•••••••••••••••••••• (ya cargado — pegá uno nuevo para reemplazarlo)' : 'APP_USR-... o TEST-...'}
+              />
               <p className="text-xs text-zinc-400 mt-1.5">
                 Encontrás ambas claves en{' '}
                 <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">mercadopago.com.ar/developers</a>
-                {' '}→ Credenciales de producción (o de prueba)
+                {' '}→ Credenciales de producción (o de prueba). Por seguridad, una vez guardado no se vuelve a mostrar acá.
               </p>
             </div>
-            <button onClick={handleSaveMpToken} disabled={savingMp} className="btn-secondary text-sm disabled:opacity-60">
-              {savedMp ? '✓ Credenciales guardadas' : savingMp ? 'Guardando...' : 'Guardar credenciales'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={handleSaveMpToken} disabled={savingMp} className="btn-secondary text-sm disabled:opacity-60">
+                {savedMp ? '✓ Credenciales guardadas' : savingMp ? 'Guardando...' : 'Guardar credenciales'}
+              </button>
+              {mpConectado && (
+                <button onClick={handleRemoveMpToken} disabled={savingMp} className="text-xs text-red-600 hover:underline disabled:opacity-60">
+                  Quitar credenciales
+                </button>
+              )}
+            </div>
             {errorMp && <p className="text-xs text-red-600 mt-1.5">{errorMp}</p>}
           </div>
         )}
