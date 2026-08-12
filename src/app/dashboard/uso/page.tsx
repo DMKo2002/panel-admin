@@ -6,13 +6,15 @@ import UsageRing from '@/components/UsageRing'
 import { formatStorage } from '@/lib/plans'
 import { getTenantUsage, GRACE_DAYS } from '@/lib/usage'
 import { billingEnabled } from '@/lib/billing'
-import UpgradePlans from '@/components/UpgradePlans'
+import { ArrowUpRight } from 'lucide-react'
 import type { TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialRegister from '@/components/tutorial/TutorialRegister'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 export const dynamic = 'force-dynamic'
+
+const GOUNURI_URL = process.env.NEXT_PUBLIC_GOUNURI_URL ?? 'https://gounuri.com'
 
 const USO_STEPS: TutorialStep[] = [
   {
@@ -25,7 +27,7 @@ const USO_STEPS: TutorialStep[] = [
     id: 'uso-upgrade',
     target: '[data-tutorial="uso-upgrade"]',
     title: 'Cambiar de plan',
-    content: 'Desde acá podés subir (o bajar) de plan cuando lo necesites. Si superás un límite, tenés unos días de gracia para regularizar antes de que la tienda pública se suspenda — tus datos nunca se pierden.',
+    content: 'El pago y el cambio de plan se hacen en gounuri.com, no acá — apretá el botón y te llevamos directo. Si superás un límite, tenés unos días de gracia para regularizar antes de que la tienda pública se suspenda — tus datos nunca se pierden.',
   },
 ]
 
@@ -201,10 +203,26 @@ export default async function UsoPage() {
           <div data-tutorial="uso-upgrade" className="flex items-center gap-1.5 mt-6">
             <TutorialHint pageKey="uso" step={USO_STEPS[1]} />
             <div className="flex-1">
-              <UpgradePlans
-                currentPlan={plan.id}
-                trialing={accountState === 'trial' || accountState === 'trial_grace' || accountState === 'suspended'}
-              />
+              {/* El pago y el cambio de plan se hacen en gounuri.com, no acá
+                  (2026-08-12) — más prolijo tener un solo lugar donde se
+                  factura, en vez de duplicar el flujo de pago en el Panel
+                  Admin. UpgradePlans.tsx se deja intacto sin usarse por si
+                  hace falta reactivar la tarjeta directa más adelante. */}
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">Cambiar de plan</h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    El pago se gestiona en gounuri.com — mensual, o con descuento pagando 6 (-10%) o 12 meses (-20%) de una vez.
+                  </p>
+                </div>
+                <a
+                  href={`${GOUNURI_URL}/perfil/plan?plan=${plan.id}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 shrink-0"
+                >
+                  Ir a cambiar de plan
+                  <ArrowUpRight size={15} />
+                </a>
+              </div>
             </div>
           </div>
         )}
