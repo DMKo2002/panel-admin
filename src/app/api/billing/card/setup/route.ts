@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { billingEnabled } from '@/lib/billing'
-import { getOrCreateCustomer, saveCard, chargeSavedCard } from '@/lib/billing-card'
+import { getOrCreateCustomer, saveCard, chargeWithToken } from '@/lib/billing-card'
 import { PLANS } from '@/lib/plans'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -45,20 +45,10 @@ export async function POST(req: Request) {
   const tenantId = userRow.tenant_id
 
   try {
-    // 1. Customer + tarjeta guardada — reusa el customer si ya existe (ej: el
-    // tenant había cargado una tarjeta antes y ahora la está reemplazando).
-    const { data: existingRows } = await service
-      .from('tenant_billing_card')
-      .select('mp_customer_id')
-      .eq('tenant_id', tenantId)
-      .limit(1)
-    const existingCustomerId = existingRows?.[0]?.mp_customer_id as string | undefined
-
-    const customerId = existingCustomerId ?? await getOrCreateCustomer(payerEmail)
-    const cardId = await saveCard(customerId, token)
-
-    // 2. Cobro del primer mes, ahora mismo.
-    const charge = await chargeSavedCard({ tenantId, customerId, cardId, planId: plan, email: payerEmail })
+    // 1. Cobro del primer mes, ahora mismo, con el token que acaba de generar
+    // el Brick — directo, sin pasar por guardar-tarjeta-y-regenerar-token
+    // (eso exige CVV en vivo / aprobación especial de MP, ver billing-card.ts).
+    const charge = await chargeWithToken({ tenantId, planId: plan, email: payerEmail, token })
 
     await service.from('billing_charges').insert({
       tenant_id: tenantId,
@@ -69,21 +59,30 @@ export async function POST(req: Request) {
     })
 
     if (!charge.ok) {
-      // Guardamos la tarjeta igual (para no pedirla de nuevo), pero no
-      // activamos el plan hasta que un cobro salga aprobado.
-      await service.from('tenant_billing_card').upsert({
-        tenant_id: tenantId,
-        mp_customer_id: customerId,
-        mp_card_id: cardId,
-        billing_method: 'brick',
-        plan_id: plan,
-        last_charge_status: charge.status,
-        updated_at: new Date().toISOString(),
-      })
       return NextResponse.json(
         { error: 'El pago no fue aprobado. Probá con otra tarjeta.', status: charge.status, statusDetail: charge.statusDetail },
         { status: 402 }
       )
+    }
+
+    // 2. El primer cobro aprobó — recién ahora guardamos la tarjeta para
+    // intentar reusarla el mes que viene. Es "best effort": si falla, no
+    // hace que el pago que ya se aprobó se pierda ni se revierte nada; el
+    // tenant simplemente va a tener que volver a cargar la tarjeta el
+    // próximo mes en vez de que se le cobre solo.
+    let customerId: string | null = null
+    let cardId: string | null = null
+    try {
+      const { data: existingRows } = await service
+        .from('tenant_billing_card')
+        .select('mp_customer_id')
+        .eq('tenant_id', tenantId)
+        .limit(1)
+      const existingCustomerId = existingRows?.[0]?.mp_customer_id as string | undefined
+      customerId = existingCustomerId ?? await getOrCreateCustomer(payerEmail)
+      cardId = await saveCard(customerId, token)
+    } catch (e) {
+      console.error('[billing/card/setup] no se pudo guardar la tarjeta para reuso (el cobro ya aprobó igual)', e)
     }
 
     const now = new Date()

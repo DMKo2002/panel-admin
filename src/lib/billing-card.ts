@@ -78,6 +78,47 @@ export interface ChargeResult {
   statusDetail?: string
 }
 
+// Cobro con el token que devolvió el Brick recién tokenizado (un solo uso,
+// todavía "fresco"). Es el que hay que usar para el PRIMER cobro, el que
+// pasa en el mismo momento en que el tenant carga la tarjeta — no hace falta
+// (ni conviene) pasar por guardar-tarjeta-y-regenerar-token para este caso.
+export async function chargeWithToken(opts: {
+  tenantId: string
+  planId: Exclude<PlanDef['id'], 'free'>
+  email: string
+  token: string
+}): Promise<ChargeResult> {
+  const plan = PLANS[opts.planId]
+  const res = await fetch(`${MP_API}/v1/payments`, {
+    method: 'POST',
+    headers: authHeaders({ 'X-Idempotency-Key': randomUUID() }),
+    body: JSON.stringify({
+      transaction_amount: plan.precioARS,
+      token: opts.token,
+      description: `Gounuri — Plan ${plan.nombre}`,
+      installments: 1,
+      payer: { email: opts.email },
+      external_reference: `${opts.tenantId}:${opts.planId}`,
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    return { ok: false, status: 'error', statusDetail: data?.message ?? `HTTP ${res.status}` }
+  }
+  return {
+    ok: data.status === 'approved',
+    paymentId: data.id ? String(data.id) : undefined,
+    status: data.status,
+    statusDetail: data.status_detail,
+  }
+}
+
+// Cobro de un mes siguiente, con la tarjeta ya guardada (sin CVV en vivo,
+// porque no hay nadie tipeando en ese momento — corre desde el cron). OJO:
+// Mercado Pago exige aprobación especial de la cuenta para poder generar un
+// card_token sin CVV a partir de una tarjeta guardada (ver nota en
+// api/cron/billing-recurring/route.ts) — sin esa aprobación, esta función
+// devuelve el error "security_code_id can't be null".
 export async function chargeSavedCard(opts: {
   tenantId: string
   customerId: string
