@@ -48,6 +48,14 @@ function formatARS(n: number) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+// Apagado a propósito (2026-08-12): "tarjeta directa" cobra bien la primera
+// vez pero el cron mensual todavía no puede renovar sola (Mercado Pago exige
+// aprobación especial para cobrar sin CVV sobre tarjeta guardada — ver
+// billing-card.ts). Hasta que llegue esa aprobación, solo Mercado Pago queda
+// visible acá. El código de tarjeta directa se deja intacto para reactivarlo
+// cambiando esta constante a true — no hace falta tocar nada más.
+const TARJETA_DIRECTA_HABILITADA = false
+
 export default function UpgradePlans({ currentPlan, trialing = false }: { currentPlan: string; trialing?: boolean }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -102,20 +110,22 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
         El débito es automático todos los meses. Podés cancelar cuando quieras y tu tienda vuelve al plan gratuito.
       </p>
 
-      <div className="mt-4 inline-flex rounded-lg border border-zinc-200 p-1 bg-zinc-50">
-        <button
-          onClick={() => { setMetodo('mp'); setCardPlan(null); setError(null) }}
-          className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${metodo === 'mp' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
-        >
-          Mercado Pago (con cuenta)
-        </button>
-        <button
-          onClick={() => { setMetodo('tarjeta'); setCardPlan(null); setError(null) }}
-          className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${metodo === 'tarjeta' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
-        >
-          Tarjeta directa (sin cuenta)
-        </button>
-      </div>
+      {TARJETA_DIRECTA_HABILITADA && (
+        <div className="mt-4 inline-flex rounded-lg border border-zinc-200 p-1 bg-zinc-50">
+          <button
+            onClick={() => { setMetodo('mp'); setCardPlan(null); setError(null) }}
+            className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${metodo === 'mp' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+          >
+            Mercado Pago (con cuenta)
+          </button>
+          <button
+            onClick={() => { setMetodo('tarjeta'); setCardPlan(null); setError(null) }}
+            className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${metodo === 'tarjeta' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+          >
+            Tarjeta directa (sin cuenta)
+          </button>
+        </div>
+      )}
 
       <div className="mt-4">
         <label className="block text-sm font-medium text-zinc-700 mb-1">

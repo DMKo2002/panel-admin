@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendEmail, emailBienvenidaTenant } from '@/lib/email'
 import { PLANS, TRIAL_DAYS } from '@/lib/plans'
+import { addDomainToProject } from '@/lib/vercel'
 
 export async function POST(req: Request) {
   // Verificar que el usuario está autenticado
@@ -77,6 +78,15 @@ export async function POST(req: Request) {
     )
 
   if (userError) return NextResponse.json({ error: userError.message }, { status: 500 })
+
+  // Alta de {slug}.gounuri.com en el proyecto de Vercel del template — sin
+  // esto la URL de respaldo del tenant no resuelve (ver lib/vercel.ts).
+  // Best-effort: no frena la creación del tenant si falla.
+  try {
+    await addDomainToProject(chosenTemplate, `${slug}.gounuri.com`)
+  } catch (e) {
+    console.error('[create-tenant] no se pudo dar de alta el dominio en Vercel', e)
+  }
 
   // Notificar al admin
   try {

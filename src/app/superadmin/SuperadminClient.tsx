@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3 } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export type TenantRow = {
@@ -55,6 +55,8 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savingTemplateId, setSavingTemplateId] = useState<string | null>(null)
+  const [backfilling, setBackfilling] = useState(false)
+  const [backfillResult, setBackfillResult] = useState<string | null>(null)
 
   // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
@@ -131,6 +133,23 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     setDeleteConfirmText('')
   }
 
+  async function handleBackfillDomains() {
+    setBackfilling(true)
+    setBackfillResult(null)
+    try {
+      const res = await fetch('/api/superadmin/backfill-slug-domains', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error desconocido')
+      const fallidosMsg = data.fallidos.length
+        ? ` (${data.fallidos.length} fallaron: ${data.fallidos.map((f: { tenant: string }) => f.tenant).join(', ')})`
+        : ''
+      setBackfillResult(`${data.exitosos}/${data.total} dominios .gounuri.com dados de alta.${fallidosMsg}`)
+    } catch (e) {
+      setBackfillResult('Error: ' + (e instanceof Error ? e.message : 'no se pudo correr el backfill'))
+    }
+    setBackfilling(false)
+  }
+
   const totalVisits = tenants.reduce((sum, t) => sum + t.visitCount, 0)
   const totalOrders = tenants.reduce((sum, t) => sum + t.orderCount, 0)
   const ga4LinkedCount = tenants.filter(t => t.ga4Linked).length
@@ -142,16 +161,34 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
           <h1 className="text-2xl font-bold text-zinc-100">Tenants</h1>
           <p className="text-sm text-zinc-400 mt-1">{tenants.length} tiendas registradas</p>
         </div>
-        <form action="/api/auth/signout" method="post">
+        <div className="flex items-center gap-2">
           <button
-            type="submit"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 text-xs transition-colors"
+            type="button"
+            onClick={handleBackfillDomains}
+            disabled={backfilling}
+            title="Da de alta {slug}.gounuri.com en Vercel para los tenants que se crearon antes del fix del 2026-08-12"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 text-xs transition-colors disabled:opacity-50"
           >
-            <LogOut size={13} />
-            Cerrar sesión
+            <Wrench size={13} />
+            {backfilling ? 'Reparando...' : 'Reparar dominios .gounuri.com'}
           </button>
-        </form>
+          <form action="/api/auth/signout" method="post">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 text-xs transition-colors"
+            >
+              <LogOut size={13} />
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
       </div>
+
+      {backfillResult && (
+        <div className="mb-6 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-xs text-zinc-300">
+          {backfillResult}
+        </div>
+      )}
 
       {/* Resumen agregado — todos los tenants, sin importar su plan */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
