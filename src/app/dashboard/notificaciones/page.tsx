@@ -66,18 +66,28 @@ export default function NotificacionesPage() {
       const userRow = _userRows?.[0]
       if (!userRow) return
 
-      const [{ data: cfg }, { data: notifLogs }] = await Promise.all([
-        supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single(),
+      // email_from_name/reply_to/email_intro_* NO van en este select a
+      // propósito: desde 2026-08-11 "authenticated" ya no tiene permiso de
+      // leerlos acá (eran de lectura pública para toda la tabla por error —
+      // cualquier tenant podía leer los de otro). Se traen aparte, filtrados
+      // por tenant, desde /api/config/email-identidad.
+      const [{ data: cfg }, { data: notifLogs }, emailRes] = await Promise.all([
+        supabase.from('store_config')
+          .select('id, whatsapp_number, notification_email, notify_wa_new_order, notify_email_new_order, notify_wa_low_stock, notify_wa_pending_transfer')
+          .eq('tenant_id', userRow.tenant_id)
+          .single(),
         supabase.from('notifications_log').select('*').eq('tenant_id', userRow.tenant_id).order('sent_at', { ascending: false }).limit(20),
+        fetch('/api/config/email-identidad'),
       ])
 
-      setConfig(cfg)
+      setConfig(cfg as StoreConfig)
       setLogs(notifLogs ?? [])
-      if (cfg) {
-        setEmailFromName((cfg as any).email_from_name ?? '')
-        setReplyTo((cfg as any).reply_to ?? '')
-        setEmailIntroPedidoRecibido((cfg as any).email_intro_pedido_recibido ?? '')
-        setEmailIntroPedidoEnviado((cfg as any).email_intro_pedido_enviado ?? '')
+      if (emailRes.ok) {
+        const identidad = await emailRes.json()
+        setEmailFromName(identidad.emailFromName)
+        setReplyTo(identidad.replyTo)
+        setEmailIntroPedidoRecibido(identidad.emailIntroPedidoRecibido)
+        setEmailIntroPedidoEnviado(identidad.emailIntroPedidoEnviado)
       }
     }
     load()
