@@ -26,7 +26,7 @@ export default async function SuperadminPage() {
     { data: orderRows },
     { data: configRows },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -55,6 +55,10 @@ export default async function SuperadminPage() {
     template:    t.template ?? 'minimalista',
     status:      t.status,
     plan:        t.plan ?? 'basic',
+    // Deuda = pago pendiente vigente, sea que la tienda siga activa (gracia)
+    // o ya se haya suspendido por eso — el resto de las suspensiones
+    // (trial vencido, exceso de cupo) no son "deuda" de pago.
+    debe: t.plan_status === 'past_due' || (t.status === 'suspended' && t.suspended_reason === 'payment_failed'),
     ownerEmail:  ownerByTenant[t.id] ?? null,
     // La dirección real del tenant siempre es {slug}.gounuri.com de fallback
     // (o su dominio propio si tiene uno) — antes acá se mostraba una URL fija

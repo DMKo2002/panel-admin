@@ -12,6 +12,7 @@ export type TenantRow = {
   template: string
   status: string
   plan: string
+  debe: boolean
   ownerEmail: string | null
   frontendUrl: string | null
   // Vista agregada de superadmin — ver visitas/pedidos/GA4 de TODOS los
@@ -40,6 +41,22 @@ const STATUS_COLORS: Record<string, string> = {
   active:   'bg-emerald-900 text-emerald-300',
   pending:  'bg-amber-900 text-amber-300',
   inactive: 'bg-zinc-800 text-zinc-400',
+}
+
+const PLAN_LABELS: Record<string, string> = {
+  free:     'Gratis',
+  mini:     'Mini',
+  standard: 'Standard',
+  premium:  'Premium',
+  basic:    'Standard', // legacy
+}
+
+const PLAN_COLORS: Record<string, string> = {
+  free:     'bg-zinc-800 text-zinc-400',
+  mini:     'bg-sky-900 text-sky-300',
+  standard: 'bg-violet-900 text-violet-300',
+  premium:  'bg-amber-900 text-amber-300',
+  basic:    'bg-violet-900 text-violet-300', // legacy → mismo color que standard
 }
 
 const PANEL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
@@ -223,6 +240,8 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Tienda</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Template</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Estado</th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Plan</th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Deuda</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Dominio / URL</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Owner</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Visitas / Pedidos</th>
@@ -288,6 +307,24 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[tenant.status] ?? 'bg-zinc-800 text-zinc-400'}`}>
                     {tenant.status}
                   </span>
+                </td>
+
+                {/* Plan */}
+                <td className="px-5 py-4">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[tenant.plan] ?? 'bg-zinc-800 text-zinc-400'}`}>
+                    {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+                  </span>
+                </td>
+
+                {/* Deuda */}
+                <td className="px-5 py-4">
+                  {tenant.debe ? (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-950 text-red-400">
+                      Debe
+                    </span>
+                  ) : (
+                    <span className="text-xs text-zinc-600">—</span>
+                  )}
                 </td>
 
                 {/* Dominio */}

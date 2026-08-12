@@ -5,7 +5,8 @@
 // MP donde el tenant carga su tarjeta (débito automático mensual).
 // Solo se renderiza si BILLING_ENABLED === 'true' (ver page.tsx).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Check, Loader2 } from 'lucide-react'
 import { PLANS, formatStorage, TERM_DISCOUNTS, priceForTerm, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
@@ -81,12 +82,31 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
   // cobra mes a mes, no tiene plazo para elegir acá.
   const [term, setTerm] = useState<BillingTerm>(1)
 
+  // Deep-link desde la página de precios de gounuri.com (/api/ir-a-plan) —
+  // si alguien logueado con tienda aprieta "Empezar con Business" ahí, cae
+  // acá con ?plan=standard: hacemos scroll directo a la card y la resaltamos
+  // un momento, así no tiene que buscarla entre las tres.
+  const searchParams = useSearchParams()
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const [highlightPlan, setHighlightPlan] = useState<PlanCard['id'] | null>(null)
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) setPayerEmail(data.user.email)
     })
   }, [])
+
+  useEffect(() => {
+    const planParam = searchParams.get('plan')
+    if (planParam === 'mini' || planParam === 'standard' || planParam === 'premium') {
+      setHighlightPlan(planParam)
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const t = setTimeout(() => setHighlightPlan(null), 2500)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   async function subscribe(planId: PlanCard['id']) {
     if (!EMAIL_RE.test(payerEmail.trim())) {
@@ -111,7 +131,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
   }
 
   return (
-    <div className="mt-10">
+    <div className="mt-10" ref={sectionRef}>
       <h2 className="text-lg font-semibold text-zinc-900">Cambiar de plan</h2>
       <p className="mt-1 text-sm text-zinc-500">
         El débito es automático todos los meses. Podés cancelar cuando quieras y tu tienda vuelve al plan gratuito.
@@ -194,7 +214,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
           return (
             <div
               key={card.id}
-              className={`relative flex flex-col rounded-xl border bg-white p-5 ${card.destacado ? 'border-zinc-900' : 'border-zinc-200'}`}
+              className={`relative flex flex-col rounded-xl border bg-white p-5 transition-shadow ${card.destacado ? 'border-zinc-900' : 'border-zinc-200'} ${highlightPlan === card.id ? 'ring-2 ring-emerald-400' : ''}`}
             >
               {card.destacado && (
                 <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
