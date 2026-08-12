@@ -72,7 +72,10 @@ export default function PagosPage() {
         .select('id, mp_enabled, interest_free_installments, transfer_enabled, transfer_cbu, transfer_alias, cash_enabled, mp_public_key')
         .eq('tenant_id', userRow.tenant_id)
         .single()
-      setConfig(data)
+      // El select de arriba trae a propósito solo un subconjunto de columnas
+      // (no StoreConfig completo) para no depender de mp_access_token acá.
+      // Esta página solo usa esos campos, así que el cast es seguro.
+      setConfig(data as StoreConfig)
       if ((data as any)?.mp_public_key) setMpPublicKey((data as any).mp_public_key as string)
 
       const statusRes = await fetch('/api/mp/credenciales-status')
