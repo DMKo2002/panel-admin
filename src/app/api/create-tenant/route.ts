@@ -20,13 +20,24 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Crear tenant
+  // Crear tenant \u2014 el slug es literalmente {slug}.gounuri.com, antes ac\u00e1 se
+  // le pegaba siempre un sufijo random de 4 d\u00edgitos sin chequear si el
+  // nombre limpio ya estaba libre. Ahora se usa el nombre limpio y si ya
+  // existe se avisa (ver chequeo m\u00e1s abajo) en vez de generar uno random.
   const slug = name.trim()
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
-    + '-' + Date.now().toString().slice(-4)
+    || 'tienda'
+
+  const { data: _slugTaken } = await serviceClient.from('tenants').select('id').eq('slug', slug).limit(1)
+  if (_slugTaken?.[0]) {
+    return NextResponse.json(
+      { error: `El nombre "${name.trim()}" ya est\u00e1 en uso. Prob\u00e1 con otro nombre para tu tienda.` },
+      { status: 409 }
+    )
+  }
 
   const validTemplates = ['minimalista', 'mono', 'atelier', 'axis', 'glow', 'bazaar']
   const chosenTemplate = validTemplates.includes(template) ? template : 'minimalista'
@@ -51,7 +62,15 @@ export async function POST(req: Request) {
     .select()
     .single()
 
-  if (tenantError) return NextResponse.json({ error: tenantError.message }, { status: 500 })
+  if (tenantError) {
+    if (tenantError.code === '23505') {
+      return NextResponse.json(
+        { error: `El nombre "${name.trim()}" ya está en uso. Probá con otro nombre para tu tienda.` },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: tenantError.message }, { status: 500 })
+  }
 
   // Crear store_config con atributos por defecto
   const { error: configError } = await serviceClient

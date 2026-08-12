@@ -184,6 +184,8 @@ export default function OnboardingPage() {
     if (!res.ok || json.error) {
       setError(json.error ?? 'Error al crear la tienda')
       setSaving(false)
+      // 409 = nombre ya en uso — volver al paso 1 para que lo cambien.
+      if (res.status === 409) setStep('nombre')
       return
     }
     window.location.href = '/dashboard'
