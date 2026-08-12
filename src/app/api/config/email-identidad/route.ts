@@ -29,7 +29,7 @@ export async function GET() {
     .eq('tenant_id', tenantId)
     .limit(1)
 
-  const cfg = _rows?.[0] ?? {}
+  const cfg: any = _rows?.[0] ?? {}
   return NextResponse.json({
     emailFromName: cfg.email_from_name ?? '',
     replyTo: cfg.reply_to ?? '',
