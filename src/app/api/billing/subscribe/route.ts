@@ -17,10 +17,21 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { plan } = await req.json()
+  const { plan, payerEmail: payerEmailInput } = await req.json()
   if (plan !== 'mini' && plan !== 'standard' && plan !== 'premium') {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
   }
+
+  // El email que autoriza en MP no tiene por qué ser el email de login del
+  // Panel Admin — son cosas distintas (ver incidente 2026-08-12: el owner
+  // logueado con un email quería pagar con una cuenta de MP de otro email, y
+  // MP rechazaba todo con "el email no coincide con el de la suscripción").
+  // Por eso el frontend puede mandar el email real de la cuenta de MP que se
+  // va a usar; si no lo manda, se cae al email de login como antes.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const payerEmail = typeof payerEmailInput === 'string' && EMAIL_RE.test(payerEmailInput.trim())
+    ? payerEmailInput.trim()
+    : user.email
 
   const service = createServiceClient()
   const { data: _rows } = await service.from('users').select('tenant_id, role').eq('id', user.id).limit(1)
@@ -33,7 +44,7 @@ export async function POST(req: Request) {
     const preapproval = await createPreapproval({
       tenantId: userRow.tenant_id,
       planId: plan,
-      payerEmail: user.email,
+      payerEmail,
       backUrl: `${origin}/dashboard/uso?sub=pendiente`,
     })
     // Guardar el id ya mismo — el webhook confirma la activación después

@@ -5,9 +5,10 @@
 // MP donde el tenant carga su tarjeta (débito automático mensual).
 // Solo se renderiza si BILLING_ENABLED === 'true' (ver page.tsx).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { PLANS } from '@/lib/plans'
+import { createClient } from '@/lib/supabase/client'
 
 interface PlanCard {
   id: 'mini' | 'standard' | 'premium'
@@ -44,18 +45,36 @@ function formatARS(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export default function UpgradePlans({ currentPlan, trialing = false }: { currentPlan: string; trialing?: boolean }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // El email para autorizar en MP no es necesariamente el email con el que
+  // el owner entra al Panel Admin — puede querer pagar con una cuenta de MP
+  // distinta (la suya personal, la de un socio, etc). Se prellena con el
+  // email de login como punto de partida, pero es editable.
+  const [payerEmail, setPayerEmail] = useState('')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setPayerEmail(data.user.email)
+    })
+  }, [])
 
   async function subscribe(planId: PlanCard['id']) {
+    if (!EMAIL_RE.test(payerEmail.trim())) {
+      setError('Ingresá el email de la cuenta de Mercado Pago con la que vas a pagar.')
+      return
+    }
     setLoading(planId)
     setError(null)
     try {
       const res = await fetch('/api/billing/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId }),
+        body: JSON.stringify({ plan: planId, payerEmail: payerEmail.trim() }),
       })
       const json = await res.json()
       if (!res.ok || !json.init_point) throw new Error(json.error ?? 'Error desconocido')
@@ -72,6 +91,22 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
       <p className="mt-1 text-sm text-zinc-500">
         El débito es automático todos los meses. Podés cancelar cuando quieras y tu tienda vuelve al plan gratuito.
       </p>
+
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-zinc-700 mb-1">
+          Email de tu cuenta de Mercado Pago
+        </label>
+        <input
+          type="email"
+          className="input max-w-sm"
+          value={payerEmail}
+          onChange={e => setPayerEmail(e.target.value)}
+          placeholder="tu@email.com"
+        />
+        <p className="mt-1 text-xs text-zinc-400">
+          Tiene que ser el email de la cuenta de Mercado Pago con la que vas a autorizar el pago — no hace falta que sea el mismo con el que entrás acá. Si no coincide con la cuenta de MP que uses al pagar, Mercado Pago va a rechazar el pago.
+        </p>
+      </div>
 
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
