@@ -42,7 +42,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
     nombre: 'Mini',
     precioARS: 10_000,
     storageMB: 300,
-    maxProductos: 100,
+    maxProductos: 50,
     visitasMes: 15_000,
   },
   standard: {
