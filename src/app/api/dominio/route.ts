@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { addDomainToProject, getDomainStatus, verifyDomain, removeDomainFromProject, normalizeDomain } from '@/lib/vercel'
+import { addDomainToProject, getDomainStatus, verifyDomain, removeDomainFromProject, normalizeDomain, getDnsInstructions } from '@/lib/vercel'
 import { assignDomainToWidgetPool, removeDomainFromWidgetPool } from '@/lib/turnstile'
 
 async function getTenant() {
@@ -70,7 +70,12 @@ export async function POST(req: Request) {
         .eq('tenant_id', tenant.id)
     }
 
-    return NextResponse.json({ ok: true, domain, verified: status.verified, verification: status.verification })
+    // Los TXT de "verification" (arriba) casi nunca vienen — sin esto el
+    // tenant se quedaba sin saber qué cargar en su proveedor de DNS. Si ya
+    // quedó verified no hace falta pedirlo.
+    const dns = status.verified ? [] : await getDnsInstructions(tenant.template, domain).catch(() => [])
+
+    return NextResponse.json({ ok: true, domain, verified: status.verified, verification: status.verification, dns })
   } catch (e) {
     await service.from('tenants').update({ domain_status: 'error' }).eq('id', tenant.id)
     const message = e instanceof Error ? e.message : 'Error agregando el dominio'
@@ -104,10 +109,13 @@ export async function GET() {
         .eq('tenant_id', tenant.id)
     }
 
+    const dns = status.verified ? [] : await getDnsInstructions(tenant.template, tenant.domain).catch(() => [])
+
     return NextResponse.json({
       domain: tenant.domain,
       status: status.verified ? 'verified' : 'pending',
       verification: status.verification,
+      dns,
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Error consultando el dominio'

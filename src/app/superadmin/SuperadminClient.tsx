@@ -83,6 +83,8 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [savingTemplateId, setSavingTemplateId] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [backfillResult, setBackfillResult] = useState<string | null>(null)
+  const [creatingWidget, setCreatingWidget] = useState(false)
+  const [widgetResult, setWidgetResult] = useState<{ siteKey: string; secretKey: string } | string | null>(null)
 
   // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
@@ -176,6 +178,20 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     setBackfilling(false)
   }
 
+  async function handleCreateDefaultWidget() {
+    setCreatingWidget(true)
+    setWidgetResult(null)
+    try {
+      const res = await fetch('/api/superadmin/create-default-turnstile-widget', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error desconocido')
+      setWidgetResult({ siteKey: data.siteKey, secretKey: data.secretKey })
+    } catch (e) {
+      setWidgetResult('Error: ' + (e instanceof Error ? e.message : 'no se pudo crear el widget'))
+    }
+    setCreatingWidget(false)
+  }
+
   const totalVisits = tenants.reduce((sum, t) => sum + t.visitCount, 0)
   const totalOrders = tenants.reduce((sum, t) => sum + t.orderCount, 0)
   const ga4LinkedCount = tenants.filter(t => t.ga4Linked).length
@@ -198,6 +214,16 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
             <Wrench size={13} />
             {backfilling ? 'Reparando...' : 'Reparar dominios .gounuri.com'}
           </button>
+          <button
+            type="button"
+            onClick={handleCreateDefaultWidget}
+            disabled={creatingWidget}
+            title="Crea el widget de Turnstile que cubre *.gounuri.com (fallback para tenants sin dominio propio) — solo hace falta correrlo una vez"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 text-xs transition-colors disabled:opacity-50"
+          >
+            <Wrench size={13} />
+            {creatingWidget ? 'Creando...' : 'Crear widget Turnstile default'}
+          </button>
           <form action="/api/auth/signout" method="post">
             <button
               type="submit"
@@ -213,6 +239,22 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
       {backfillResult && (
         <div className="mb-6 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-xs text-zinc-300">
           {backfillResult}
+        </div>
+      )}
+
+      {widgetResult && (
+        <div className="mb-6 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-xs text-zinc-300 space-y-2">
+          {typeof widgetResult === 'string' ? (
+            widgetResult
+          ) : (
+            <>
+              <p className="text-zinc-400">
+                Widget creado. Pegá esto en Vercel → gounuri-web y en cada tienda-* (Settings → Environment Variables):
+              </p>
+              <p className="font-mono break-all">NEXT_PUBLIC_TURNSTILE_SITE_KEY={widgetResult.siteKey}</p>
+              <p className="font-mono break-all">TURNSTILE_SECRET_KEY={widgetResult.secretKey}</p>
+            </>
+          )}
         </div>
       )}
 
