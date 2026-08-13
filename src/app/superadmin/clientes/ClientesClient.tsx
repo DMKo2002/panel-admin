@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, Search, LogOut } from 'lucide-react'
+import { Search, LogOut } from 'lucide-react'
 
 export type GounuriAccountRow = {
   id: string
@@ -13,8 +13,6 @@ export type GounuriAccountRow = {
   storeName: string
   confirmado: boolean
   createdAt: string
-  tiendaUrl: string | null
-  tiendaStatus: string | null
 }
 
 export default function ClientesClient({ initialAccounts }: { initialAccounts: GounuriAccountRow[] }) {
@@ -32,7 +30,6 @@ export default function ClientesClient({ initialAccounts }: { initialAccounts: G
   }, [initialAccounts, query])
 
   const confirmadosCount = initialAccounts.filter(a => a.confirmado).length
-  const conTiendaCount = initialAccounts.filter(a => a.tiendaUrl).length
 
   return (
     <div>
@@ -40,7 +37,8 @@ export default function ClientesClient({ initialAccounts }: { initialAccounts: G
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Clientes Gounuri</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            {initialAccounts.length} cuentas registradas en gounuri.com/registro
+            Se registraron en gounuri.com pero todavía no crearon su tienda — útil para mailing/marketing.
+            Los que ya tienen tienda se ven en <a href="/superadmin" className="underline hover:text-zinc-200">Tenants</a>, en la columna Owner.
           </p>
         </div>
         <form action="/api/auth/signout" method="post">
@@ -56,20 +54,13 @@ export default function ClientesClient({ initialAccounts }: { initialAccounts: G
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500">Total registrados</p>
+          <p className="text-xs text-zinc-500">Sin tienda creada</p>
           <p className="text-xl font-semibold text-zinc-100 mt-1">{initialAccounts.length}</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
           <p className="text-xs text-zinc-500">Confirmaron el mail</p>
           <p className="text-xl font-semibold text-zinc-100 mt-1">
             {confirmadosCount}
-            <span className="text-sm font-normal text-zinc-500"> / {initialAccounts.length}</span>
-          </p>
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500">Ya crearon su tienda</p>
-          <p className="text-xl font-semibold text-zinc-100 mt-1">
-            {conTiendaCount}
             <span className="text-sm font-normal text-zinc-500"> / {initialAccounts.length}</span>
           </p>
         </div>
@@ -93,7 +84,7 @@ export default function ClientesClient({ initialAccounts }: { initialAccounts: G
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Email</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">DNI</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Celular</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Tienda</th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Tienda que quería crear</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Mail confirmado</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Alta</th>
             </tr>
@@ -107,21 +98,7 @@ export default function ClientesClient({ initialAccounts }: { initialAccounts: G
                 <td className="px-5 py-4 text-zinc-300">{a.email}</td>
                 <td className="px-5 py-4 text-zinc-300">{a.dni}</td>
                 <td className="px-5 py-4 text-zinc-300">{a.celular}</td>
-                <td className="px-5 py-4">
-                  {a.tiendaUrl ? (
-                    <a
-                      href={a.tiendaUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-zinc-100 hover:text-white underline underline-offset-2"
-                    >
-                      {a.storeName}
-                      <ExternalLink size={11} />
-                    </a>
-                  ) : (
-                    <span className="text-zinc-500">{a.storeName} <span className="text-xs">(sin crear)</span></span>
-                  )}
-                </td>
+                <td className="px-5 py-4 text-zinc-400">{a.storeName}</td>
                 <td className="px-5 py-4">
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
                     a.confirmado ? 'bg-emerald-900 text-emerald-300' : 'bg-amber-900 text-amber-300'

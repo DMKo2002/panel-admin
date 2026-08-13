@@ -25,16 +25,23 @@ export default async function SuperadminPage() {
     { data: visitsRows },
     { data: orderRows },
     { data: configRows },
+    { data: accounts },
   ] = await Promise.all([
     serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
     serviceClient.from('store_config').select('tenant_id, ga4_measurement_id'),
+    // Datos personales del dueño (gounuri_accounts) — unificados acá en vez
+    // de una pantalla aparte, para ver tienda + persona en una sola fila.
+    serviceClient.from('gounuri_accounts').select('tenant_id, nombre, apellido, dni, celular').not('tenant_id', 'is', null),
   ])
 
   const ownerByTenant = Object.fromEntries(
     (users ?? []).map(u => [u.tenant_id, u.email])
+  )
+  const accountByTenant = Object.fromEntries(
+    (accounts ?? []).map(a => [a.tenant_id, a])
   )
   const visitsByTenant = Object.fromEntries(
     (visitsRows ?? []).map(v => [v.tenant_id, Number((v as any).count ?? 0)])
@@ -60,6 +67,10 @@ export default async function SuperadminPage() {
     // (trial vencido, exceso de cupo) no son "deuda" de pago.
     debe: t.plan_status === 'past_due' || (t.status === 'suspended' && t.suspended_reason === 'payment_failed'),
     ownerEmail:  ownerByTenant[t.id] ?? null,
+    ownerNombre:   accountByTenant[t.id]?.nombre ?? null,
+    ownerApellido: accountByTenant[t.id]?.apellido ?? null,
+    ownerDni:      accountByTenant[t.id]?.dni ?? null,
+    ownerCelular:  accountByTenant[t.id]?.celular ?? null,
     // La dirección real del tenant siempre es {slug}.gounuri.com de fallback
     // (o su dominio propio si tiene uno) — antes acá se mostraba una URL fija
     // de preview por template (*.vercel.app), que no correspondía a ESE

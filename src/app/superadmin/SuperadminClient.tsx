@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export type TenantRow = {
@@ -14,6 +14,15 @@ export type TenantRow = {
   plan: string
   debe: boolean
   ownerEmail: string | null
+  // Datos personales del dueño — vienen de gounuri_accounts (ver
+  // 2026-08-13: unificamos acá en vez de tener una pantalla aparte
+  // "Clientes Gounuri" con la misma gente, para no tener que ir y venir
+  // entre dos tablas para cruzar tienda ↔ persona). null si el tenant es
+  // de antes de este flujo (no tiene fila en gounuri_accounts todavía).
+  ownerNombre: string | null
+  ownerApellido: string | null
+  ownerDni: string | null
+  ownerCelular: string | null
   frontendUrl: string | null
   // Vista agregada de superadmin — ver visitas/pedidos/GA4 de TODOS los
   // tenants acá nunca depende del plan de cada uno (a diferencia de
@@ -341,9 +350,32 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   )}
                 </td>
 
-                {/* Owner */}
+                {/* Owner — nombre + email; DNI/celular en el tooltip del ícono
+                    para no ensanchar la tabla con columnas sueltas. */}
                 <td className="px-5 py-4">
-                  <span className="text-zinc-400 text-xs">{tenant.ownerEmail ?? '—'}</span>
+                  {tenant.ownerNombre ? (
+                    <div className="flex items-center gap-1.5">
+                      <div>
+                        <p className="text-zinc-200 text-xs font-medium">
+                          {tenant.ownerNombre} {tenant.ownerApellido}
+                        </p>
+                        <p className="text-zinc-500 text-xs">{tenant.ownerEmail}</p>
+                      </div>
+                      {(tenant.ownerDni || tenant.ownerCelular) && (
+                        <span
+                          title={[
+                            tenant.ownerDni ? `DNI: ${tenant.ownerDni}` : null,
+                            tenant.ownerCelular ? `Cel: ${tenant.ownerCelular}` : null,
+                          ].filter(Boolean).join(' · ')}
+                          className="shrink-0 text-zinc-600 hover:text-zinc-300 cursor-help"
+                        >
+                          <Info size={13} />
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-zinc-400 text-xs">{tenant.ownerEmail ?? '—'}</span>
+                  )}
                 </td>
 
                 {/* Visitas / Pedidos — mismos números que "Plan y uso" del tenant,
