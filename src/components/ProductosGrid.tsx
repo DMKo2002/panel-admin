@@ -534,7 +534,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
 
         {/* VISTA LISTA */}
         {!editingOrder && view === 'list' && (
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
             {filtered.length === 0 ? <EmptyState /> : (
               <table className="w-full text-sm">
                 <thead>

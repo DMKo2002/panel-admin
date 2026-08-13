@@ -134,7 +134,7 @@ export default async function ClientesPage() {
 
       {/* Tabla */}
       <div className="px-8 pb-8">
-        <div className="bg-white rounded-xl border border-zinc-200">
+        <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100">

@@ -70,7 +70,7 @@ export default async function CuentasPage() {
       </div>
 
       <div className="px-8 py-6">
-        <div data-tutorial="cuentas-table" className="bg-white rounded-xl border border-zinc-200">
+        <div data-tutorial="cuentas-table" className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100">

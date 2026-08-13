@@ -65,7 +65,7 @@ export default function ProductsTable({ products }: { products: ProductAgg[] }) 
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100">

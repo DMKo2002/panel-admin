@@ -146,7 +146,7 @@ export default async function EstadisticasPage({
         {categories.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-zinc-700 mb-3">Categorías más vendidas</h2>
-            <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100">

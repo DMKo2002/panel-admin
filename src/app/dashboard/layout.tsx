@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/Sidebar'
+import DashboardShell from '@/components/DashboardShell'
 import ThemeProvider from '@/components/ThemeProvider'
 import { isSuperAdmin } from '@/lib/superadmin'
 import TutorialProvider from '@/components/tutorial/TutorialProvider'
@@ -81,13 +81,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <TutorialProvider>
-      <div className="flex h-screen overflow-hidden bg-zinc-50">
-        <ThemeProvider />
-        <Sidebar storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} role={userRow?.role} permissions={userRow?.permissions} />
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
-      </div>
+      <ThemeProvider />
+      <DashboardShell storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} role={userRow?.role} permissions={userRow?.permissions}>
+        {children}
+      </DashboardShell>
       <TutorialWelcomePopup />
     </TutorialProvider>
   )

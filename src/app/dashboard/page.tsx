@@ -60,7 +60,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <DashboardRefresher tenantId={tenantId} />
 
-      <div className="px-8 py-6 border-b border-zinc-200 bg-white">
+      <div className="px-4 sm:px-8 py-6 border-b border-zinc-200 bg-white">
         <h1 className="text-xl font-semibold text-zinc-900">Dashboard</h1>
         <p className="text-sm text-zinc-500 mt-0.5">
           {new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -69,10 +69,10 @@ export default async function DashboardPage() {
 
       <GraceBanner tenantId={tenantId} />
 
-      <div className="px-8 py-6 space-y-6">
+      <div className="px-4 sm:px-8 py-6 space-y-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={<TrendingUp size={18} className="text-primary-600" />}
             iconBg="bg-primary-50"
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
         {/* Últimos pedidos */}
         <div>
           <h2 className="text-sm font-semibold text-zinc-700 mb-3">Últimos pedidos</h2>
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100">
