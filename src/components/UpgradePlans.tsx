@@ -45,6 +45,14 @@ const CARDS: PlanCard[] = [
   },
 ]
 
+const SIGNATURE_FEATURES = [
+  'Ecosistema 100% a medida',
+  'Arquitectura y flujos de usuario (UX/UI) diseñados con exclusividad',
+  'Funcionalidades complejas',
+  'Escalabilidad garantizada: preparadas para crecer al ritmo de la empresa',
+  'Integraciones especiales',
+]
+
 function formatARS(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
@@ -134,7 +142,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
     <div className="mt-10" ref={sectionRef}>
       <h2 className="text-lg font-semibold text-zinc-900">Cambiar de plan</h2>
       <p className="mt-1 text-sm text-zinc-500">
-        El débito es automático todos los meses. Podés cancelar cuando quieras y tu tienda vuelve al plan gratuito.
+        Tu suscripción se renueva automáticamente. Tenés total libertad para cancelar cuando quieras.
       </p>
 
       {TARJETA_DIRECTA_HABILITADA && (
@@ -167,7 +175,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
         />
         {metodo === 'mp' ? (
           <p className="mt-1 text-xs text-zinc-400">
-            Tiene que ser el email de la cuenta de Mercado Pago con la que vas a autorizar el pago — no hace falta que sea el mismo con el que entrás acá. Si no coincide con la cuenta de MP que uses al pagar, Mercado Pago va a rechazar el pago.
+            Ingresá el email de tu cuenta de Mercado Pago (puede ser distinto al que usás en esta tienda). Asegurate de que sea el correcto para que el pago se procese con éxito.
           </p>
         ) : (
           <p className="mt-1 text-xs text-zinc-400">
@@ -179,17 +187,17 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
       {metodo === 'mp' && (
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Plazo de pago</label>
-          <div className="inline-flex rounded-lg border border-zinc-200 p-1 bg-zinc-50">
+          <div className="inline-flex rounded-full border border-zinc-900 p-1">
             {([1, 6, 12] as BillingTerm[]).map(t => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTerm(t)}
-                className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${term === t ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+                className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${term === t ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
               >
-                {t === 1 ? 'Mensual' : `${t} meses`}
+                {t === 1 ? 'Mensual' : `${t === 6 ? 'Semestral' : 'Anual'}`}
                 {TERM_DISCOUNTS[t] > 0 && (
-                  <span className="ml-1 text-emerald-600">-{TERM_DISCOUNTS[t] * 100}%</span>
+                  <span className={`ml-1 ${term === t ? 'text-emerald-400' : 'text-emerald-600'}`}>-{TERM_DISCOUNTS[t] * 100}%</span>
                 )}
               </button>
             ))}
@@ -206,7 +214,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {CARDS.map(card => {
           // Durante el trial el plan "actual" no está pago — el botón debe
           // permitir activarlo.
@@ -214,14 +222,14 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
           return (
             <div
               key={card.id}
-              className={`relative flex flex-col rounded-xl border bg-white p-5 transition-shadow ${card.destacado ? 'border-zinc-900' : 'border-zinc-200'} ${highlightPlan === card.id ? 'ring-2 ring-emerald-400' : ''}`}
+              className={`relative flex flex-col rounded-xl border border-zinc-900 bg-white p-5 transition-shadow ${card.destacado ? 'shadow-md' : ''} ${highlightPlan === card.id ? 'ring-2 ring-emerald-400' : ''}`}
             >
               {card.destacado && (
                 <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-medium text-white">
                   Recomendado
                 </span>
               )}
-              <h3 className="font-semibold text-zinc-900">{card.nombre}</h3>
+              <h3 className="font-bold text-zinc-900">{card.nombre}</h3>
               {metodo === 'mp' && term > 1 ? (
                 <div className="mt-1">
                   <p className="text-2xl font-bold text-zinc-900">
@@ -255,11 +263,7 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
                   setCardPlan(card.id)
                 }}
                 disabled={esActual || loading !== null}
-                className={`mt-5 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-                  card.destacado
-                    ? 'bg-zinc-900 text-white hover:bg-zinc-700'
-                    : 'border border-zinc-300 text-zinc-900 hover:border-zinc-900'
-                }`}
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
               >
                 {loading === card.id && <Loader2 size={15} className="animate-spin" />}
                 {esActual
@@ -273,6 +277,31 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
             </div>
           )
         })}
+
+        {/* Plan Signature — ecosistema a medida, sin precio fijo, se coordina con un especialista */}
+        <div className="relative flex flex-col rounded-xl border border-zinc-900 bg-white p-5">
+          <h3 className="font-bold text-zinc-900">Signature</h3>
+          <p className="mt-1 text-sm text-zinc-600">
+            Para marcas que exigen una identidad digital única y sin límites.
+          </p>
+          <p className="mt-3 text-2xl font-bold text-zinc-900">A medida</p>
+          <ul className="mt-4 flex-1 space-y-2">
+            {SIGNATURE_FEATURES.map(f => (
+              <li key={f} className="flex items-start gap-2 text-sm text-zinc-600">
+                <Check size={15} className="mt-0.5 shrink-0 text-zinc-900" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <a
+            href="https://www.gounuri.com/migracion/contacto"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+          >
+            Contactá a un especialista
+          </a>
+        </div>
       </div>
 
       {metodo === 'tarjeta' && cardPlan && !cardSuccess && (
@@ -301,32 +330,20 @@ export default function UpgradePlans({ currentPlan, trialing = false }: { curren
         </div>
       )}
 
-      <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        ¿Necesitás más de lo que ofrece Premium? Escribinos por{' '}
-        <a href="https://wa.me/541131351972" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 underline">
-          WhatsApp
-        </a>{' '}
-        o a{' '}
-        <a href="mailto:info@gounuri.com" className="font-medium text-zinc-900 underline">
-          info@gounuri.com
-        </a>{' '}
-        y armamos un plan a medida.
-      </div>
-
-      <p className="mt-4 text-xs text-zinc-400">
+      <div className="mt-4 space-y-1 text-xs text-zinc-400">
         {metodo === 'mp' ? (
           <>
-            El pago se procesa con MercadoPago. Vas a cargar tu medio de pago en el sitio seguro de MP — nunca guardamos los datos de tu tarjeta.
-            Aceptamos tarjetas de crédito y débito bancarias habilitadas para débito automático, o dinero disponible en tu cuenta de MercadoPago.
-            No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para suscripciones recurrentes.
+            <p>El pago se procesa con MercadoPago. Vas a cargar tu medio de pago en el sitio seguro de MP — nunca guardamos los datos de tu tarjeta.</p>
+            <p>Aceptamos tarjetas de crédito y débito bancarias habilitadas para débito automático, o dinero disponible en tu cuenta de MercadoPago.</p>
+            <p>No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para suscripciones recurrentes.</p>
           </>
         ) : (
           <>
-            Pagás directo con los datos de tu tarjeta, sin necesidad de cuenta de Mercado Pago. Nunca guardamos los datos de tu tarjeta nosotros —
-            quedan tokenizados en Mercado Pago. No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para cobros recurrentes.
+            <p>Pagás directo con los datos de tu tarjeta, sin necesidad de cuenta de Mercado Pago. Nunca guardamos los datos de tu tarjeta nosotros — quedan tokenizados en Mercado Pago.</p>
+            <p>No se aceptan tarjetas prepagas ni virtuales (ej. Prex, Uala prepaga) para cobros recurrentes.</p>
           </>
         )}
-      </p>
+      </div>
     </div>
   )
 }
