@@ -13,11 +13,21 @@ export default async function SuperadminLayout({ children }: { children: React.R
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center text-xs font-bold">
-            SA
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center text-xs font-bold">
+              SA
+            </div>
+            <span className="text-sm font-semibold text-zinc-100">gounuri Superadmin</span>
           </div>
-          <span className="text-sm font-semibold text-zinc-100">gounuri Superadmin</span>
+          <nav className="flex items-center gap-4 text-xs">
+            <a href="/superadmin" className="text-zinc-400 hover:text-zinc-100 transition-colors">
+              Tenants
+            </a>
+            <a href="/superadmin/clientes" className="text-zinc-400 hover:text-zinc-100 transition-colors">
+              Clientes Gounuri
+            </a>
+          </nav>
         </div>
         <a
           href="/dashboard"
