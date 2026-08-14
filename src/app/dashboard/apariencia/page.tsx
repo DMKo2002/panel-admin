@@ -366,7 +366,15 @@ export default function AparienciaPage() {
         setTemplate(tmpl)
         setStoreName((tenant as any)?.name ?? '')
 
-        const { data: cfg } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+        // Columnas explícitas, no select('*') — store_config tiene permisos
+        // por columna, un select('*') devuelve 403 y esta página se queda sin
+        // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
+        const { data: cfg, error: cfgError } = await supabase
+          .from('store_config')
+          .select('id, hero_text_color, hero_eyebrow, hero_title_line1, hero_title_italic, hero_title_line3, hero_season, hero_subtitle, nav_text_color, collection_text_color, collection_posts, blog_heading, blog_subheading, blog_posts, newsletter_bg_color, banner_bg_color, pdf_show_variant, pdf_show_pricetype, pdf_show_address, pdf_show_notes')
+          .eq('tenant_id', userRow.tenant_id)
+          .single()
+        if (cfgError) console.error('[Apariencia] Error cargando store_config:', cfgError)
         if (cfg) {
           setConfigId(cfg.id)
           setHeroTextColor((cfg as any).hero_text_color ?? '#FFFFFF')

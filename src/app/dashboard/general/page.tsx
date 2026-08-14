@@ -82,7 +82,21 @@ export default function GeneralPage() {
       const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
       const userRow = _userRows?.[0]
       if (!userRow) return
-      const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+      // Columnas explícitas, no select('*') — store_config tiene permisos
+      // por columna (tokens de MP/Andreani nunca se otorgan a authenticated/
+      // anon), así que un select('*') devuelve 403 y esta página se queda
+      // sin datos en silencio. Ver CLAUDE.md, sección de permisos de
+      // store_config.
+      const { data, error } = await supabase
+        .from('store_config')
+        .select('id, tenant_id, panel_theme, ignore_stock, min_order_amount, show_min_order_banner, min_qty_per_variant, price_visibility, registration_visibility, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing')
+        .eq('tenant_id', userRow.tenant_id)
+        .single()
+      if (error) {
+        console.error('Error cargando configuracion general:', error)
+        setErrorGeneral('No se pudo cargar la configuración. Recargá la página o contactá a soporte.')
+        return
+      }
       setConfig(data)
       const theme = (data as any)?.panel_theme ?? 'default'
       setPanelTheme(theme)

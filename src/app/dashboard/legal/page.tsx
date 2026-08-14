@@ -112,7 +112,19 @@ export default function LegalPage() {
       const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
       const userRow = _userRows?.[0]
       if (!userRow) return
-      const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+      // Columnas explícitas, no select('*') — store_config tiene permisos
+      // por columna, un select('*') devuelve 403 y esta página se queda sin
+      // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
+      const { data, error } = await supabase
+        .from('store_config')
+        .select('id, terms_and_conditions, privacy_policy, cookies_policy')
+        .eq('tenant_id', userRow.tenant_id)
+        .single()
+      if (error) {
+        console.error('Error cargando textos legales:', error)
+        setErrorGeneral('No se pudo cargar la configuración. Recargá la página o contactá a soporte.')
+        return
+      }
       if (data) {
         setConfigId(data.id)
         setTerms((data as any).terms_and_conditions ?? '')

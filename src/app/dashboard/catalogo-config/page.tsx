@@ -69,7 +69,19 @@ export default function CatalogoConfigPage() {
       const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
       const userRow = _userRows?.[0]
       if (!userRow) return
-      const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+      // Columnas explícitas, no select('*') — store_config tiene permisos
+      // por columna, un select('*') devuelve 403 y esta página se queda sin
+      // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
+      const { data, error } = await supabase
+        .from('store_config')
+        .select('id, variant_attributes, product_image_ratio, weight_unit, variant_mode, variant_column_type, variant_row_label, variant_column_label')
+        .eq('tenant_id', userRow.tenant_id)
+        .single()
+      if (error) {
+        console.error('Error cargando configuracion de catalogo:', error)
+        setErrorAll('No se pudo cargar la configuración. Recargá la página o contactá a soporte.')
+        return
+      }
       setConfig(data)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
     }
