@@ -97,7 +97,10 @@ export default function GeneralPage() {
         setErrorGeneral('No se pudo cargar la configuración. Recargá la página o contactá a soporte.')
         return
       }
-      setConfig(data)
+      // `data` solo trae las columnas seleccionadas arriba (a propósito, por
+      // permisos), no el StoreConfig completo — mismo criterio de cast que en
+      // catalogo-config/page.tsx, no cambia nada en tiempo de ejecución.
+      setConfig(data as any)
       const theme = (data as any)?.panel_theme ?? 'default'
       setPanelTheme(theme)
     }
