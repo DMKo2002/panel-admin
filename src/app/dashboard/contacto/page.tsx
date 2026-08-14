@@ -65,7 +65,19 @@ export default function ContactoPage() {
       const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
       const userRow = _userRows?.[0]
       if (!userRow) return
-      const { data } = await supabase.from('store_config').select('*').eq('tenant_id', userRow.tenant_id).single()
+      // Columnas explícitas, no select('*') — store_config tiene permisos
+      // por columna, un select('*') devuelve 403 y esta página se queda sin
+      // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
+      const { data, error } = await supabase
+        .from('store_config')
+        .select('id, whatsapp_number, instagram_url, facebook_url, tiktok_url, store_address, pickup_address, branches, meta_pixel_id, google_ads_id, tiktok_pixel_id')
+        .eq('tenant_id', userRow.tenant_id)
+        .single()
+      if (error) {
+        console.error('Error cargando contacto:', error)
+        setErrorGeneral('No se pudo cargar la configuración. Recargá la página o contactá a soporte.')
+        return
+      }
       if (data) {
         setConfigId(data.id)
         setWhatsapp((data as any).whatsapp_number ?? '')
