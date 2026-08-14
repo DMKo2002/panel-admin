@@ -1,17 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import OAuthButtons from '@/components/OAuthButtons'
+
+// "Recordarme" guarda solo el email en localStorage para prellenar el
+// campo la próxima vez — no la contraseña. Mismo nombre de key que
+// gounuri-web así que si guardaste el email de un lado, ya te aparece
+// prellenado del otro también (localStorage no es compartido entre
+// dominios, pero al menos queda consistente el criterio).
+const REMEMBER_KEY = 'gounuri_remember_email'
 
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const saved = localStorage.getItem(REMEMBER_KEY)
+    if (saved) setEmail(saved)
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -25,6 +38,9 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
+
+    if (remember) localStorage.setItem(REMEMBER_KEY, email)
+    else localStorage.removeItem(REMEMBER_KEY)
 
     router.push('/dashboard')
     router.refresh()
@@ -87,6 +103,16 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          <label className="flex items-center gap-2 text-xs text-zinc-600">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={e => setRemember(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-zinc-300"
+            />
+            Recordarme
+          </label>
 
           {error && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
