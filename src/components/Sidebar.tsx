@@ -11,20 +11,32 @@ import {
 import clsx from 'clsx'
 import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
 
-// Los ítems de "Configuración" (General, Pagos, Envíos, Catálogo, Contacto,
-// Notificaciones, Apariencia, Legal, Cuentas) viven en src/lib/settings-nav.ts
+// Los ítems de "Configuración de la tienda" (General, Contacto, Cobranzas,
+// Envíos, Catálogo, Apariencia, Legal, Notificaciones) más Dominio, SEO,
+// Google Analytics, Cuentas y Plan y uso viven en src/lib/settings-nav.ts
 // — única fuente de verdad, compartida con src/proxy.ts para que el bloqueo
 // real de rutas y lo que se ve acá nunca queden desincronizados. `key`
 // definido = ítem gateado por permissions (staff); sin key = siempre visible.
 const navItems = [
-  { label: 'Dashboard',       href: '/dashboard',                icon: LayoutDashboard, key: undefined as string | undefined },
-  { label: 'Estadísticas',    href: '/dashboard/estadisticas',   icon: BarChart3,        key: undefined as string | undefined },
-  { label: 'Pedidos',         href: '/dashboard/pedidos',        icon: ShoppingCart,     key: undefined as string | undefined },
-  { label: 'Clientes',        href: '/dashboard/clientes',       icon: Users,            key: undefined as string | undefined },
-  { label: 'Productos',       href: '/dashboard/productos',      icon: Shirt,            key: undefined as string | undefined },
-  { label: 'Categorías',      href: '/dashboard/categorias',     icon: FolderOpen,       key: undefined as string | undefined },
+  { label: 'Dashboard',              href: '/dashboard',              icon: LayoutDashboard, key: undefined as string | undefined },
+  { label: 'Pedidos',                href: '/dashboard/pedidos',      icon: ShoppingCart,     key: undefined as string | undefined },
+  { label: 'Informes & Estadísticas', href: '/dashboard/estadisticas', icon: BarChart3,       key: undefined as string | undefined },
+  { label: 'Productos',              href: '/dashboard/productos',    icon: Shirt,            key: undefined as string | undefined },
+  { label: 'Categorías',             href: '/dashboard/categorias',   icon: FolderOpen,       key: undefined as string | undefined },
+  { label: 'Clientes',               href: '/dashboard/clientes',     icon: Users,            key: undefined as string | undefined },
   ...SETTINGS_ROUTES.map(r => ({ label: r.label, href: r.href, icon: r.icon, key: r.key as string | undefined })),
 ]
+
+// Grupos visuales del Panel, de arriba a abajo: Inicio, un bloque general
+// sin encabezado, Configuración de la tienda, otro bloque sin encabezado,
+// y por último — pegado a "Cerrar sesión" — Cuentas y Plan y uso.
+const INICIO_HREFS = ['/dashboard', '/dashboard/dominio']
+const GENERAL_HREFS = ['/dashboard/pedidos', '/dashboard/estadisticas']
+const CONFIG_HREFS = SETTINGS_ROUTES
+  .filter(r => !['dominio', 'seo', 'google-analytics', 'cuentas', 'uso'].includes(r.key))
+  .map(r => r.href)
+const CATALOGO_HREFS = ['/dashboard/productos', '/dashboard/categorias', '/dashboard/clientes', '/dashboard/seo', '/dashboard/google-analytics']
+const FOOTER_HREFS = ['/dashboard/cuentas', '/dashboard/uso']
 
 interface SidebarProps {
   storeName: string
@@ -41,9 +53,11 @@ interface SidebarProps {
 export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, permissions, mobileOpen = false, onClose }: SidebarProps) {
   const isStaff = role === 'staff'
   const visibleItems = navItems.filter(item => !isStaff || !item.key || hasSettingsPermission(permissions, item.key))
-  const general = visibleItems.filter(i => ['/dashboard', '/dashboard/estadisticas', '/dashboard/pedidos', '/dashboard/clientes'].includes(i.href))
-  const catalogo = visibleItems.filter(i => ['/dashboard/productos', '/dashboard/categorias'].includes(i.href))
-  const config = visibleItems.filter(i => !general.includes(i) && !catalogo.includes(i))
+  const inicio = visibleItems.filter(i => INICIO_HREFS.includes(i.href))
+  const general = visibleItems.filter(i => GENERAL_HREFS.includes(i.href))
+  const config = visibleItems.filter(i => CONFIG_HREFS.includes(i.href))
+  const catalogo = visibleItems.filter(i => CATALOGO_HREFS.includes(i.href))
+  const footer = visibleItems.filter(i => FOOTER_HREFS.includes(i.href))
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -104,25 +118,31 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
         </div>
 
         <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-3 space-y-0.5">
-          <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">General</p>
-          {general.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
-
-          {catalogo.length > 0 && (
+          {inicio.length > 0 && (
             <>
-              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Catálogo</p>
-              {catalogo.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">Inicio</p>
+              {inicio.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
             </>
           )}
 
+          {general.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+
           {config.length > 0 && (
             <>
-              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración</p>
+              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración de la tienda</p>
               {config.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
             </>
+          )}
+
+          {catalogo.length > 0 && (
+            <div className="mt-4 space-y-0.5">
+              {catalogo.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+            </div>
           )}
         </nav>
 
         <div className="px-3 py-3 border-t border-zinc-100 space-y-0.5">
+          {footer.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
           {hasSuperadminTokens && (
             <button
               onClick={handleReturnToSuperadmin}

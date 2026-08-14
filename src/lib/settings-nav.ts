@@ -21,20 +21,25 @@ export interface SettingsRoute {
   staffBlocked: boolean
 }
 
+// Orden = orden real en el Panel (ver Sidebar.tsx: Inicio agarra 'dominio',
+// el bloque de Configuración de la tienda agarra general..notificaciones,
+// y el footer agarra 'cuentas'/'uso'). Este array sigue siendo la única
+// fuente de verdad de rutas/keys/permisos — acá solo se reordenó y se
+// renombraron un par de labels, nada de lógica cambió.
 export const SETTINGS_ROUTES: SettingsRoute[] = [
-  { key: 'general',        label: 'General',           href: '/dashboard/general',        icon: Settings,   staffBlocked: true },
-  { key: 'pagos',          label: 'Pagos y Finanzas',  href: '/dashboard/pagos',          icon: CreditCard, staffBlocked: true },
-  { key: 'envios',         label: 'Envíos',            href: '/dashboard/envios',         icon: Truck,      staffBlocked: true },
-  { key: 'catalogo-config',label: 'Catálogo',          href: '/dashboard/catalogo-config',icon: Tags,       staffBlocked: true },
-  { key: 'contacto',       label: 'Contacto y Redes',  href: '/dashboard/contacto',       icon: Phone,      staffBlocked: true },
-  { key: 'dominio',        label: 'Dominio',           href: '/dashboard/dominio',        icon: Globe,      staffBlocked: true },
-  { key: 'notificaciones', label: 'Notificaciones',    href: '/dashboard/notificaciones', icon: Bell,       staffBlocked: true },
-  { key: 'apariencia',     label: 'Apariencia',        href: '/dashboard/apariencia',     icon: Palette,    staffBlocked: true },
-  { key: 'seo',            label: 'SEO',               href: '/dashboard/seo',            icon: Search,     staffBlocked: true },
-  { key: 'google-analytics', label: 'Google Analytics', href: '/dashboard/google-analytics', icon: BarChart3, staffBlocked: true },
-  { key: 'legal',          label: 'Legal',             href: '/dashboard/legal',          icon: FileText,   staffBlocked: true },
-  { key: 'cuentas',        label: 'Cuentas',           href: '/dashboard/cuentas',        icon: KeyRound,   staffBlocked: true },
-  { key: 'uso',            label: 'Plan y uso',        href: '/dashboard/uso',            icon: Gauge,      staffBlocked: true },
+  { key: 'general',        label: 'General',              href: '/dashboard/general',          icon: Settings,   staffBlocked: true },
+  { key: 'contacto',       label: 'Contacto y Redes',     href: '/dashboard/contacto',         icon: Phone,      staffBlocked: true },
+  { key: 'pagos',          label: 'Cobranzas & Finanzas', href: '/dashboard/pagos',            icon: CreditCard, staffBlocked: true },
+  { key: 'envios',         label: 'Envíos',                href: '/dashboard/envios',           icon: Truck,      staffBlocked: true },
+  { key: 'catalogo-config',label: 'Catálogo',              href: '/dashboard/catalogo-config',  icon: Tags,       staffBlocked: true },
+  { key: 'apariencia',     label: 'Apariencia',            href: '/dashboard/apariencia',       icon: Palette,    staffBlocked: true },
+  { key: 'legal',          label: 'Legal',                 href: '/dashboard/legal',            icon: FileText,   staffBlocked: true },
+  { key: 'notificaciones', label: 'Notificaciones',        href: '/dashboard/notificaciones',   icon: Bell,       staffBlocked: true },
+  { key: 'dominio',        label: 'Dominio',               href: '/dashboard/dominio',          icon: Globe,      staffBlocked: true },
+  { key: 'seo',            label: 'SEO',                   href: '/dashboard/seo',              icon: Search,     staffBlocked: true },
+  { key: 'google-analytics', label: 'Google Analytics',    href: '/dashboard/google-analytics', icon: BarChart3, staffBlocked: true },
+  { key: 'cuentas',        label: 'Cuentas',               href: '/dashboard/cuentas',          icon: KeyRound,   staffBlocked: true },
+  { key: 'uso',            label: 'Plan y uso',            href: '/dashboard/uso',              icon: Gauge,      staffBlocked: true },
 ]
 
 // Usado por src/proxy.ts (matcher de prefijos de ruta)
