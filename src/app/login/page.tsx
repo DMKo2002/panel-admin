@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import OAuthButtons from '@/components/OAuthButtons'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -45,8 +46,19 @@ export default function LoginPage() {
           <p className="text-sm text-zinc-500 mt-1">Ingresá con tu cuenta de administrador</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="card space-y-4">
+        {/* OAuth — la mayoría de la gente que ya se logueó en gounuri.com
+            con Google/Facebook ni va a ver esto, entra directo por la
+            sesión compartida. Esto es para quien llega acá primero. */}
+        <div className="card">
+          <OAuthButtons />
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200" />
+            <span className="text-xs text-zinc-400">o con mail</span>
+            <div className="h-px flex-1 bg-zinc-200" />
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">
               Email
@@ -89,7 +101,8 @@ export default function LoginPage() {
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
-        </form>
+          </form>
+        </div>
 
         <div className="mt-5 space-y-3">
           <p className="text-center text-sm text-zinc-500">
