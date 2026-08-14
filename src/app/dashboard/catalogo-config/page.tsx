@@ -82,7 +82,10 @@ export default function CatalogoConfigPage() {
         setErrorAll('No se pudo cargar la configuración. Recargá la página o contactá a soporte.')
         return
       }
-      setConfig(data)
+      // `data` solo trae las 8 columnas seleccionadas arriba (a propósito, por
+      // permisos), no el StoreConfig completo — mismo criterio de cast que la
+      // línea de abajo, no cambia nada en tiempo de ejecución.
+      setConfig(data as any)
       if ((data as any)?.variant_attributes) setAttributes((data as any).variant_attributes as any)
     }
     load()
