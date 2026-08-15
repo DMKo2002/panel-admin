@@ -35,7 +35,8 @@ const GENERAL_HREFS = ['/dashboard/pedidos', '/dashboard/estadisticas']
 const CONFIG_HREFS = SETTINGS_ROUTES
   .filter(r => !['dominio', 'seo', 'google-analytics', 'cuentas', 'uso'].includes(r.key))
   .map(r => r.href)
-const CATALOGO_HREFS = ['/dashboard/productos', '/dashboard/categorias', '/dashboard/clientes', '/dashboard/seo', '/dashboard/google-analytics']
+const TIENDA_HREFS = ['/dashboard/productos', '/dashboard/categorias']
+const MARKETING_HREFS = ['/dashboard/clientes', '/dashboard/seo', '/dashboard/google-analytics']
 const FOOTER_HREFS = ['/dashboard/cuentas', '/dashboard/uso']
 
 interface SidebarProps {
@@ -56,7 +57,8 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
   const inicio = visibleItems.filter(i => INICIO_HREFS.includes(i.href))
   const general = visibleItems.filter(i => GENERAL_HREFS.includes(i.href))
   const config = visibleItems.filter(i => CONFIG_HREFS.includes(i.href))
-  const catalogo = visibleItems.filter(i => CATALOGO_HREFS.includes(i.href))
+  const tienda = visibleItems.filter(i => TIENDA_HREFS.includes(i.href))
+  const marketing = visibleItems.filter(i => MARKETING_HREFS.includes(i.href))
   const footer = visibleItems.filter(i => FOOTER_HREFS.includes(i.href))
   const pathname = usePathname()
   const router = useRouter()
@@ -129,45 +131,62 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
 
           {config.length > 0 && (
             <>
-              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mt-4 mb-2">Configuración de la tienda</p>
+              <div className="h-4" />
+              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">Configuración de la tienda</p>
               {config.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
             </>
           )}
 
-          {catalogo.length > 0 && (
-            <div className="mt-4 space-y-0.5">
-              {catalogo.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
-            </div>
+          {tienda.length > 0 && (
+            <>
+              <div className="h-4" />
+              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">Tienda</p>
+              {tienda.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+            </>
+          )}
+
+          {marketing.length > 0 && (
+            <>
+              <div className="h-4" />
+              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-2 mb-2">Marketing</p>
+              {marketing.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+            </>
           )}
         </nav>
 
-        <div className="px-3 py-3 border-t border-zinc-100 space-y-0.5">
-          {footer.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
-          {hasSuperadminTokens && (
+        <div className="px-3 py-3 border-t border-zinc-100">
+          {footer.length > 0 && (
+            <div className="space-y-0.5 mb-3">
+              {footer.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+            </div>
+          )}
+          <div className="space-y-0.5">
+            {hasSuperadminTokens && (
+              <button
+                onClick={handleReturnToSuperadmin}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
+              >
+                <ArrowLeft size={16} />
+                Volver al Superadmin
+              </button>
+            )}
+            {isSuperAdmin && !hasSuperadminTokens && (
+              <Link
+                href="/superadmin"
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
+              >
+                <ShieldCheck size={16} />
+                Superadmin
+              </Link>
+            )}
             <button
-              onClick={handleReturnToSuperadmin}
-              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors"
             >
-              <ArrowLeft size={16} />
-              Volver al Superadmin
+              <LogOut size={16} />
+              Cerrar sesión
             </button>
-          )}
-          {isSuperAdmin && !hasSuperadminTokens && (
-            <Link
-              href="/superadmin"
-              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
-            >
-              <ShieldCheck size={16} />
-              Superadmin
-            </Link>
-          )}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors"
-          >
-            <LogOut size={16} />
-            Cerrar sesión
-          </button>
+          </div>
         </div>
       </aside>
     </>
