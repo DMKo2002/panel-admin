@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import OAuthButtons from '@/components/OAuthButtons'
 
 // "Recordarme" guarda solo el email en localStorage para prellenar el
 // campo la próxima vez — no la contraseña. Mismo nombre de key que
@@ -61,61 +62,75 @@ export default function LoginPage() {
           <p className="text-sm text-zinc-500 mt-1">Ingresá con tu cuenta de administrador</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="card space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              className="input"
-              placeholder="tu@email.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
+        {/* OAuth + form — Google/Facebook para entrar directo con esa
+            cuenta sin pasar por gounuri.com primero. Nota: hasta que no
+            esté resuelto el identity linking (ver tarea pendiente), esto
+            es para cuentas que YA se registraron con Google — si alguien
+            con cuenta de mail/contraseña toca este botón con el mismo
+            mail, Supabase puede no reconocerlo como la misma cuenta. */}
+        <div className="card">
+          <OAuthButtons />
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200" />
+            <span className="text-xs text-zinc-400">o con mail</span>
+            <div className="h-px flex-1 bg-zinc-200" />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              className="input"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <label className="flex items-center gap-2 text-xs text-zinc-600">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={e => setRemember(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-zinc-300"
-            />
-            Recordarme
-          </label>
-
-          {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              {error}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                className="input"
+                placeholder="tu@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoFocus
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn-primary justify-center py-2.5 disabled:opacity-60"
-          >
-            {loading ? 'Ingresando...' : 'Ingresar'}
-          </button>
-        </form>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                className="input"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-zinc-600">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={e => setRemember(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-zinc-300"
+              />
+              Recordarme
+            </label>
+
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary justify-center py-2.5 disabled:opacity-60"
+            >
+              {loading ? 'Ingresando...' : 'Ingresar'}
+            </button>
+          </form>
+        </div>
 
         <div className="mt-5 space-y-3">
           <p className="text-center text-sm text-zinc-500">
