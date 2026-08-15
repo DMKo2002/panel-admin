@@ -40,15 +40,15 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   mini: {
     id: 'mini',
     nombre: 'Mini',
-    precioARS: 10_000,
+    precioARS: 9_900,
     storageMB: 300,
     maxProductos: 50,
     visitasMes: 15_000,
   },
   standard: {
     id: 'standard',
-    nombre: 'Standard',
-    precioARS: 35_000,
+    nombre: 'Business',
+    precioARS: 29_900,
     storageMB: 1_024,
     maxProductos: 300,
     visitasMes: 75_000,
@@ -56,7 +56,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   premium: {
     id: 'premium',
     nombre: 'Premium',
-    precioARS: 79_999,
+    precioARS: 74_900,
     storageMB: 3_072,
     maxProductos: 600,
     visitasMes: 300_000,
