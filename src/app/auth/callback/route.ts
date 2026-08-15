@@ -1,14 +1,19 @@
-// GET /auth/callback?code=... — vuelta de Google/Facebook tras
-// signInWithOAuth (ver components/OAuthButtons.tsx). Login directo en
-// panel.gounuri.com, sin pasar por gounuri.com ni por ningún handoff.
-// Cambia el code por una sesión (exchangeCodeForSession, cookie host-only
-// de panel.gounuri.com, ver lib/supabase/server.ts) y decide a dónde
-// mandar:
-//  - superadmin sin tenant propio -> /superadmin
-//  - tiene tenant -> /dashboard
-//  - cuenta nueva sin tenant todavía (nunca pasó por el onboarding de
-//    gounuri.com) -> gounuri.com/onboarding, porque acá no hay flujo de
-//    alta de tienda, eso vive del otro lado.
+// GET /auth/callback?code=...[&next=/ruta] — vuelta de Google/Facebook.
+// Dos casos usan esta misma ruta, distinguidos por el parámetro `next`:
+//
+// 1. Login (sin `next`, ver components/OAuthButtons.tsx en /login): login
+//    directo en panel.gounuri.com, sin pasar por gounuri.com ni por ningún
+//    handoff. Cambia el code por una sesión nueva (exchangeCodeForSession,
+//    cookie host-only, ver lib/supabase/server.ts) y decide a dónde mandar:
+//      - superadmin sin tenant propio -> /superadmin
+//      - tiene tenant -> /dashboard
+//      - cuenta nueva sin tenant todavía -> gounuri.com/onboarding
+//
+// 2. Link de identidad (con `next=/dashboard/mi-cuenta`, ver esa página):
+//    el usuario YA está logueado y solo está agregando Google/Facebook a
+//    su cuenta existente (linkIdentity() usa el mismo flujo PKCE que un
+//    login, por eso pasa por acá también). Volvemos siempre a `next`, con
+//    ?linked=1 si salió bien o ?linkError=<mensaje> si no.
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -19,6 +24,7 @@ const GOUNURI_URL = process.env.NEXT_PUBLIC_GOUNURI_URL ?? 'https://gounuri.com'
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url)
   const code = searchParams.get('code')
+  const next = searchParams.get('next')
 
   if (code) {
     try {
@@ -26,6 +32,8 @@ export async function GET(req: NextRequest) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (!error && data.user) {
+        if (next) return NextResponse.redirect(`${origin}${next}?linked=1`)
+
         const service = createServiceClient()
         const { data: userRows } = await service
           .from('users')
@@ -38,9 +46,12 @@ export async function GET(req: NextRequest) {
         if (isSuperAdmin(data.user.email)) return NextResponse.redirect(`${origin}/superadmin`)
         return NextResponse.redirect(`${GOUNURI_URL}/onboarding`)
       }
+
       console.error('[auth/callback] exchangeCodeForSession error:', error?.message)
+      if (next) return NextResponse.redirect(`${origin}${next}?linkError=${encodeURIComponent(error?.message ?? 'Error desconocido')}`)
     } catch (err: any) {
       console.error('[auth/callback] excepción:', err?.message ?? err)
+      if (next) return NextResponse.redirect(`${origin}${next}?linkError=${encodeURIComponent('Ocurrió un error inesperado.')}`)
     }
   }
 

@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3
+  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2
 } from 'lucide-react'
 import clsx from 'clsx'
 import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
@@ -182,6 +182,19 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
             {(hasSuperadminTokens || (isSuperAdmin && !hasSuperadminTokens)) && (
               <div className="my-2 border-t border-zinc-100" />
             )}
+            <Link
+              href="/dashboard/mi-cuenta"
+              onClick={onClose}
+              className={clsx(
+                'w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm transition-colors',
+                pathname === '/dashboard/mi-cuenta'
+                  ? 'bg-primary-50 text-primary-700 font-medium'
+                  : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50'
+              )}
+            >
+              <UserCircle2 size={16} />
+              Mi cuenta
+            </Link>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors"
