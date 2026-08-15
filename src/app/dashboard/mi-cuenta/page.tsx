@@ -6,17 +6,24 @@
 // de LA TIENDA (bloqueada a staff sin permiso), esto es de LA PERSONA
 // logueada, así que siempre está disponible para cualquiera con sesión.
 //
-// Usa la API de "identities" de Supabase Auth directamente desde el
-// browser (getUserIdentities/linkIdentity/unlinkIdentity/updateUser) — no
-// hace falta un API route propio, corre todo contra la sesión ya
-// autenticada. Requiere que "Allow manual linking" esté activado en
-// Supabase Dashboard > Authentication > Sign In / Providers; si no está
-// activado, linkIdentity() devuelve un error claro (no rompe la página).
+// Vincular/desvincular Google y Facebook usa la API de "identities" de
+// Supabase Auth directamente desde el browser (getUserIdentities /
+// linkIdentity / unlinkIdentity) — corre contra la sesión ya autenticada.
+// Requiere que "Allow manual linking" esté activado en Supabase Dashboard >
+// Authentication > Sign In / Providers; si no está activado, linkIdentity()
+// devuelve un error claro (no rompe la página).
+//
+// Crear/cambiar la contraseña, en cambio, NO usa supabase.auth.updateUser()
+// directo — eso deja la contraseña funcionando pero la identidad 'email'
+// nunca aparece en getUserIdentities() ("ghost password", bug conocido y
+// sin resolver de Supabase: supabase/auth#2085). Por eso pasa por
+// /api/account/set-password, que usa la service role del lado del server
+// para aplicar el workaround de la comunidad. Ver ese route.ts.
 
 import { useEffect, useState } from 'react'
 import type { UserIdentity } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle2, KeyRound } from 'lucide-react'
+import { CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react'
 
 function IconGoogle() {
   return (
@@ -48,6 +55,7 @@ const PROVIDER_META: Record<ProviderKey, { label: string; icon: React.ReactNode 
 export default function MiCuentaPage() {
   const supabase = createClient()
   const [identities, setIdentities] = useState<UserIdentity[] | null>(null)
+  const [hasPassword, setHasPassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busyProvider, setBusyProvider] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -56,11 +64,20 @@ export default function MiCuentaPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [password, setPassword] = useState('')
   const [password2, setPassword2] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPassword2, setShowPassword2] = useState(false)
 
   async function loadIdentities() {
     const { data, error: err } = await supabase.auth.getUserIdentities()
     if (err) { setError('No se pudieron cargar los accesos de tu cuenta.'); setLoading(false); return }
     setIdentities(data.identities)
+    // getUserIdentities() no es confiable para 'email' por el bug de
+    // arriba — nos fijamos directamente en el usuario si tiene contraseña
+    // seteada (encrypted_password no viaja al cliente, pero
+    // supabase.auth.getUser() sí nos dice qué proveedores usó alguna vez
+    // para entrar; combinado con "ya hay una identidad email" cuando el
+    // workaround del server-side sí llegó a crearla, cubre los dos casos).
+    setHasPassword(prev => prev || data.identities.some(i => i.provider === 'email'))
     setLoading(false)
   }
 
@@ -82,8 +99,9 @@ export default function MiCuentaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const has = (p: ProviderKey) => identities?.some(i => i.provider === p) ?? false
-  const canUnlink = (identities?.length ?? 0) > 1
+  const has = (p: ProviderKey) => (p === 'email' ? hasPassword : identities?.some(i => i.provider === p) ?? false)
+  const linkedCount = (identities?.length ?? 0) + (hasPassword && !identities?.some(i => i.provider === 'email') ? 1 : 0)
+  const canUnlink = linkedCount > 1
 
   async function handleLink(provider: 'google' | 'facebook') {
     setError(null)
@@ -134,13 +152,28 @@ export default function MiCuentaPage() {
     if (password !== password2) { setError('Las contraseñas no coinciden.'); return }
 
     setBusyProvider('email')
-    const { error: err } = await supabase.auth.updateUser({ password })
+    let payload: { error?: string } = {}
+    try {
+      const res = await fetch('/api/account/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      payload = await res.json()
+      if (!res.ok) throw new Error(payload.error ?? 'Error desconocido')
+    } catch (err: any) {
+      setBusyProvider(null)
+      setError(`No se pudo crear la contraseña: ${err.message}`)
+      return
+    }
     setBusyProvider(null)
-    if (err) { setError(`No se pudo crear la contraseña: ${err.message}`); return }
 
     setPassword('')
     setPassword2('')
+    setShowPassword(false)
+    setShowPassword2(false)
     setShowPasswordForm(false)
+    setHasPassword(true)
     setSuccess('Contraseña creada — ya podés usarla para entrar.')
     loadIdentities()
   }
@@ -175,12 +208,23 @@ export default function MiCuentaPage() {
                   {meta.icon}
                   <div>
                     <p className="text-sm font-medium text-zinc-900">{meta.label}</p>
-                    <p className="text-xs text-zinc-400">{linked ? 'Vinculado' : 'No vinculado'}</p>
+                    <p className={clsxStatus(linked)}>
+                      {linked && <CheckCircle2 size={13} className="text-emerald-600" />}
+                      {linked ? 'Vinculado' : 'No vinculado'}
+                    </p>
                   </div>
                 </div>
 
                 {linked ? (
-                  canUnlink && (
+                  provider === 'email' ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordForm(v => !v)}
+                      className="text-xs font-medium text-primary-600 hover:underline"
+                    >
+                      Cambiar contraseña
+                    </button>
+                  ) : canUnlink && (
                     <button
                       type="button"
                       onClick={() => handleUnlink(identities!.find(i => i.provider === provider)!)}
@@ -216,37 +260,72 @@ export default function MiCuentaPage() {
 
       {showPasswordForm && (
         <form onSubmit={handleSetPassword} className="card mt-4 space-y-3">
-          <p className="text-sm font-medium text-zinc-900">Crear contraseña propia</p>
+          <p className="text-sm font-medium text-zinc-900">{hasPassword ? 'Cambiar contraseña' : 'Crear contraseña propia'}</p>
           <p className="text-xs text-zinc-500">
             Con esto vas a poder entrar con tu mail y esta contraseña, además de con Google/Facebook.
           </p>
-          <input
-            type="password"
-            className="input"
-            placeholder="Contraseña nueva"
-            autoComplete="new-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            className="input"
-            placeholder="Repetir contraseña"
-            autoComplete="new-password"
-            value={password2}
-            onChange={e => setPassword2(e.target.value)}
-            required
-          />
-          <button
-            type="submit"
-            disabled={busyProvider === 'email'}
-            className="btn-primary py-2 px-4 text-sm disabled:opacity-60"
-          >
-            {busyProvider === 'email' ? 'Guardando...' : 'Guardar contraseña'}
-          </button>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              className="input pr-10"
+              placeholder="Contraseña nueva"
+              autoComplete="new-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              tabIndex={-1}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <div className="relative">
+            <input
+              type={showPassword2 ? 'text' : 'password'}
+              className="input pr-10"
+              placeholder="Repetir contraseña"
+              autoComplete="new-password"
+              value={password2}
+              onChange={e => setPassword2(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword2(v => !v)}
+              tabIndex={-1}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              aria-label={showPassword2 ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword2 ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={busyProvider === 'email'}
+              className="btn-primary py-2 px-4 text-sm disabled:opacity-60"
+            >
+              {busyProvider === 'email' ? 'Guardando...' : 'Guardar contraseña'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowPasswordForm(false); setPassword(''); setPassword2('') }}
+              className="py-2 px-4 text-sm text-zinc-500 hover:text-zinc-700"
+            >
+              Cancelar
+            </button>
+          </div>
         </form>
       )}
     </div>
   )
+}
+
+function clsxStatus(linked: boolean) {
+  return `text-xs flex items-center gap-1 ${linked ? 'text-emerald-600' : 'text-zinc-400'}`
 }
