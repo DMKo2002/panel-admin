@@ -27,10 +27,6 @@ const LEGACY_STAFF_BLOCKED_PREFIXES = [
   '/dashboard/test-mp',
 ]
 
-// Cookie a nivel .gounuri.com para compartir sesión con gounuri.com — ver
-// nota en lib/supabase/client.ts. Solo en producción.
-const COOKIE_DOMAIN = process.env.NODE_ENV === 'production' ? '.gounuri.com' : undefined
-
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -38,7 +34,6 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookieOptions: { domain: COOKIE_DOMAIN },
       cookies: {
         getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
