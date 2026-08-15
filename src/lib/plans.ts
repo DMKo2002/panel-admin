@@ -56,7 +56,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   premium: {
     id: 'premium',
     nombre: 'Premium',
-    precioARS: 74_900,
+    precioARS: 54_900,
     storageMB: 3_072,
     maxProductos: 600,
     visitasMes: 300_000,
