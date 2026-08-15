@@ -179,6 +179,9 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
                 Superadmin
               </Link>
             )}
+            {(hasSuperadminTokens || (isSuperAdmin && !hasSuperadminTokens)) && (
+              <div className="my-2 border-t border-zinc-100" />
+            )}
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors"
