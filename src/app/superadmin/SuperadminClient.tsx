@@ -55,9 +55,9 @@ const STATUS_COLORS: Record<string, string> = {
 const PLAN_LABELS: Record<string, string> = {
   free:     'Gratis',
   mini:     'Mini',
-  standard: 'Standard',
+  standard: 'Business',
   premium:  'Premium',
-  basic:    'Standard', // legacy
+  basic:    'Business', // legacy
 }
 
 const PLAN_COLORS: Record<string, string> = {
