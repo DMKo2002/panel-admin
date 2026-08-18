@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Sans } from 'next/font/google'
+import AuthWatchdog from '@/components/AuthWatchdog'
 import './globals.css'
 
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' })
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="bg-zinc-50 text-zinc-900 antialiased">{children}</body>
+      <body className="bg-zinc-50 text-zinc-900 antialiased">
+        <AuthWatchdog />
+        {children}
+      </body>
     </html>
   )
 }
