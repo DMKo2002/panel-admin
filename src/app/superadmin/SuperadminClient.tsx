@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { PLANS, formatStorage } from '@/lib/plans'
 
 export type TenantRow = {
   id: string
@@ -12,6 +13,9 @@ export type TenantRow = {
   template: string
   status: string
   plan: string
+  // null = legacy/sin trial (tenants de antes del modelo 2026-07-31).
+  // 'trial' | 'active' | 'past_due' | 'canceled' — ver billing_migration.sql.
+  planStatus: string | null
   debe: boolean
   ownerEmail: string | null
   // Datos personales del dueño — vienen de gounuri_accounts (ver
@@ -30,6 +34,18 @@ export type TenantRow = {
   visitCount: number
   orderCount: number
   ga4Linked: boolean
+  // Uso real vs. límite del plan (2026-08-18) — mismo parámetro que antes
+  // cada tenant veía solo en su propio "Plan y uso", ahora consolidado acá
+  // para poder calibrar mejor los límites de cada plan. Ver
+  // superadmin/page.tsx para de dónde sale cada número.
+  productCount: number
+  productLimit: number
+  storageMB: number
+  storageLimitMB: number
+  storageAvailable: boolean
+  manualPaymentNote: string | null
+  manualPaymentAt: string | null
+  manualPaymentBy: string | null
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -70,6 +86,32 @@ const PLAN_COLORS: Record<string, string> = {
 
 const PANEL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
 
+// Estado del plan (2026-08-18) — independiente del badge "Deuda" de arriba,
+// que es específico de MP (past_due/payment_failed). Acá mostramos el
+// plan_status crudo para poder distinguir de un vistazo quién sigue en
+// trial (puede ser una tienda de Avellaneda todavía sin marcar como pagada)
+// de quién ya está activo.
+const PLAN_STATUS_LABELS: Record<string, string> = {
+  trial:     'Trial',
+  active:    'Activo',
+  past_due:  'Pago pendiente',
+  canceled:  'Cancelado',
+}
+const PLAN_STATUS_COLORS: Record<string, string> = {
+  trial:     'bg-amber-950 text-amber-400',
+  active:    'bg-emerald-950 text-emerald-400',
+  past_due:  'bg-red-950 text-red-400',
+  canceled:  'bg-zinc-800 text-zinc-500',
+}
+
+// Mismos umbrales que src/lib/usage.ts (overLimit/nearLimit) — >=100% rojo,
+// >=80% ámbar, si no zinc.
+function usageColor(pct: number): string {
+  if (pct >= 100) return 'text-red-400'
+  if (pct >= 80) return 'text-amber-400'
+  return 'text-zinc-400'
+}
+
 export default function SuperadminClient({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [tenants, setTenants] = useState(initialTenants)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -85,6 +127,13 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [backfillResult, setBackfillResult] = useState<string | null>(null)
   const [creatingWidget, setCreatingWidget] = useState(false)
   const [widgetResult, setWidgetResult] = useState<{ siteKey: string; secretKey: string } | string | null>(null)
+  // Modal "Marcar pagado" (pilot Avellaneda, transferencia — ver
+  // /api/superadmin/mark-plan-paid)
+  const [payTarget, setPayTarget] = useState<TenantRow | null>(null)
+  const [payPlan, setPayPlan] = useState<string>('standard')
+  const [payNote, setPayNote] = useState('')
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
 
   // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
@@ -140,6 +189,36 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     await navigator.clipboard.writeText(text)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 1500)
+  }
+
+  function openPayModal(tenant: TenantRow) {
+    setPayTarget(tenant)
+    setPayPlan(tenant.plan in PLANS ? tenant.plan : 'standard')
+    setPayNote('')
+    setPayError(null)
+  }
+
+  async function handleMarkPaid() {
+    if (!payTarget) return
+    setPaying(true)
+    setPayError(null)
+    const res = await fetch('/api/superadmin/mark-plan-paid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId: payTarget.id, plan: payPlan, note: payNote.trim() || null }),
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) {
+      setPayError(data.error ?? 'No se pudo marcar como pagado')
+      setPaying(false)
+      return
+    }
+    setTenants(prev => prev.map(t => t.id === payTarget.id
+      ? { ...t, plan: payPlan, planStatus: 'active', status: 'active', debe: false, manualPaymentNote: payNote.trim() || null }
+      : t
+    ))
+    setPaying(false)
+    setPayTarget(null)
   }
 
   async function handleDelete() {
@@ -296,6 +375,11 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Dominio / URL</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Owner</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Visitas / Pedidos</th>
+              {/* Uso real vs. límite del plan (2026-08-18) — ver comentario en
+                  superadmin/page.tsx. Antes esto solo lo veía cada tenant en
+                  su propio "Plan y uso"; ahora vive acá para poder calibrar
+                  los límites de los planes con datos de todos juntos. */}
+              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Uso (storage / productos)</th>
               <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Google Analytics</th>
               <th className="text-right px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Acciones</th>
             </tr>
@@ -360,11 +444,25 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   </span>
                 </td>
 
-                {/* Plan */}
+                {/* Plan + estado (trial/activo/etc.) — el estado es el que
+                    define si el cron de enforce puede llegar a suspender la
+                    tienda; el badge de Plan solo dice qué plan tiene. */}
                 <td className="px-5 py-4">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[tenant.plan] ?? 'bg-zinc-800 text-zinc-400'}`}>
-                    {PLAN_LABELS[tenant.plan] ?? tenant.plan}
-                  </span>
+                  <div className="flex flex-col gap-1 items-start">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[tenant.plan] ?? 'bg-zinc-800 text-zinc-400'}`}>
+                      {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+                    </span>
+                    {tenant.planStatus && (
+                      <span
+                        title={tenant.manualPaymentNote
+                          ? `Pago manual: ${tenant.manualPaymentNote}${tenant.manualPaymentBy ? ` · marcado por ${tenant.manualPaymentBy}` : ''}${tenant.manualPaymentAt ? ` · ${new Date(tenant.manualPaymentAt).toLocaleDateString('es-AR')}` : ''}`
+                          : undefined}
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${PLAN_STATUS_COLORS[tenant.planStatus] ?? 'bg-zinc-800 text-zinc-500'} ${tenant.manualPaymentNote ? 'cursor-help' : ''}`}
+                      >
+                        {PLAN_STATUS_LABELS[tenant.planStatus] ?? tenant.planStatus}
+                      </span>
+                    )}
+                  </div>
                 </td>
 
                 {/* Deuda */}
@@ -435,6 +533,31 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   </div>
                 </td>
 
+                {/* Uso vs. límite del plan (2026-08-18) — ver comentario del
+                    header. pct >= 100 en rojo, >= 80 en ámbar, igual que
+                    src/lib/usage.ts para que el criterio sea el mismo que ya
+                    usa cada tenant (cuando lo veía en su propio panel). */}
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1" title={`Almacenamiento: ${formatStorage(tenant.storageMB)} / ${formatStorage(tenant.storageLimitMB)}`}>
+                      <HardDrive size={12} className="text-zinc-500" />
+                      {tenant.storageAvailable ? (
+                        <span className={usageColor((tenant.storageMB / tenant.storageLimitMB) * 100)}>
+                          {formatStorage(tenant.storageMB)}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1" title={`Productos: ${tenant.productCount} / ${tenant.productLimit}`}>
+                      <Shirt size={12} className="text-zinc-500" />
+                      <span className={usageColor((tenant.productCount / tenant.productLimit) * 100)}>
+                        {tenant.productCount}/{tenant.productLimit}
+                      </span>
+                    </span>
+                  </div>
+                </td>
+
                 {/* Google Analytics — vinculado o no, independiente de si el
                     plan del tenant le da acceso a esta sección en su panel */}
                 <td className="px-5 py-4">
@@ -487,6 +610,16 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                         {impersonatingId === tenant.id ? 'Generando...' : 'Acceder'}
                       </button>
                     )}
+
+                    {/* Marcar pagado — pilot Avellaneda (transferencia, sin
+                        Mercado Pago), ver /api/superadmin/mark-plan-paid */}
+                    <button
+                      onClick={() => openPayModal(tenant)}
+                      title="Marcar como pagado (transferencia)"
+                      className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-950 transition-colors"
+                    >
+                      <HandCoins size={14} />
+                    </button>
 
                     {/* Borrar tenant */}
                     <button
@@ -561,6 +694,76 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {deletingId ? 'Borrando...' : 'Borrar para siempre'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal "Marcar pagado" — pilot Avellaneda: transferencia por fuera de
+          Mercado Pago, así que nunca pasa por billing/webhook. Confirmar acá
+          hace lo mismo que ese webhook cuando MP autoriza un pago (ver
+          /api/superadmin/mark-plan-paid). */}
+      {payTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-emerald-950 flex items-center justify-center flex-shrink-0">
+                <HandCoins size={18} className="text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-zinc-100 font-semibold text-base">Marcar como pagado</h2>
+                <p className="text-zinc-400 text-sm">{payTarget.name}</p>
+              </div>
+            </div>
+
+            <p className="text-zinc-400 text-xs mb-4">
+              Saca a la tienda del trial/gracia (plan_status pasa a "active") y la reactiva
+              si estaba suspendida por eso. Usalo después de confirmar la transferencia.
+            </p>
+
+            <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plan</label>
+            <select
+              value={payPlan}
+              onChange={e => setPayPlan(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500 mb-4"
+            >
+              {Object.values(PLANS).filter(p => p.id !== 'free').map(p => (
+                <option key={p.id} value={p.id}>{p.nombre} (${p.precioARS.toLocaleString('es-AR')}/mes)</option>
+              ))}
+            </select>
+
+            <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+              Nota <span className="text-zinc-600 font-normal">(opcional — para no perder el rastro de quién pagó qué)</span>
+            </label>
+            <textarea
+              value={payNote}
+              onChange={e => setPayNote(e.target.value)}
+              placeholder="Ej: Transferencia $34.900 - 1 mes - 18/8/2026"
+              rows={2}
+              className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500 mb-4 resize-none"
+            />
+
+            {payError && (
+              <div className="mb-4 rounded-lg border border-red-800 bg-red-950 px-3 py-2 text-xs text-red-400">
+                {payError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPayTarget(null)}
+                disabled={paying}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:border-zinc-500 text-sm transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleMarkPaid}
+                disabled={paying}
+                className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {paying ? 'Guardando...' : 'Confirmar pago'}
               </button>
             </div>
           </div>

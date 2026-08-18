@@ -33,11 +33,13 @@ const navItems = [
 const INICIO_HREFS = ['/dashboard', '/dashboard/dominio']
 const GENERAL_HREFS = ['/dashboard/pedidos', '/dashboard/estadisticas']
 const CONFIG_HREFS = SETTINGS_ROUTES
-  .filter(r => !['dominio', 'seo', 'google-analytics', 'cuentas', 'uso'].includes(r.key))
+  .filter(r => !['dominio', 'seo', 'google-analytics', 'cuentas'].includes(r.key))
   .map(r => r.href)
 const TIENDA_HREFS = ['/dashboard/productos', '/dashboard/categorias']
 const MARKETING_HREFS = ['/dashboard/clientes', '/dashboard/seo', '/dashboard/google-analytics']
-const FOOTER_HREFS = ['/dashboard/cuentas', '/dashboard/uso']
+// 'uso' (Plan y uso) se sacó del footer el 2026-08-18 — ver comentario en
+// settings-nav.ts.
+const FOOTER_HREFS = ['/dashboard/cuentas']
 
 interface SidebarProps {
   storeName: string

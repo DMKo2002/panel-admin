@@ -1,7 +1,13 @@
 // Banner de estado de cuenta para el dashboard principal.
 // Server component — muestra trial, gracia post-trial, exceso de cupo o
 // suspensión. Si todo está normal no renderiza nada.
-import Link from 'next/link'
+//
+// 2026-08-18: sacamos el link "Ver plan y uso" (apuntaba a /dashboard/uso,
+// que ahora redirige — ver ese archivo). El banner se deja igual para que el
+// tenant siga enterándose si está en trial o suspendido, pero ya no hay
+// self-serve del otro lado del link: activar el plan ahora es un paso manual
+// (transferencia + /superadmin, ver mark-plan-paid), así que el texto invita
+// a contactarnos en vez de ofrecer un botón que no lleva a ningún lado.
 import { AlertTriangle, Clock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS } from '@/lib/usage'
@@ -17,11 +23,7 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
 
   const { accountState, trialDaysLeft, trialGraceDaysLeft, overLimit, graceDaysLeft } = usage
 
-  const verUso = (
-    <Link href="/dashboard/uso" className="font-medium underline underline-offset-2">
-      Ver plan y uso
-    </Link>
-  )
+  const contactanos = <strong className="font-medium">Contactanos para activarlo.</strong>
 
   // ── Suspensión ──────────────────────────────────────────────────────────────
   if (accountState === 'suspended') {
@@ -32,7 +34,7 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
           <strong>Tu tienda pública está suspendida</strong>
           {usage.suspendedReason === 'trial_expired' && ' porque venció tu período de prueba'}
           {usage.suspendedReason === 'over_limit' && ' porque superaste los límites de tu plan'}
-          . Tus datos están intactos — activá un plan para volver a publicarla. {verUso}
+          . Tus datos están intactos — activá un plan para volver a publicarla. {contactanos}
         </p>
       </div>
     )
@@ -54,7 +56,7 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
           ) : (
             <>Venció la gracia de {TRIAL_GRACE_DAYS} días — tu tienda puede suspenderse en cualquier momento.{' '}</>
           )}
-          {verUso}
+          {contactanos}
         </p>
       </div>
     )
@@ -76,7 +78,7 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
               Venció el período de gracia de {GRACE_DAYS} días — tu tienda puede suspenderse en cualquier momento.{' '}
             </>
           )}
-          {verUso}
+          {contactanos}
         </p>
       </div>
     )
@@ -92,8 +94,7 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
         <Clock className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
           Estás en tu período de prueba: {' '}
-          <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'día restante' : 'días restantes'}</strong> del plan {usage.plan.nombre}.{' '}
-          {verUso}
+          <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'día restante' : 'días restantes'}</strong> del plan {usage.plan.nombre}.
         </p>
       </div>
     )

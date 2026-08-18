@@ -11,7 +11,7 @@
 // paso futuro (ver Cuentas), pero cuando eso exista, esta lista sigue siendo
 // el default/piso mínimo de bloqueo para cuentas sin permisos explícitos.
 import type { LucideIcon } from 'lucide-react'
-import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Gauge, Search, Globe, BarChart3 } from 'lucide-react'
+import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3 } from 'lucide-react'
 
 export interface SettingsRoute {
   key: string
@@ -39,7 +39,13 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'seo',            label: 'SEO',                   href: '/dashboard/seo',              icon: Search,     staffBlocked: true },
   { key: 'google-analytics', label: 'Google Analytics',    href: '/dashboard/google-analytics', icon: BarChart3, staffBlocked: true },
   { key: 'cuentas',        label: 'Cuentas',               href: '/dashboard/cuentas',          icon: KeyRound,   staffBlocked: true },
-  { key: 'uso',            label: 'Plan y uso',            href: '/dashboard/uso',              icon: Gauge,      staffBlocked: true },
+  // 'uso' (Plan y uso) se sacó de acá el 2026-08-18: mientras el pilot de
+  // Avellaneda se maneja todo por transferencia + a mano, ningún tenant
+  // gestiona su plan/pago self-serve desde el Panel — esa visibilidad ahora
+  // vive solo en /superadmin (ver SuperadminClient.tsx, columna "Uso").
+  // /dashboard/uso sigue existiendo como redirect por si queda algún link
+  // viejo, así que no hace falta reinstalar nada acá para reactivarlo: basta
+  // con deshacer ese redirect y volver a agregar esta fila.
 ]
 
 // Usado por src/proxy.ts (matcher de prefijos de ruta)
