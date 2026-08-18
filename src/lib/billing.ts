@@ -31,11 +31,42 @@ export function buildExternalReference(tenantId: string, planId: PlanDef['id']):
   return `${tenantId}:${planId}`
 }
 
-export function parseExternalReference(ref: string | undefined): { tenantId: string; planId: string } | null {
+// "new:userId:planId:months" — pedido 2026-08-18: "selecciona el plan - paga
+// - recién con el pago queda generado la tienda - onboarding". Se usa cuando
+// alguien elige un plan pago desde la landing SIN tener tienda todavía (ver
+// gounuri-web/src/app/api/ir-a-plan) — no existe tenantId para meter en el
+// external_reference porque a propósito no se crea ningún tenant hasta que
+// el webhook confirme 'authorized' (así no quedan tiendas "(pendiente)"
+// huérfanas de gente que arrancó a pagar y no terminó). El prefijo "new:" no
+// puede colisionar con un tenantId real (son uuid, nunca empiezan así).
+export function buildSignupExternalReference(userId: string, planId: PlanDef['id'], months: BillingTerm): string {
+  return `new:${userId}:${planId}:${months}`
+}
+
+// Nombre "sentinel" para tenants placeholder — DEBE coincidir literalmente
+// con gounuri-web/src/lib/site.ts (PLACEHOLDER_TENANT_NAME). Los repos no
+// comparten código, así que este string se mantiene duplicado a mano en
+// ambos lados; cualquier endpoint que actualice nombre/slug/template de un
+// tenant debe primero chequear tenant.name === PLACEHOLDER_TENANT_NAME.
+export const PLACEHOLDER_TENANT_NAME = '(pendiente)'
+
+export type ParsedExternalReference =
+  | { kind: 'tenant'; tenantId: string; planId: string }
+  | { kind: 'signup'; userId: string; planId: string; months: BillingTerm }
+
+export function parseExternalReference(ref: string | undefined): ParsedExternalReference | null {
   if (!ref) return null
+
+  if (ref.startsWith('new:')) {
+    const [, userId, planId, monthsStr] = ref.split(':')
+    const months = Number(monthsStr)
+    if (!userId || !planId || !(planId in PLANS) || (months !== 1 && months !== 6 && months !== 12)) return null
+    return { kind: 'signup', userId, planId, months }
+  }
+
   const [tenantId, planId] = ref.split(':')
   if (!tenantId || !planId || !(planId in PLANS)) return null
-  return { tenantId, planId }
+  return { kind: 'tenant', tenantId, planId }
 }
 
 export async function createPreapproval(opts: {
