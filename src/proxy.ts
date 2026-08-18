@@ -18,6 +18,14 @@ function redirectTo(request: NextRequest, pathname: string) {
   return NextResponse.redirect(url)
 }
 
+// AuthApiError = HABÍA una sesión/cookie pero el servidor la rechazó (token
+// o refresh token inválido, vencido, ya usado, etc.) — esa cookie rota hay
+// que limpiarla. AuthSessionMissingError es el caso normal de "no hay
+// cookie, no está logueado" — no hay nada roto que limpiar ahí.
+function isInvalidSessionError(error: { name?: string }): boolean {
+  return error.name === 'AuthApiError'
+}
+
 // Rutas viejas (ahora redirects del lado del cliente) — se dejan bloqueadas
 // acá también por las dudas de que alguien llegue antes de que corra el
 // redirect. Nunca son otorgables via permisos.
@@ -47,7 +55,23 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  // Incidente 2026-08-18 (cliente Caloria): un refresh token roto en el
+  // navegador quedó vivo en la cookie y sobrevivió pedido tras pedido —
+  // cada request que llegaba acá intentaba renovarlo de nuevo, fallaba, y
+  // la cookie rota seguía intacta para el próximo request. En 12 minutos
+  // eso generó ~2.900 pedidos a /token (incluida la respuesta de Supabase
+  // rechazándolos por rate limit), y de paso hizo que logins con
+  // contraseña correcta también cayeran en ese límite. El arreglo real:
+  // si getUser() vuelve con un error de sesión/token inválido, se limpia
+  // la cookie ACÁ MISMO (signOut local, sin llamar a otros dispositivos)
+  // para que el próximo pedido ya no tenga nada roto que reintentar — en
+  // vez de dejar que la cookie mala seguí­a viva, pedido tras pedido.
+  if (userError && isInvalidSessionError(userError)) {
+    await supabase.auth.signOut({ scope: 'local' })
+  }
+
   const path = request.nextUrl.pathname
 
   // 1. Sin sesion -> login
