@@ -10,6 +10,12 @@
 //     volvió a estar dentro del cupo, se levanta la suspensión que puso el cron.
 //     Las suspensiones manuales (suspended_reason null) no se tocan.
 //
+// 2026-08-19: se agregó el vencimiento de pagos manuales por transferencia
+// (ver /api/superadmin/mark-plan-paid) — un tenant marcado como pagado por
+// 1/6/12 meses tiene manual_paid_until; si se cumple esa fecha y nadie lo
+// vuelve a marcar como pagado, mismo patrón de warning + gracia de 7 días
+// (PAID_TERM_GRACE_DAYS) → suspensión (suspended_reason = 'manual_payment_expired').
+//
 // La suspensión funciona porque el middleware de tienda-core solo resuelve
 // tenants con status = 'active' — la tienda pública deja de responder sola.
 //
@@ -18,7 +24,7 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS } from '@/lib/usage'
+import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS, PAID_TERM_GRACE_DAYS } from '@/lib/usage'
 import { sendEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
@@ -153,12 +159,65 @@ export async function GET(req: Request) {
     }
   }
 
-  // ── 3. Reactivaciones ───────────────────────────────────────────────────────
+  // ── 3. Pagos manuales (transferencia) vencidos ──────────────────────────────
+  // Mismo patrón que la sección 1 (trial), pero para tenants marcados como
+  // pagados a mano por 1/6/12 meses desde /superadmin — ver comentario del
+  // encabezado. Solo mira tenants con plan_status='active' Y manual_paid_until
+  // seteado: un tenant en trial nunca entra acá (usa la sección 1), y un
+  // tenant que paga por Mercado Pago no tiene manual_paid_until.
+  const { data: paidTenants } = await service
+    .from('tenants')
+    .select('id, name, status, manual_paid_until, manual_payment_warned_at')
+    .eq('plan_status', 'active')
+    .not('manual_paid_until', 'is', null)
+    .lte('manual_paid_until', new Date(now).toISOString())
+
+  for (const t of paidTenants ?? []) {
+    const vencidoHaceDias = Math.floor((now - new Date(t.manual_paid_until).getTime()) / 86_400_000)
+
+    if (vencidoHaceDias >= PAID_TERM_GRACE_DAYS && t.status === 'active') {
+      await service.from('tenants')
+        .update({ status: 'suspended', suspended_reason: 'manual_payment_expired' })
+        .eq('id', t.id)
+      acciones.push(`suspendido manual_payment_expired: ${t.name}`)
+
+      const email = await ownerEmail(service, t.id)
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: `Tu tienda ${t.name} fue suspendida — gounuri`,
+          html: `
+            <h2>Tu tienda fue suspendida</h2>
+            <p>Venció el plazo pagado y los ${PAID_TERM_GRACE_DAYS} días de gracia para renovarlo.</p>
+            <p><strong>Tus datos y tu catálogo están intactos.</strong> Contactanos para renovar y la tienda vuelve a estar online al instante.</p>
+          `,
+        }).catch(() => {})
+      }
+    } else if (t.status === 'active' && !t.manual_payment_warned_at) {
+      await service.from('tenants').update({ manual_payment_warned_at: new Date(now).toISOString() }).eq('id', t.id)
+      acciones.push(`warning manual_payment_expired: ${t.name}`)
+
+      const email = await ownerEmail(service, t.id)
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: `Venció tu plazo pagado — renovalo en ${PAID_TERM_GRACE_DAYS} días — gounuri`,
+          html: `
+            <h2>Venció tu plazo pagado</h2>
+            <p>Tu tienda <strong>${t.name}</strong> sigue online, pero tenés <strong>${PAID_TERM_GRACE_DAYS} días</strong> para
+            renovar. Pasado ese plazo la tienda se suspende (sin perder ningún dato). Contactanos para renovar.</p>
+          `,
+        }).catch(() => {})
+      }
+    }
+  }
+
+  // ── 4. Reactivaciones ───────────────────────────────────────────────────────
   const { data: suspendidos } = await service
     .from('tenants')
-    .select('id, name, plan_status, suspended_reason')
+    .select('id, name, plan_status, suspended_reason, manual_paid_until')
     .eq('status', 'suspended')
-    .in('suspended_reason', ['trial_expired', 'over_limit'])
+    .in('suspended_reason', ['trial_expired', 'over_limit', 'manual_payment_expired'])
 
   for (const t of suspendidos ?? []) {
     if (t.suspended_reason === 'trial_expired') {
@@ -181,6 +240,16 @@ export async function GET(req: Request) {
           .update({ status: 'active', suspended_reason: null, limit_warned_at: null })
           .eq('id', t.id)
         acciones.push(`reactivado (regularizó): ${t.name}`)
+      }
+    } else if (t.suspended_reason === 'manual_payment_expired') {
+      // mark-plan-paid ya reactiva al toque cuando lo marcan pagado de nuevo
+      // (ver ese endpoint) — esto es red de seguridad, mismo criterio que
+      // trial_expired arriba.
+      if (t.manual_paid_until && new Date(t.manual_paid_until).getTime() > now) {
+        await service.from('tenants')
+          .update({ status: 'active', suspended_reason: null, manual_payment_warned_at: null })
+          .eq('id', t.id)
+        acciones.push(`reactivado (renovó): ${t.name}`)
       }
     }
   }

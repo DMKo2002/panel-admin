@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { PLANS, formatStorage } from '@/lib/plans'
+import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, type BillingTerm } from '@/lib/plans'
 
 export type TenantRow = {
   id: string
@@ -46,6 +46,13 @@ export type TenantRow = {
   manualPaymentNote: string | null
   manualPaymentAt: string | null
   manualPaymentBy: string | null
+  // Plazo pagado (2026-08-19) — 1/6/12 meses con descuento (ver
+  // TERM_DISCOUNTS/priceForTerm en lib/plans.ts, mismos que el checkout de
+  // MP). manualPaidUntil es lo que usa /api/cron/enforce para saber cuándo
+  // vencer un pago manual — ver PAID_TERM_GRACE_DAYS en lib/usage.ts.
+  manualPaymentTerm: number | null
+  manualPaymentAmount: number | null
+  manualPaidUntil: string | null
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -112,6 +119,15 @@ function usageColor(pct: number): string {
   return 'text-zinc-400'
 }
 
+// Solo para la preview del modal ("vence el ...") — el vencimiento real lo
+// calcula el server (addMonths en mark-plan-paid/route.ts) al confirmar; acá
+// alcanza con una fecha aproximada para mostrar antes de guardar.
+function addMonthsLabel(months: number): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() + months)
+  return d.toLocaleDateString('es-AR')
+}
+
 export default function SuperadminClient({ initialTenants }: { initialTenants: TenantRow[] }) {
   const [tenants, setTenants] = useState(initialTenants)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -131,6 +147,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   // /api/superadmin/mark-plan-paid)
   const [payTarget, setPayTarget] = useState<TenantRow | null>(null)
   const [payPlan, setPayPlan] = useState<string>('standard')
+  const [payTerm, setPayTerm] = useState<BillingTerm>(1)
   const [payNote, setPayNote] = useState('')
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
@@ -194,6 +211,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   function openPayModal(tenant: TenantRow) {
     setPayTarget(tenant)
     setPayPlan(tenant.plan in PLANS ? tenant.plan : 'standard')
+    setPayTerm(isBillingTerm(tenant.manualPaymentTerm) ? tenant.manualPaymentTerm : 1)
     setPayNote('')
     setPayError(null)
   }
@@ -205,7 +223,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     const res = await fetch('/api/superadmin/mark-plan-paid', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId: payTarget.id, plan: payPlan, note: payNote.trim() || null }),
+      body: JSON.stringify({ tenantId: payTarget.id, plan: payPlan, term: payTerm, note: payNote.trim() || null }),
     })
     const data = await res.json()
     if (!res.ok || data.error) {
@@ -214,7 +232,17 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
       return
     }
     setTenants(prev => prev.map(t => t.id === payTarget.id
-      ? { ...t, plan: payPlan, planStatus: 'active', status: 'active', debe: false, manualPaymentNote: payNote.trim() || null }
+      ? {
+          ...t,
+          plan: payPlan,
+          planStatus: 'active',
+          status: 'active',
+          debe: false,
+          manualPaymentNote: payNote.trim() || null,
+          manualPaymentTerm: payTerm,
+          manualPaymentAmount: data.amount ?? null,
+          manualPaidUntil: data.paidUntil ?? null,
+        }
       : t
     ))
     setPaying(false)
@@ -454,10 +482,15 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                     </span>
                     {tenant.planStatus && (
                       <span
-                        title={tenant.manualPaymentNote
-                          ? `Pago manual: ${tenant.manualPaymentNote}${tenant.manualPaymentBy ? ` · marcado por ${tenant.manualPaymentBy}` : ''}${tenant.manualPaymentAt ? ` · ${new Date(tenant.manualPaymentAt).toLocaleDateString('es-AR')}` : ''}`
+                        title={tenant.manualPaidUntil
+                          ? [
+                              tenant.manualPaymentNote ? `Pago manual: ${tenant.manualPaymentNote}` : 'Pago manual',
+                              tenant.manualPaymentTerm ? `${tenant.manualPaymentTerm} ${tenant.manualPaymentTerm === 1 ? 'mes' : 'meses'}` : null,
+                              `vence ${new Date(tenant.manualPaidUntil).toLocaleDateString('es-AR')}`,
+                              tenant.manualPaymentBy ? `marcado por ${tenant.manualPaymentBy}` : null,
+                            ].filter(Boolean).join(' · ')
                           : undefined}
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${PLAN_STATUS_COLORS[tenant.planStatus] ?? 'bg-zinc-800 text-zinc-500'} ${tenant.manualPaymentNote ? 'cursor-help' : ''}`}
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${PLAN_STATUS_COLORS[tenant.planStatus] ?? 'bg-zinc-800 text-zinc-500'} ${tenant.manualPaidUntil ? 'cursor-help' : ''}`}
                       >
                         {PLAN_STATUS_LABELS[tenant.planStatus] ?? tenant.planStatus}
                       </span>
@@ -722,16 +755,48 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
               si estaba suspendida por eso. Usalo después de confirmar la transferencia.
             </p>
 
-            <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plan</label>
-            <select
-              value={payPlan}
-              onChange={e => setPayPlan(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500 mb-4"
-            >
-              {Object.values(PLANS).filter(p => p.id !== 'free').map(p => (
-                <option key={p.id} value={p.id}>{p.nombre} (${p.precioARS.toLocaleString('es-AR')}/mes)</option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plan</label>
+                <select
+                  value={payPlan}
+                  onChange={e => setPayPlan(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
+                >
+                  {Object.values(PLANS).filter(p => p.id !== 'free').map(p => (
+                    <option key={p.id} value={p.id}>{p.nombre} (${p.precioARS.toLocaleString('es-AR')}/mes)</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plazo</label>
+                <select
+                  value={payTerm}
+                  onChange={e => setPayTerm(Number(e.target.value) as BillingTerm)}
+                  className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
+                >
+                  {([1, 6, 12] as BillingTerm[]).map(months => (
+                    <option key={months} value={months}>
+                      {months === 1 ? '1 mes' : `${months} meses`}
+                      {TERM_DISCOUNTS[months] > 0 ? ` (-${TERM_DISCOUNTS[months] * 100}%)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Precio del plazo elegido, mismo cálculo que el checkout de MP
+                (priceForTerm) — así el número que ve David acá es el mismo
+                que le cobraría a un tenant que paga self-serve. */}
+            <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-zinc-400">
+              Total del plazo: <span className="text-zinc-100 font-semibold">
+                ${priceForTerm(getPlanForTenant(payPlan), payTerm).toLocaleString('es-AR')}
+              </span>
+              {TERM_DISCOUNTS[payTerm] > 0 && (
+                <span className="text-emerald-400"> (incluye {TERM_DISCOUNTS[payTerm] * 100}% off)</span>
+              )}
+              <span className="text-zinc-600"> · vence el {addMonthsLabel(payTerm)}</span>
+            </div>
 
             <label className="block text-xs font-medium text-zinc-400 mb-1.5">
               Nota <span className="text-zinc-600 font-normal">(opcional — para no perder el rastro de quién pagó qué)</span>
@@ -739,7 +804,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
             <textarea
               value={payNote}
               onChange={e => setPayNote(e.target.value)}
-              placeholder="Ej: Transferencia $34.900 - 1 mes - 18/8/2026"
+              placeholder="Ej: Transferencia por WhatsApp - Nequén - 19/8/2026"
               rows={2}
               className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500 mb-4 resize-none"
             />

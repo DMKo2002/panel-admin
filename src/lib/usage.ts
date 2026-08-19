@@ -19,6 +19,12 @@ import { getPlanForTenant, TRIAL_DAYS, TRIAL_GRACE_DAYS, type PlanDef } from '@/
 export const GRACE_DAYS = 14
 export { TRIAL_DAYS, TRIAL_GRACE_DAYS }
 
+// Gracia para tenants marcados como pagados a mano (transferencia, ver
+// /api/superadmin/mark-plan-paid) cuyo plazo (1/6/12 meses) venció sin que
+// nadie los haya vuelto a marcar como pagados — mismo criterio de 7 días que
+// el trial, para no tener un tercer número de gracia distinto sin motivo.
+export const PAID_TERM_GRACE_DAYS = 7
+
 export type AccountState =
   | 'trial'        // trial vigente
   | 'trial_grace'  // trial vencido, dentro de la gracia de 7 días

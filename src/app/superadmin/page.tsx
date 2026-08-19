@@ -40,7 +40,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -118,9 +118,12 @@ export default async function SuperadminPage() {
       storageMB,
       storageLimitMB: plan.storageMB,
       storageAvailable: !storageError,
-      manualPaymentNote: t.manual_payment_note ?? null,
-      manualPaymentAt:   t.manual_payment_at ?? null,
-      manualPaymentBy:   t.manual_payment_by ?? null,
+      manualPaymentNote:   t.manual_payment_note ?? null,
+      manualPaymentAt:     t.manual_payment_at ?? null,
+      manualPaymentBy:     t.manual_payment_by ?? null,
+      manualPaymentTerm:   t.manual_payment_term ?? null,
+      manualPaymentAmount: t.manual_payment_amount ?? null,
+      manualPaidUntil:     t.manual_paid_until ?? null,
     }
   })
 
