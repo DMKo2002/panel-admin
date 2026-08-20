@@ -7,7 +7,13 @@
 //    cookie host-only, ver lib/supabase/server.ts) y decide a dónde mandar:
 //      - superadmin sin tenant propio -> /superadmin
 //      - tiene tenant -> /dashboard
-//      - cuenta nueva sin tenant todavía -> gounuri.com/onboarding
+//      - cuenta nueva sin tenant todavía -> gounuri.com (home). Antes del
+//        20/8 mandaba a gounuri.com/onboarding (alta self-serve) — se sacó
+//        por el mismo motivo que /registro (ver ese archivo): ya no
+//        exponemos ningún flujo de alta propia desde Panel Admin, el alta
+//        es manual. Este caso además debería ser rarísimo en la práctica:
+//        implica que alguien inició sesión con Google en panel.gounuri.com
+//        con una cuenta que nunca tuvo tenant asignado.
 //
 // 2. Link de identidad (con `next=/dashboard/mi-cuenta`, ver esa página):
 //    el usuario YA está logueado y solo está agregando Google/Facebook a
@@ -44,7 +50,7 @@ export async function GET(req: NextRequest) {
         const tenantId = userRows?.[0]?.tenant_id
         if (tenantId) return NextResponse.redirect(`${origin}/dashboard`)
         if (isSuperAdmin(data.user.email)) return NextResponse.redirect(`${origin}/superadmin`)
-        return NextResponse.redirect(`${GOUNURI_URL}/onboarding`)
+        return NextResponse.redirect(GOUNURI_URL)
       }
 
       console.error('[auth/callback] exchangeCodeForSession error:', error?.message)
