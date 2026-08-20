@@ -25,6 +25,68 @@ export async function sendEmail({
   }
 }
 
+// ── Confirmación de registro (2026-08-20) ───────────────────────────────────
+// Alta self-serve directo en panel.gounuri.com/registro (antes vivía en
+// gounuri.com — se trajo acá para que todo el flujo, del registro al
+// onboarding, quede en un solo dominio). Mismo patrón que gounuri-web:
+// generateLink(type:'signup') + este mail propio en vez del genérico de
+// Supabase, para controlar contenido y no depender de su mailer por defecto.
+
+function layout(bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 16px;">
+<table width="100%" style="max-width:520px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+  <!-- Header -->
+  <tr><td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:36px 40px;text-align:center;">
+    <div style="width:48px;height:48px;background:rgba(255,255,255,0.15);border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:24px;">🏪</span>
+    </div>
+    <p style="margin:0;color:#fff;font-size:20px;font-weight:600;">gounuri</p>
+  </td></tr>
+
+  ${bodyHtml}
+
+  <!-- Footer -->
+  <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
+    <p style="margin:0;font-size:12px;color:#9ca3af;">
+      Enviado por <strong>gounuri</strong> · <a href="https://www.gounuri.com" style="color:#7c3aed;text-decoration:none;">gounuri.com</a>
+    </p>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body>
+</html>`
+}
+
+function ctaButton(href: string, label: string): string {
+  return `<table cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#7c3aed;border-radius:8px;">
+      <a href="${href}" style="display:block;padding:14px 28px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;">
+        ${label}
+      </a>
+    </td>
+  </tr></table>`
+}
+
+export function emailConfirmacionRegistro({ confirmationUrl }: { confirmationUrl: string }): string {
+  return layout(`
+  <tr><td style="padding:36px 40px 28px;">
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">¡Hola!</p>
+    <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.6;">
+      Gracias por registrarte en <strong>gounuri</strong>. Para activar tu cuenta y arrancar tus <strong>7 días de prueba gratis</strong>, confirmá tu dirección de email:
+    </p>
+    ${ctaButton(confirmationUrl, 'Confirmar mi cuenta')}
+    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+      Si no creaste esta cuenta, podés ignorar este email. El link es válido por 24 horas.
+    </p>
+  </td></tr>`)
+}
+
 // ── Email de bienvenida al tenant ────────────────────────────────────────────
 
 export function emailBienvenidaTenant({

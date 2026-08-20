@@ -53,6 +53,9 @@ export type TenantRow = {
   manualPaymentTerm: number | null
   manualPaymentAmount: number | null
   manualPaidUntil: string | null
+  // Fin del trial (2026-08-20) — junto con manualPaidUntil de arriba,
+  // alimenta el contador de "días para renovar" del badge de plan_status.
+  trialEndsAt: string | null
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -109,6 +112,28 @@ const PLAN_STATUS_COLORS: Record<string, string> = {
   active:    'bg-emerald-950 text-emerald-400',
   past_due:  'bg-red-950 text-red-400',
   canceled:  'bg-zinc-800 text-zinc-500',
+}
+
+// "Días para renovar" (2026-08-20) — cuenta regresiva visible en la fila,
+// no solo al pasar el mouse, para poder ver de un vistazo a quién hay que
+// escribirle pronto. Cubre trial (trialEndsAt) y pago manual
+// (manualPaidUntil) con el mismo criterio: negativo = ya venció (en gracia,
+// el cron todavía no lo suspendió).
+function diasRestantes(fechaIso: string): number {
+  return Math.ceil((new Date(fechaIso).getTime() - Date.now()) / 86_400_000)
+}
+function textoDiasRestantes(fechaIso: string): string {
+  const dias = diasRestantes(fechaIso)
+  if (dias > 1) return `vence en ${dias} días`
+  if (dias === 1) return 'vence mañana'
+  if (dias === 0) return 'vence hoy'
+  return `venció hace ${Math.abs(dias)} ${Math.abs(dias) === 1 ? 'día' : 'días'}`
+}
+function colorDiasRestantes(fechaIso: string): string {
+  const dias = diasRestantes(fechaIso)
+  if (dias < 0) return 'text-red-400'
+  if (dias <= 2) return 'text-amber-400'
+  return 'text-zinc-500'
 }
 
 // Mismos umbrales que src/lib/usage.ts (overLimit/nearLimit) — >=100% rojo,
@@ -493,6 +518,17 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                         className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${PLAN_STATUS_COLORS[tenant.planStatus] ?? 'bg-zinc-800 text-zinc-500'} ${tenant.manualPaidUntil ? 'cursor-help' : ''}`}
                       >
                         {PLAN_STATUS_LABELS[tenant.planStatus] ?? tenant.planStatus}
+                      </span>
+                    )}
+                    {/* Días para renovar — trial o pago manual, lo que aplique */}
+                    {tenant.planStatus === 'trial' && tenant.trialEndsAt && (
+                      <span className={`text-[10px] ${colorDiasRestantes(tenant.trialEndsAt)}`}>
+                        {textoDiasRestantes(tenant.trialEndsAt)}
+                      </span>
+                    )}
+                    {tenant.planStatus === 'active' && tenant.manualPaidUntil && (
+                      <span className={`text-[10px] ${colorDiasRestantes(tenant.manualPaidUntil)}`}>
+                        {textoDiasRestantes(tenant.manualPaidUntil)}
                       </span>
                     )}
                   </div>

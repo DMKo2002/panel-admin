@@ -40,7 +40,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -124,6 +124,11 @@ export default async function SuperadminPage() {
       manualPaymentTerm:   t.manual_payment_term ?? null,
       manualPaymentAmount: t.manual_payment_amount ?? null,
       manualPaidUntil:     t.manual_paid_until ?? null,
+      // 2026-08-20: para el contador de "días para renovar" — cubre tanto
+      // el trial (trial_ends_at) como el pago manual (manualPaidUntil de
+      // arriba). Un tenant nunca tiene los dos a la vez: manual_paid_until
+      // solo se setea cuando plan_status pasa a 'active' vía mark-plan-paid.
+      trialEndsAt: t.trial_ends_at ?? null,
     }
   })
 

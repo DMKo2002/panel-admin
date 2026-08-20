@@ -7,13 +7,16 @@
 //    cookie host-only, ver lib/supabase/server.ts) y decide a dónde mandar:
 //      - superadmin sin tenant propio -> /superadmin
 //      - tiene tenant -> /dashboard
-//      - cuenta nueva sin tenant todavía -> gounuri.com (home). Antes del
-//        20/8 mandaba a gounuri.com/onboarding (alta self-serve) — se sacó
-//        por el mismo motivo que /registro (ver ese archivo): ya no
-//        exponemos ningún flujo de alta propia desde Panel Admin, el alta
-//        es manual. Este caso además debería ser rarísimo en la práctica:
-//        implica que alguien inició sesión con Google en panel.gounuri.com
-//        con una cuenta que nunca tuvo tenant asignado.
+//      - cuenta nueva sin tenant todavía -> /onboarding (acá mismo, en Panel
+//        Admin — ver esa página y /api/create-tenant). Para Google/Facebook,
+//        signInWithOAuth ya crea la cuenta si el mail no existía, así que
+//        este es el camino normal de alta self-serve por Google, no un caso
+//        raro. Historial: hasta el 19/8 mandaba a gounuri.com/onboarding
+//        (mismo flujo pero en gounuri-web); el 20/8 a la mañana se cambió
+//        por error a gounuri.com (home) al sacar el self-serve — pero el
+//        self-serve por trial se mantiene, solo que ahora vive acá (ver
+//        /registro), así que este caso vuelve a mandar a un onboarding, el
+//        propio de Panel Admin.
 //
 // 2. Link de identidad (con `next=/dashboard/mi-cuenta`, ver esa página):
 //    el usuario YA está logueado y solo está agregando Google/Facebook a
@@ -24,8 +27,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSuperAdmin } from '@/lib/superadmin'
-
-const GOUNURI_URL = process.env.NEXT_PUBLIC_GOUNURI_URL ?? 'https://gounuri.com'
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url)
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
         const tenantId = userRows?.[0]?.tenant_id
         if (tenantId) return NextResponse.redirect(`${origin}/dashboard`)
         if (isSuperAdmin(data.user.email)) return NextResponse.redirect(`${origin}/superadmin`)
-        return NextResponse.redirect(GOUNURI_URL)
+        return NextResponse.redirect(`${origin}/onboarding`)
       }
 
       console.error('[auth/callback] exchangeCodeForSession error:', error?.message)

@@ -25,12 +25,20 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS, PAID_TERM_GRACE_DAYS } from '@/lib/usage'
+import { getPlanForTenant } from '@/lib/plans'
 import { sendEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 const PANEL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+// Contacto para activar el plan — el pago sigue siendo 100% manual
+// (transferencia, ver creart_avellaneda_pilot_plan en la memoria del
+// proyecto), no hay checkout online acá. 2026-08-20: antes estos mails
+// linkeaban a ${PANEL}/dashboard/uso, que desde el 19/8 solo redirige a
+// /dashboard (se le sacó la activación self-serve) — quedaba un link
+// muerto. Ahora piden que escriban por mail para coordinar.
+const CONTACTO_EMAIL = 'info@gounuri.com'
 
 async function ownerEmail(service: ReturnType<typeof createServiceClient>, tenantId: string): Promise<string | null> {
   const { data } = await service.from('users').select('email').eq('tenant_id', tenantId).eq('role', 'owner').limit(1)
@@ -73,8 +81,8 @@ export async function GET(req: Request) {
           html: `
             <h2>Tu tienda fue suspendida</h2>
             <p>Terminó tu período de prueba y los ${TRIAL_GRACE_DAYS} días para activar tu plan.</p>
-            <p><strong>Tus datos y tu catálogo están intactos.</strong> Activá tu plan y la tienda vuelve a estar online al instante:</p>
-            <p><a href="${PANEL}/dashboard/uso">Activar mi plan</a></p>
+            <p><strong>Tus datos y tu catálogo están intactos.</strong> Escribinos y la reactivamos al instante:</p>
+            <p><a href="mailto:${CONTACTO_EMAIL}">${CONTACTO_EMAIL}</a></p>
           `,
         }).catch(() => {})
       }
@@ -85,6 +93,7 @@ export async function GET(req: Request) {
 
       const email = await ownerEmail(service, t.id)
       if (email) {
+        const plan = getPlanForTenant(t.plan)
         await sendEmail({
           to: email,
           subject: `Tu prueba gratis terminó — activá tu plan (${TRIAL_GRACE_DAYS} días) — gounuri`,
@@ -92,7 +101,9 @@ export async function GET(req: Request) {
             <h2>Terminó tu período de prueba</h2>
             <p>Tu tienda <strong>${t.name}</strong> sigue online, pero tenés <strong>${TRIAL_GRACE_DAYS} días</strong> para activar tu plan.
             Pasado ese plazo la tienda se suspende (sin perder ningún dato).</p>
-            <p><a href="${PANEL}/dashboard/uso">Activar mi plan</a></p>
+            <p>El pago se hace por transferencia — escribinos a
+            <a href="mailto:${CONTACTO_EMAIL}">${CONTACTO_EMAIL}</a> y te pasamos los datos y el monto de tu plan
+            ${plan.nombre} ($${plan.precioARS.toLocaleString('es-AR')}/mes).</p>
           `,
         }).catch(() => {})
       }
@@ -189,7 +200,8 @@ export async function GET(req: Request) {
           html: `
             <h2>Tu tienda fue suspendida</h2>
             <p>Venció el plazo pagado y los ${PAID_TERM_GRACE_DAYS} días de gracia para renovarlo.</p>
-            <p><strong>Tus datos y tu catálogo están intactos.</strong> Contactanos para renovar y la tienda vuelve a estar online al instante.</p>
+            <p><strong>Tus datos y tu catálogo están intactos.</strong> Escribinos a
+            <a href="mailto:${CONTACTO_EMAIL}">${CONTACTO_EMAIL}</a> y la reactivamos al instante.</p>
           `,
         }).catch(() => {})
       }
@@ -205,7 +217,8 @@ export async function GET(req: Request) {
           html: `
             <h2>Venció tu plazo pagado</h2>
             <p>Tu tienda <strong>${t.name}</strong> sigue online, pero tenés <strong>${PAID_TERM_GRACE_DAYS} días</strong> para
-            renovar. Pasado ese plazo la tienda se suspende (sin perder ningún dato). Contactanos para renovar.</p>
+            renovar. Pasado ese plazo la tienda se suspende (sin perder ningún dato). Escribinos a
+            <a href="mailto:${CONTACTO_EMAIL}">${CONTACTO_EMAIL}</a> para renovar.</p>
           `,
         }).catch(() => {})
       }
