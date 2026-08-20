@@ -3,6 +3,7 @@
   "buildCommand": "rm -rf .next/cache && next build",
   "crons": [
     { "path": "/api/cron/enforce", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/billing-recurring", "schedule": "0 10 * * *" }
+    { "path": "/api/cron/billing-recurring", "schedule": "0 10 * * *" },
+    { "path": "/api/cron/cleanup-storage", "schedule": "0 5 * * 0" }
   ]
 }
