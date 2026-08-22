@@ -57,6 +57,9 @@ export default function RegistroPage() {
           <p className="mt-2 text-sm leading-relaxed text-zinc-500">
             Te mandamos un link a <strong>{email}</strong> para confirmar tu cuenta y arrancar tus 7 días de prueba gratis.
           </p>
+          <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+            Si no lo ves en unos minutos, revisá la carpeta de spam o correo no deseado.
+          </p>
         </div>
       </div>
     )
