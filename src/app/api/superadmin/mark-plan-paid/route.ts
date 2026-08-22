@@ -22,6 +22,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isSuperAdmin } from '@/lib/superadmin'
 import { PLANS, getPlanForTenant, isBillingTerm, priceForTerm, type BillingTerm } from '@/lib/plans'
+import { sendEmail, emailPagoConfirmado } from '@/lib/email'
 
 // now + N meses de calendario (no N*30 días — un plazo de 12 meses tiene que
 // vencer un año después, no 360 días después).
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest) {
   }
   if (plan) patch.plan = plan
 
-  const { error } = await serviceClient.from('tenants').update(patch).eq('id', tenantId)
+  const { data: updatedTenant, error } = await serviceClient
+    .from('tenants').update(patch).eq('id', tenantId).select('name').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Si estaba suspendida por trial vencido, exceso de cupo o vencimiento de
@@ -86,6 +88,35 @@ export async function POST(req: NextRequest) {
     .update({ status: 'active', suspended_reason: null })
     .eq('id', tenantId)
     .in('suspended_reason', ['trial_expired', 'over_limit', 'manual_payment_expired'])
+
+  // Mail de "pago confirmado" al dueño de la tienda (2026-08-22) — antes esto
+  // quedaba solo en la base/superadmin, el tenant no se enteraba por ningún
+  // lado. Best-effort + await (aunque adentro ya atrapa sus propios errores):
+  // nunca debe hacer fallar el marcado como pagado, pero tampoco queremos que
+  // el envío quede colgando cuando Vercel corta la ejecución al volver el
+  // response.
+  try {
+    const { data: ownerRows } = await serviceClient
+      .from('users').select('email').eq('tenant_id', tenantId).eq('role', 'owner').limit(1)
+    const ownerEmail = ownerRows?.[0]?.email
+    if (ownerEmail) {
+      const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+      await sendEmail({
+        to: ownerEmail,
+        subject: '✅ Pago confirmado — tu tienda ya está activa',
+        html: emailPagoConfirmado({
+          tenantName: updatedTenant?.name ?? 'tu tienda',
+          planNombre: planDef.nombre,
+          months,
+          amount,
+          paidUntil: paidUntil.toISOString(),
+          panelUrl,
+        }),
+      })
+    }
+  } catch (e) {
+    console.error('[mark-plan-paid] error enviando mail de pago confirmado:', e)
+  }
 
   return NextResponse.json({ ok: true, paidUntil: paidUntil.toISOString(), amount })
 }

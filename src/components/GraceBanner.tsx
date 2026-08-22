@@ -2,15 +2,17 @@
 // Server component — muestra trial, gracia post-trial, exceso de cupo o
 // suspensión. Si todo está normal no renderiza nada.
 //
-// 2026-08-18: sacamos el link "Ver plan y uso" (apuntaba a /dashboard/uso,
-// que ahora redirige — ver ese archivo). El banner se deja igual para que el
-// tenant siga enterándose si está en trial o suspendido, pero ya no hay
-// self-serve del otro lado del link: activar el plan ahora es un paso manual
-// (transferencia + /superadmin, ver mark-plan-paid), así que el texto invita
-// a contactarnos en vez de ofrecer un botón que no lleva a ningún lado.
+// 2026-08-18: se había sacado el link "Ver plan y uso" (apuntaba a
+// /dashboard/uso, que en ese momento redirigía) porque activar el plan era
+// un paso 100% manual (transferencia + /superadmin, ver mark-plan-paid), sin
+// nada self-serve del otro lado. 2026-08-22: eso cambió — gounuri.com/perfil/plan
+// ahora tiene un flujo real (Mercado Pago y/o transferencia), así que el
+// banner vuelve a linkear en vez de solo pedir que lo contacten.
 import { AlertTriangle, Clock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS } from '@/lib/usage'
+
+const GOUNURI_PLAN_URL = 'https://www.gounuri.com/perfil/plan'
 
 export default async function GraceBanner({ tenantId }: { tenantId: string }) {
   let usage
@@ -23,7 +25,11 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
 
   const { accountState, trialDaysLeft, trialGraceDaysLeft, overLimit, graceDaysLeft } = usage
 
-  const contactanos = <strong className="font-medium">Contactanos para activarlo.</strong>
+  const contactanos = (
+    <a href={GOUNURI_PLAN_URL} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+      Activá tu plan.
+    </a>
+  )
 
   // ── Suspensión ──────────────────────────────────────────────────────────────
   if (accountState === 'suspended') {

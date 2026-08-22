@@ -87,6 +87,52 @@ export function emailConfirmacionRegistro({ confirmationUrl }: { confirmationUrl
   </td></tr>`)
 }
 
+// ── Pago confirmado (2026-08-22) ────────────────────────────────────────────
+// Se dispara desde /api/superadmin/mark-plan-paid cada vez que se marca un
+// pago manual (transferencia) — antes solo quedaba registrado en la base
+// (manual_payment_*) y en el badge de /superadmin, el tenant no se enteraba
+// por ningún lado de que su pago quedó confirmado. Mismo espíritu que
+// emailBienvenidaTenant de acá abajo, con layout() (el de la cabecera
+// violeta) en vez del layout propio de esa función.
+
+export function emailPagoConfirmado({
+  tenantName,
+  planNombre,
+  months,
+  amount,
+  paidUntil,
+  panelUrl,
+}: {
+  tenantName: string
+  planNombre: string
+  months: number
+  amount: number
+  paidUntil: string // ISO
+  panelUrl: string
+}): string {
+  const fechaVence = new Date(paidUntil).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const montoFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(amount)
+  return layout(`
+  <tr><td style="padding:36px 40px 28px;">
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">¡Hola!</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      Confirmamos tu pago — tu tienda <strong>${tenantName}</strong> ya está activa con el plan <strong>${planNombre}</strong>${months > 1 ? ` (${months} meses)` : ''}.
+    </p>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;border-left:3px solid #7c3aed;margin-bottom:28px;">
+      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Monto</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#111827;font-weight:500;">${montoFmt}</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Próximo vencimiento</p>
+      <p style="margin:0;font-size:14px;color:#111827;font-weight:500;">${fechaVence}</p>
+    </div>
+
+    ${ctaButton(`${panelUrl}/dashboard`, 'Ir a mi panel')}
+    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+      Cualquier duda con tu plan o el próximo pago, escribinos y te ayudamos.
+    </p>
+  </td></tr>`)
+}
+
 // ── Email de bienvenida al tenant ────────────────────────────────────────────
 
 export function emailBienvenidaTenant({

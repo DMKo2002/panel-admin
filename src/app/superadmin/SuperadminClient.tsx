@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, type BillingTerm } from '@/lib/plans'
 
@@ -515,20 +515,24 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                               tenant.manualPaymentBy ? `marcado por ${tenant.manualPaymentBy}` : null,
                             ].filter(Boolean).join(' · ')
                           : undefined}
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${PLAN_STATUS_COLORS[tenant.planStatus] ?? 'bg-zinc-800 text-zinc-500'} ${tenant.manualPaidUntil ? 'cursor-help' : ''}`}
+                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${PLAN_STATUS_COLORS[tenant.planStatus] ?? 'bg-zinc-800 text-zinc-500'} ${tenant.manualPaidUntil ? 'cursor-help' : ''}`}
                       >
+                        {tenant.planStatus === 'active' && <CheckCircle2 size={12} />}
                         {PLAN_STATUS_LABELS[tenant.planStatus] ?? tenant.planStatus}
                       </span>
                     )}
-                    {/* Días para renovar — trial o pago manual, lo que aplique */}
+                    {/* Días para renovar — trial o pago manual, lo que aplique.
+                        Para pago manual se aclara "Pagado" explícito además del
+                        color (2026-08-22: el badge de arriba solo decía "Activo",
+                        que no deja claro de un vistazo que ya se cobró). */}
                     {tenant.planStatus === 'trial' && tenant.trialEndsAt && (
-                      <span className={`text-[10px] ${colorDiasRestantes(tenant.trialEndsAt)}`}>
+                      <span className={`text-xs font-medium ${colorDiasRestantes(tenant.trialEndsAt)}`}>
                         {textoDiasRestantes(tenant.trialEndsAt)}
                       </span>
                     )}
                     {tenant.planStatus === 'active' && tenant.manualPaidUntil && (
-                      <span className={`text-[10px] ${colorDiasRestantes(tenant.manualPaidUntil)}`}>
-                        {textoDiasRestantes(tenant.manualPaidUntil)}
+                      <span className={`text-xs font-medium ${colorDiasRestantes(tenant.manualPaidUntil)}`}>
+                        Pagado · {textoDiasRestantes(tenant.manualPaidUntil)}
                       </span>
                     )}
                   </div>
