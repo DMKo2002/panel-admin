@@ -27,6 +27,9 @@ export default async function SuperadminLayout({ children }: { children: React.R
             <a href="/superadmin/clientes" className="text-zinc-400 hover:text-zinc-100 transition-colors">
               Clientes Gounuri
             </a>
+            <a href="/superadmin/pagos" className="text-zinc-400 hover:text-zinc-100 transition-colors">
+              Pagos GOUNURI
+            </a>
           </nav>
         </div>
         <a
