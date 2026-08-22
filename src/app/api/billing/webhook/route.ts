@@ -6,8 +6,41 @@
 // re-consultamos el estado real contra la API de MP con nuestro token.
 
 import { NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getPreapproval, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
+import { getPlanForTenant } from '@/lib/plans'
+import { getPlatformPaymentSettings } from '@/lib/platformBilling'
+import { sendEmail } from '@/lib/email'
+
+// Notificación a GOUNURI cada vez que MP confirma una suscripción — pedido
+// 2026-08-22, para no depender de entrar a mirar el panel. Nunca tira: si
+// falla el mail, solo lo logea (no queremos que un error de Resend haga que
+// MP reintente el webhook y process la suscripción dos veces).
+async function notifySubscriptionPaid(service: SupabaseClient, opts: {
+  tenantName: string
+  planId: string
+  months?: number
+  amount?: number
+  metodo: string
+}) {
+  try {
+    const settings = await getPlatformPaymentSettings(service)
+    const plan = getPlanForTenant(opts.planId)
+    const montoTxt = opts.amount ? `$${opts.amount.toLocaleString('es-AR')}` : '(monto no informado por MP)'
+    await sendEmail({
+      to: settings.contactEmail,
+      subject: `💳 Nueva suscripción confirmada — ${opts.tenantName} → ${plan.nombre}`,
+      html: `
+        <p><strong>${opts.tenantName}</strong> confirmó el pago del plan <strong>${plan.nombre}</strong>${opts.months ? ` (${opts.months} meses)` : ''}.</p>
+        <p>Monto: ${montoTxt}</p>
+        <p>Método: ${opts.metodo}</p>
+      `,
+    })
+  } catch (e) {
+    console.error('[billing/webhook] error notificando suscripción pagada:', e)
+  }
+}
 
 export async function POST(req: Request) {
   let body: { type?: string; action?: string; data?: { id?: string } }
@@ -96,11 +129,22 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false }, { status: 500 })
       }
 
+      // await (aunque adentro ya atrapa sus propios errores) para que el
+      // envío del mail no quede colgando cuando Vercel corta la ejecución al
+      // volver el response — ver nota arriba de notifySubscriptionPaid.
+      await notifySubscriptionPaid(service, {
+        tenantName: `Alta nueva desde la landing (todavía sin completar onboarding)`,
+        planId: ref.planId,
+        months: ref.months,
+        amount: pre.auto_recurring?.transaction_amount,
+        metodo: 'Mercado Pago (débito automático)',
+      })
+
       return NextResponse.json({ ok: true, tenantId: tenant.id })
     }
 
     if (pre.status === 'authorized') {
-      await service.from('tenants').update({
+      const { data: updatedTenant } = await service.from('tenants').update({
         plan: ref.planId,
         plan_status: 'active',
         mp_preapproval_id: pre.id,
@@ -108,7 +152,7 @@ export async function POST(req: Request) {
         trial_ends_at: null,    // fin del trial: ya está pagando
         trial_warned_at: null,
         limit_warned_at: null,
-      }).eq('id', ref.tenantId)
+      }).eq('id', ref.tenantId).select('name').single()
 
       // Si estaba suspendida automáticamente (trial vencido / exceso de cupo),
       // el pago la reactiva. Las suspensiones manuales no se tocan.
@@ -116,6 +160,13 @@ export async function POST(req: Request) {
         .update({ status: 'active', suspended_reason: null })
         .eq('id', ref.tenantId)
         .in('suspended_reason', ['trial_expired', 'over_limit'])
+
+      await notifySubscriptionPaid(service, {
+        tenantName: updatedTenant?.name ?? ref.tenantId,
+        planId: ref.planId,
+        amount: pre.auto_recurring?.transaction_amount,
+        metodo: 'Mercado Pago (débito automático)',
+      })
     } else if (pre.status === 'paused') {
       await service.from('tenants').update({ plan_status: 'past_due' }).eq('id', ref.tenantId)
     } else if (pre.status === 'cancelled') {

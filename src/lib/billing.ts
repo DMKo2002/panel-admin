@@ -24,6 +24,10 @@ export interface Preapproval {
   external_reference?: string
   init_point?: string
   payer_email?: string
+  auto_recurring?: {
+    frequency?: number
+    transaction_amount?: number
+  }
 }
 
 // external_reference = "tenantId:planId" — así el webhook sabe a quién activar
