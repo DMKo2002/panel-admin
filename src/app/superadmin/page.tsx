@@ -40,7 +40,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -97,8 +97,14 @@ export default async function SuperadminPage() {
       planStatus:  t.plan_status ?? null,
       // Deuda = pago pendiente vigente, sea que la tienda siga activa (gracia)
       // o ya se haya suspendido por eso — el resto de las suspensiones
-      // (trial vencido, exceso de cupo) no son "deuda" de pago.
-      debe: t.plan_status === 'past_due' || (t.status === 'suspended' && t.suspended_reason === 'payment_failed'),
+      // (trial vencido, exceso de cupo) no son "deuda" de pago. Cubre tanto
+      // Mercado Pago (past_due / payment_failed) como transferencia vencida
+      // sin renovar (manual_paid_until ya pasó, esté en gracia o ya
+      // suspendida) — 2026-08-22, antes solo miraba el caso de MP.
+      debe: t.plan_status === 'past_due'
+        || (t.status === 'suspended' && t.suspended_reason === 'payment_failed')
+        || (t.status === 'suspended' && t.suspended_reason === 'manual_payment_expired')
+        || (!!t.manual_paid_until && new Date(t.manual_paid_until).getTime() < now.getTime()),
       ownerEmail:  ownerByTenant[t.id] ?? null,
       ownerNombre:   accountByTenant[t.id]?.nombre ?? null,
       ownerApellido: accountByTenant[t.id]?.apellido ?? null,
@@ -129,6 +135,16 @@ export default async function SuperadminPage() {
       // arriba). Un tenant nunca tiene los dos a la vez: manual_paid_until
       // solo se setea cuando plan_status pasa a 'active' vía mark-plan-paid.
       trialEndsAt: t.trial_ends_at ?? null,
+      // Fecha de alta — para "ordenar por fecha de unión" en la tabla
+      // (2026-08-22).
+      createdAt: t.created_at,
+      // "Pago a confirmar" (2026-08-22) — declaró intención de pago por
+      // transferencia desde /perfil/plan pero todavía nadie confirmó que la
+      // plata llegó. Ver notify-manual-intent (gounuri-web) y
+      // mark-plan-paid (que lo limpia al confirmar).
+      manualPaymentPendingAt:   t.manual_payment_pending_at ?? null,
+      manualPaymentPendingPlan: t.manual_payment_pending_plan ?? null,
+      manualPaymentPendingTerm: t.manual_payment_pending_term ?? null,
     }
   })
 

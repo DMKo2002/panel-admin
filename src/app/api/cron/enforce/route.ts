@@ -27,18 +27,20 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS, PAID_TERM_GRACE_DAYS } from '@/lib/usage'
 import { getPlanForTenant } from '@/lib/plans'
 import { sendEmail } from '@/lib/email'
+import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 const PANEL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
-// Contacto para activar el plan — el pago sigue siendo 100% manual
-// (transferencia, ver creart_avellaneda_pilot_plan en la memoria del
-// proyecto), no hay checkout online acá. 2026-08-20: antes estos mails
-// linkeaban a ${PANEL}/dashboard/uso, que desde el 19/8 solo redirige a
-// /dashboard (se le sacó la activación self-serve) — quedaba un link
-// muerto. Ahora piden que escriban por mail para coordinar.
+// Contacto de reserva para estos mails de trial/exceso de cupo — fallback
+// hardcodeado si por lo que sea falla getPlatformPaymentSettings (ver el
+// aviso final de pago manual, más abajo, que sí usa la config real de
+// superadmin). 2026-08-22: gounuri.com/perfil/plan volvió a tener self-serve
+// real (Mercado Pago y/o transferencia) — GOUNURI_PLAN_URL de acá abajo es
+// ese link.
 const CONTACTO_EMAIL = 'info@gounuri.com'
+const GOUNURI_PLAN_URL = 'https://www.gounuri.com/perfil/plan'
 
 async function ownerEmail(service: ReturnType<typeof createServiceClient>, tenantId: string): Promise<string | null> {
   const { data } = await service.from('users').select('email').eq('tenant_id', tenantId).eq('role', 'owner').limit(1)
@@ -178,13 +180,14 @@ export async function GET(req: Request) {
   // tenant que paga por Mercado Pago no tiene manual_paid_until.
   const { data: paidTenants } = await service
     .from('tenants')
-    .select('id, name, status, manual_paid_until, manual_payment_warned_at')
+    .select('id, name, status, manual_paid_until, manual_payment_warned_at, manual_payment_final_warned_at')
     .eq('plan_status', 'active')
     .not('manual_paid_until', 'is', null)
     .lte('manual_paid_until', new Date(now).toISOString())
 
   for (const t of paidTenants ?? []) {
     const vencidoHaceDias = Math.floor((now - new Date(t.manual_paid_until).getTime()) / 86_400_000)
+    const diasDeGraciaRestantes = PAID_TERM_GRACE_DAYS - vencidoHaceDias
 
     if (vencidoHaceDias >= PAID_TERM_GRACE_DAYS && t.status === 'active') {
       await service.from('tenants')
@@ -202,6 +205,46 @@ export async function GET(req: Request) {
             <p>Venció el plazo pagado y los ${PAID_TERM_GRACE_DAYS} días de gracia para renovarlo.</p>
             <p><strong>Tus datos y tu catálogo están intactos.</strong> Escribinos a
             <a href="mailto:${CONTACTO_EMAIL}">${CONTACTO_EMAIL}</a> y la reactivamos al instante.</p>
+          `,
+        }).catch(() => {})
+      }
+    } else if (t.status === 'active' && !t.manual_payment_final_warned_at && diasDeGraciaRestantes <= 3) {
+      // Aviso final, más urgente, a los últimos 3 días de gracia antes de la
+      // suspensión (2026-08-22, pedido explícito) — distinto del aviso de
+      // arriba (que sale una sola vez, apenas vence el plazo, con
+      // manual_payment_warned_at). Este SÍ lleva los datos reales de pago
+      // (CBU/alias/WhatsApp, ver superadmin /superadmin/pagos) en vez de
+      // solo pedir que escriban a mano — para que puedan resolverlo sin ida
+      // y vuelta.
+      await service.from('tenants').update({ manual_payment_final_warned_at: new Date(now).toISOString() }).eq('id', t.id)
+      acciones.push(`aviso final (${diasDeGraciaRestantes}d) manual_payment_expired: ${t.name}`)
+
+      const email = await ownerEmail(service, t.id)
+      if (email) {
+        const settings = await getPlatformPaymentSettings(service)
+        const diasTxt = diasDeGraciaRestantes === 1 ? '1 día' : `${Math.max(diasDeGraciaRestantes, 0)} días`
+        const datosTransferenciaHtml = settings.manualTransferEnabled && (settings.transferCbu || settings.transferAlias)
+          ? `
+            <div style="background:#f9fafb;border-radius:8px;padding:14px 18px;margin:16px 0;">
+              ${settings.transferCbu ? `<p style="margin:0 0 4px;"><strong>CBU:</strong> ${settings.transferCbu}</p>` : ''}
+              ${settings.transferAlias ? `<p style="margin:0;"><strong>Alias:</strong> ${settings.transferAlias}</p>` : ''}
+            </div>`
+          : ''
+        const whatsappHtml = settings.whatsappNumber
+          ? `<p>WhatsApp: <a href="https://wa.me/${settings.whatsappNumber.replace(/\D/g, '')}">+${settings.whatsappNumber}</a></p>`
+          : ''
+        await sendEmail({
+          to: email,
+          subject: `⚠️ Últimos ${diasTxt} — tu tienda ${t.name} se desactiva por pago pendiente — gounuri`,
+          html: `
+            <h2>Tu tienda se desactiva en ${diasTxt}</h2>
+            <p>Venció el plazo pagado de tu plan y todavía no lo renovaste. Si no regularizás el pago,
+            <strong>tu tienda ${t.name} se suspende en ${diasTxt}</strong> — tus datos y catálogo quedan intactos y se puede
+            reactivar después, pero la tienda pública deja de responder.</p>
+            ${datosTransferenciaHtml}
+            <p>Renovar desde tu cuenta: <a href="${GOUNURI_PLAN_URL}">gounuri.com/perfil/plan</a></p>
+            ${whatsappHtml}
+            <p>Mail: <a href="mailto:${settings.contactEmail}">${settings.contactEmail}</a></p>
           `,
         }).catch(() => {})
       }
@@ -260,7 +303,7 @@ export async function GET(req: Request) {
       // trial_expired arriba.
       if (t.manual_paid_until && new Date(t.manual_paid_until).getTime() > now) {
         await service.from('tenants')
-          .update({ status: 'active', suspended_reason: null, manual_payment_warned_at: null })
+          .update({ status: 'active', suspended_reason: null, manual_payment_warned_at: null, manual_payment_final_warned_at: null })
           .eq('id', t.id)
         acciones.push(`reactivado (renovó): ${t.name}`)
       }

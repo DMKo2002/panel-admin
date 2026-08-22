@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, type BillingTerm } from '@/lib/plans'
 
@@ -56,6 +56,14 @@ export type TenantRow = {
   // Fin del trial (2026-08-20) — junto con manualPaidUntil de arriba,
   // alimenta el contador de "días para renovar" del badge de plan_status.
   trialEndsAt: string | null
+  // Fecha de alta — "ordenar por fecha de unión" (2026-08-22).
+  createdAt: string
+  // "Pago a confirmar" (2026-08-22) — declaró intención de pago por
+  // transferencia desde /perfil/plan (WhatsApp/mail) pero nadie confirmó
+  // todavía que la plata llegó. Se limpia en mark-plan-paid.
+  manualPaymentPendingAt: string | null
+  manualPaymentPendingPlan: string | null
+  manualPaymentPendingTerm: number | null
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -177,6 +185,62 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
 
+  // Buscador (2026-08-22) — antes solo existía en /superadmin/clientes (los
+  // leads sin tienda); acá, la tabla real de tenants con plan/pago, no había
+  // forma de filtrar. `?? ''` en cada campo: mismo bug que se arregló recién
+  // en ClientesClient.tsx (nombre/dominio/owner pueden venir null) — no
+  // repetirlo acá.
+  const [query, setQuery] = useState('')
+
+  // Filtro por estado de pago (2026-08-22): "Pagados" = plan activo y sin
+  // deuda vigente (cubre MP y transferencia); "En deuda" = tenant.debe (ver
+  // superadmin/page.tsx, cubre MP past_due/payment_failed y transferencia
+  // vencida sin renovar); "Pago a confirmar" = declaró intención de pago
+  // por transferencia (WhatsApp/mail desde /perfil/plan) pero todavía nadie
+  // lo marcó como pagado — ver manualPaymentPendingAt.
+  type EstadoFiltro = 'todos' | 'pagados' | 'deuda' | 'a_confirmar'
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('todos')
+
+  // Orden (2026-08-22) — "fecha de unión" es lo que pidieron explícitamente;
+  // se agregan nombre y vencimiento porque son las otras dos formas obvias
+  // de mirar esta tabla y no cuesta nada tenerlas ya que se arma el selector.
+  type OrdenPor = 'fecha_union_desc' | 'fecha_union_asc' | 'nombre_asc' | 'vencimiento_asc'
+  const [ordenPor, setOrdenPor] = useState<OrdenPor>('fecha_union_desc')
+
+  // Único vencimiento relevante por tenant: trial o pago manual, nunca los
+  // dos a la vez (ver comentario de trialEndsAt en el tipo de arriba). Sin
+  // ninguno de los dos (plan gratis, o pagando por MP sin plazo fijo) va al
+  // final del orden por vencimiento.
+  function vencimientoMs(t: TenantRow): number {
+    const fecha = t.trialEndsAt ?? t.manualPaidUntil
+    return fecha ? new Date(fecha).getTime() : Infinity
+  }
+
+  const filteredTenants = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let rows = !q ? tenants : tenants.filter(t =>
+      (t.name ?? '').toLowerCase().includes(q) ||
+      (t.slug ?? '').toLowerCase().includes(q) ||
+      (t.domain ?? '').toLowerCase().includes(q) ||
+      (t.ownerEmail ?? '').toLowerCase().includes(q) ||
+      `${t.ownerNombre ?? ''} ${t.ownerApellido ?? ''}`.toLowerCase().includes(q)
+    )
+
+    if (estadoFiltro === 'pagados') rows = rows.filter(t => t.planStatus === 'active' && !t.debe)
+    else if (estadoFiltro === 'deuda') rows = rows.filter(t => t.debe)
+    else if (estadoFiltro === 'a_confirmar') rows = rows.filter(t => !!t.manualPaymentPendingAt)
+
+    rows = [...rows].sort((a, b) => {
+      if (ordenPor === 'nombre_asc') return (a.name ?? '').localeCompare(b.name ?? '')
+      if (ordenPor === 'vencimiento_asc') return vencimientoMs(a) - vencimientoMs(b)
+      const da = new Date(a.createdAt).getTime()
+      const db = new Date(b.createdAt).getTime()
+      return ordenPor === 'fecha_union_asc' ? da - db : db - da
+    })
+
+    return rows
+  }, [tenants, query, estadoFiltro, ordenPor])
+
   // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
 
   async function handleRename(tenant: TenantRow) {
@@ -235,8 +299,16 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
 
   function openPayModal(tenant: TenantRow) {
     setPayTarget(tenant)
-    setPayPlan(tenant.plan in PLANS ? tenant.plan : 'standard')
-    setPayTerm(isBillingTerm(tenant.manualPaymentTerm) ? tenant.manualPaymentTerm : 1)
+    // Si declaró intención de pago (ver manualPaymentPendingAt/"Pago a
+    // confirmar" en la tabla), precargar CON ESO en vez del plan/plazo
+    // vigente — es lo que en teoría acaba de transferir. Si no, el criterio
+    // de antes: el plan actual y el último plazo pagado.
+    const pendingPlan = tenant.manualPaymentPendingPlan
+    setPayPlan(pendingPlan && pendingPlan in PLANS ? pendingPlan : (tenant.plan in PLANS ? tenant.plan : 'standard'))
+    setPayTerm(
+      isBillingTerm(tenant.manualPaymentPendingTerm) ? tenant.manualPaymentPendingTerm
+        : isBillingTerm(tenant.manualPaymentTerm) ? tenant.manualPaymentTerm : 1
+    )
     setPayNote('')
     setPayError(null)
   }
@@ -267,6 +339,12 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
           manualPaymentTerm: payTerm,
           manualPaymentAmount: data.amount ?? null,
           manualPaidUntil: data.paidUntil ?? null,
+          // El server ya lo limpia (ver mark-plan-paid) — reflejarlo acá
+          // también para que el badge "Pago a confirmar" desaparezca sin
+          // esperar a un reload.
+          manualPaymentPendingAt: null,
+          manualPaymentPendingPlan: null,
+          manualPaymentPendingTerm: null,
         }
       : t
     ))
@@ -333,7 +411,10 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Tenants</h1>
-          <p className="text-sm text-zinc-400 mt-1">{tenants.length} tiendas registradas</p>
+          <p className="text-sm text-zinc-400 mt-1">
+            {tenants.length} tiendas registradas — plan, estado de pago y "Marcar como pagado" están acá abajo, en la columna Plan y en Acciones.
+            Los que todavía no crearon tienda están en <a href="/superadmin/clientes" className="underline hover:text-zinc-200">Clientes Gounuri</a>.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -416,6 +497,40 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1 min-w-[220px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar por tienda, dominio o email del dueño..."
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+          />
+        </div>
+
+        <select
+          value={estadoFiltro}
+          onChange={e => setEstadoFiltro(e.target.value as EstadoFiltro)}
+          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+        >
+          <option value="todos">Todos los estados</option>
+          <option value="pagados">Pagados</option>
+          <option value="deuda">En deuda</option>
+          <option value="a_confirmar">Pago a confirmar</option>
+        </select>
+
+        <select
+          value={ordenPor}
+          onChange={e => setOrdenPor(e.target.value as OrdenPor)}
+          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+        >
+          <option value="fecha_union_desc">Fecha de unión: más nuevas primero</option>
+          <option value="fecha_union_asc">Fecha de unión: más antiguas primero</option>
+          <option value="nombre_asc">Nombre (A-Z)</option>
+          <option value="vencimiento_asc">Vencimiento más próximo</option>
+        </select>
+      </div>
+
       <div className="rounded-xl border border-zinc-800 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -438,7 +553,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
-            {tenants.map(tenant => (
+            {filteredTenants.map(tenant => (
               <tr key={tenant.id} className="bg-zinc-950 hover:bg-zinc-900 transition-colors">
 
                 {/* Nombre editable */}
@@ -533,6 +648,21 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                     {tenant.planStatus === 'active' && tenant.manualPaidUntil && (
                       <span className={`text-xs font-medium ${colorDiasRestantes(tenant.manualPaidUntil)}`}>
                         Pagado · {textoDiasRestantes(tenant.manualPaidUntil)}
+                      </span>
+                    )}
+                    {/* "Pago a confirmar" (2026-08-22) — declaró intención de
+                        pago por transferencia (WhatsApp/mail desde
+                        /perfil/plan) pero todavía nadie lo marcó como pagado.
+                        Independiente del badge de arriba: puede pasar
+                        estando en trial (quiere saltar directo a un plan
+                        pago) o ya activo (quiere renovar/subir de plan). */}
+                    {tenant.manualPaymentPendingAt && (
+                      <span
+                        title={`Declaró intención de pago el ${new Date(tenant.manualPaymentPendingAt).toLocaleDateString('es-AR')}${tenant.manualPaymentPendingPlan ? ` — plan ${PLAN_LABELS[tenant.manualPaymentPendingPlan] ?? tenant.manualPaymentPendingPlan}` : ''}${tenant.manualPaymentPendingTerm ? ` (${tenant.manualPaymentPendingTerm} ${tenant.manualPaymentPendingTerm === 1 ? 'mes' : 'meses'})` : ''}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 cursor-help"
+                      >
+                        <HandCoins size={12} />
+                        Pago a confirmar
                       </span>
                     )}
                   </div>
@@ -706,6 +836,13 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 </td>
               </tr>
             ))}
+            {filteredTenants.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-5 py-10 text-center text-zinc-500 text-sm">
+                  No hay tiendas que coincidan con la búsqueda.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 

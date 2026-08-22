@@ -58,9 +58,12 @@ export async function POST(req: NextRequest) {
 
   // Mismo patch que billing/webhook en la rama 'authorized': saca al tenant
   // del trial/gracia y limpia los warnings, para que el cron de enforce no
-  // lo vuelva a tocar. manual_payment_warned_at se resetea a null en cada
-  // pago — si el tenant ya había recibido el aviso de "tu plazo vence" en un
-  // período anterior, no queremos que se salte el aviso del próximo vencimiento.
+  // lo vuelva a tocar. manual_payment_warned_at/manual_payment_final_warned_at
+  // se resetean a null en cada pago — si el tenant ya había recibido esos
+  // avisos en un período anterior, no queremos que se salteen en el próximo
+  // vencimiento. manual_payment_pending_* también se limpia acá: es el rastro
+  // de "declaró que iba a pagar" (ver notify-manual-intent en gounuri-web) —
+  // una vez confirmado el pago de verdad, deja de estar pendiente.
   const patch: Record<string, string | number | null> = {
     plan_status: 'active',
     trial_ends_at: null,
@@ -74,6 +77,10 @@ export async function POST(req: NextRequest) {
     manual_payment_amount: amount,
     manual_paid_until: paidUntil.toISOString(),
     manual_payment_warned_at: null,
+    manual_payment_final_warned_at: null,
+    manual_payment_pending_at: null,
+    manual_payment_pending_plan: null,
+    manual_payment_pending_term: null,
   }
   if (plan) patch.plan = plan
 
