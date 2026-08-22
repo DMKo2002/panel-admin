@@ -218,12 +218,20 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
 
   const filteredTenants = useMemo(() => {
     const q = query.trim().toLowerCase()
+    // Solo dígitos, aparte del match de texto normal — para poder pegar un
+    // número de WhatsApp tal cual viene del chat (con +54, espacios,
+    // guiones, lo que sea) y que igual matchee contra ownerCelular, sin
+    // importar cómo esté formateado ese lado (2026-08-22: se pidió poder
+    // ubicar la tienda a partir del WhatsApp por el que mandan el
+    // comprobante de la transferencia).
+    const qDigits = query.replace(/\D/g, '')
     let rows = !q ? tenants : tenants.filter(t =>
       (t.name ?? '').toLowerCase().includes(q) ||
       (t.slug ?? '').toLowerCase().includes(q) ||
       (t.domain ?? '').toLowerCase().includes(q) ||
       (t.ownerEmail ?? '').toLowerCase().includes(q) ||
-      `${t.ownerNombre ?? ''} ${t.ownerApellido ?? ''}`.toLowerCase().includes(q)
+      `${t.ownerNombre ?? ''} ${t.ownerApellido ?? ''}`.toLowerCase().includes(q) ||
+      (qDigits.length >= 4 && (t.ownerCelular ?? '').replace(/\D/g, '').includes(qDigits))
     )
 
     if (estadoFiltro === 'pagados') rows = rows.filter(t => t.planStatus === 'active' && !t.debe)
@@ -503,7 +511,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar por tienda, dominio o email del dueño..."
+            placeholder="Buscar por tienda, dominio, email o WhatsApp del dueño..."
             className="w-full rounded-lg border border-zinc-700 bg-zinc-900 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
           />
         </div>
@@ -693,8 +701,12 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   )}
                 </td>
 
-                {/* Owner — nombre + email; DNI/celular en el tooltip del ícono
-                    para no ensanchar la tabla con columnas sueltas. */}
+                {/* Owner — nombre + email + celular (2026-08-22: el celular
+                    pasó del tooltip a texto visible, y se puede buscar por
+                    él — es el WhatsApp por el que suelen mandar el
+                    comprobante de la transferencia, hacía falta poder
+                    ubicar la tienda a partir de ese número). DNI se queda
+                    en el tooltip del ícono, se usa mucho menos seguido. */}
                 <td className="px-5 py-4">
                   {tenant.ownerNombre ? (
                     <div className="flex items-center gap-1.5">
@@ -703,13 +715,13 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                           {tenant.ownerNombre} {tenant.ownerApellido}
                         </p>
                         <p className="text-zinc-500 text-xs">{tenant.ownerEmail}</p>
+                        {tenant.ownerCelular && (
+                          <p className="text-zinc-500 text-xs font-mono">{tenant.ownerCelular}</p>
+                        )}
                       </div>
-                      {(tenant.ownerDni || tenant.ownerCelular) && (
+                      {tenant.ownerDni && (
                         <span
-                          title={[
-                            tenant.ownerDni ? `DNI: ${tenant.ownerDni}` : null,
-                            tenant.ownerCelular ? `Cel: ${tenant.ownerCelular}` : null,
-                          ].filter(Boolean).join(' · ')}
+                          title={`DNI: ${tenant.ownerDni}`}
                           className="shrink-0 text-zinc-600 hover:text-zinc-300 cursor-help"
                         >
                           <Info size={13} />
