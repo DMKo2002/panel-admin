@@ -138,7 +138,12 @@ export default async function PedidosPage({
             </thead>
             <tbody>
               {orders?.map((order: any) => (
-                <tr key={order.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors">
+                <tr
+                  key={order.id}
+                  className={`border-b border-zinc-50 transition-colors ${
+                    order.receipt_printed_at ? 'bg-emerald-50/60 hover:bg-emerald-50' : 'hover:bg-zinc-50'
+                  }`}
+                >
                   <td className="px-3 py-2 font-mono text-xs text-zinc-400 whitespace-nowrap">#{order.id.slice(0, 6)}</td>
                   <td className="px-3 py-2">
                     <p className="text-zinc-800 font-medium text-xs">{order.customers?.full_name ?? '—'}</p>
