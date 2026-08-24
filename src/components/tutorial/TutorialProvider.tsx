@@ -38,7 +38,14 @@ const Joyride = dynamic(() => import('react-joyride'), { ssr: false })
 // recién ahí monta el tooltip, el layout ya está asentado y Popper calcula
 // bien la posición desde el primer render — nace ya en su lugar, sin
 // reposicionarse nunca.
-const REVEAL_DELAY_MS = 420 // tiene que alcanzar para que el scroll suave termine antes de revelar
+// Dos tiempos de espera — David pidió sacrificar velocidad por prolijidad:
+// SIEMPRE se apaga el paso actual antes de tocar nada, nunca queda
+// prendido mientras la pantalla se mueve. Si hace falta scrollear, el
+// tiempo de espera tiene que alcanzar para que el scroll suave termine de
+// verdad antes de prender el siguiente; si no hace falta, igual se deja
+// una pausa cortita para que el cambio no se sienta como un tirón/flash.
+const SCROLL_REVEAL_DELAY_MS = 550
+const SWITCH_DELAY_MS = 200
 
 function getTargetElement(selector: string): HTMLElement | null {
   if (typeof document === 'undefined' || !selector) return null
@@ -144,7 +151,8 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
 
   // Arranca (o reinicia) el tour ya con pageSteps[index] centrado en
   // pantalla ANTES de que Joyride monte el tooltip. Ver el comentario
-  // grande más arriba.
+  // grande más arriba. Acá no hay "paso anterior" que apagar (recién
+  // arranca), así que si el target ya está a la vista prende directo.
   const beginRun = useCallback((pageSteps: TutorialStep[], index = 0) => {
     clearRevealTimeout()
     setSteps(pageSteps)
@@ -156,28 +164,31 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
       revealTimeoutRef.current = setTimeout(() => {
         setRun(true)
         revealTimeoutRef.current = null
-      }, REVEAL_DELAY_MS)
+      }, SCROLL_REVEAL_DELAY_MS)
     } else {
       setRun(true)
     }
   }, [clearRevealTimeout])
 
-  // Avanza/retrocede un paso DENTRO de un tour ya corriendo — mismo
-  // criterio: primero centrar el target, recién después mover stepIndex
-  // (Joyride remonta el tooltip en cada cambio de índice, así que ese
-  // remount ya nace con el layout asentado).
+  // Avanza/retrocede un paso DENTRO de un tour ya corriendo. Secuencia
+  // pedida por David: primero se APAGA el paso actual (setRun(false) ya,
+  // sin esperar nada — nunca queda prendido mientras la pantalla se
+  // mueve), recién ahí se scrollea si hace falta, y solo cuando el scroll
+  // ya terminó se prende el siguiente (stepIndex + run juntos, así Joyride
+  // lo monta directamente con el layout ya asentado).
   const goToStep = useCallback((nextIndex: number) => {
     clearRevealTimeout()
+    setRun(false)
     const target = getTargetElement(steps[nextIndex]?.target ?? '')
-    if (target && !isComfortablyInView(target)) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      revealTimeoutRef.current = setTimeout(() => {
-        setStepIndex(nextIndex)
-        revealTimeoutRef.current = null
-      }, REVEAL_DELAY_MS)
-    } else {
-      setStepIndex(nextIndex)
+    const needsScroll = !!target && !isComfortablyInView(target)
+    if (needsScroll) {
+      target!.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
+    revealTimeoutRef.current = setTimeout(() => {
+      setStepIndex(nextIndex)
+      setRun(true)
+      revealTimeoutRef.current = null
+    }, needsScroll ? SCROLL_REVEAL_DELAY_MS : SWITCH_DELAY_MS)
   }, [steps, clearRevealTimeout])
 
   const exitTour = useCallback(() => {
