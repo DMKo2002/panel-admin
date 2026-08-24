@@ -30,11 +30,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let isFounder = false
 
   if (userRow?.tenant_id) {
-    const { data: tenant } = await supabase
+    const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
       .select('name, domain, status, is_founder')
       .eq('id', userRow.tenant_id)
       .single()
+
+    // 2026-08-24: un permission denied acá (ej. columna nueva sin GRANT
+    // para 'authenticated', ver founder_permissions_migration.sql) dejaba
+    // TODO el panel (nombre, dominio, badge) caído a los defaults en
+    // silencio, para TODOS los usuarios — sin ningún rastro en los logs.
+    // Loguearlo para que la próxima vez que pase, se note en Vercel en vez
+    // de que alguien tenga que reportarlo a ciegas.
+    if (tenantError) {
+      console.error('[dashboard/layout] no se pudo leer el tenant', userRow.tenant_id, tenantError)
+    }
 
     if (tenant) {
       storeName    = tenant.name

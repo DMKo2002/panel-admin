@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2, Crown
+  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2, Crown, Pencil, Check, X
 } from 'lucide-react'
 import clsx from 'clsx'
 import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
@@ -76,6 +76,52 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
     setHasSuperadminTokens(!!sessionStorage.getItem('superadmin_tokens'))
   }, [])
 
+  // Editar el nombre de la tienda (2026-08-24, pedido de David — antes no
+  // había NINGÚN lugar del Panel Admin para hacerlo). displayName arranca
+  // del prop storeName (viene de dashboard/layout.tsx) y se pisa local acá
+  // apenas guarda, para no depender de un refresh completo del layout
+  // (server component) para verlo reflejado.
+  const [displayName, setDisplayName] = useState(storeName)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(storeName)
+  const [savingName, setSavingName] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
+
+  function startEditingName() {
+    setNameInput(displayName)
+    setNameError(null)
+    setEditingName(true)
+  }
+
+  function cancelEditingName() {
+    setEditingName(false)
+    setNameInput(displayName)
+    setNameError(null)
+  }
+
+  async function handleSaveName() {
+    const trimmed = nameInput.trim()
+    if (!trimmed) { setNameError('El nombre no puede estar vacío'); return }
+    if (trimmed === displayName) { setEditingName(false); return }
+    setSavingName(true)
+    setNameError(null)
+    const res = await fetch('/api/nombre-tienda', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data.error) {
+      setNameError(data.error ?? 'No se pudo guardar el nombre')
+      setSavingName(false)
+      return
+    }
+    setDisplayName(trimmed)
+    setSavingName(false)
+    setEditingName(false)
+    router.refresh()
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/login')
@@ -119,9 +165,54 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
             <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
               <Store size={16} className="text-primary-600" />
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-zinc-900 truncate">{storeName}</p>
+            <div className="min-w-0 flex-1">
+              {editingName ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    value={nameInput}
+                    onChange={e => setNameInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleSaveName()
+                      if (e.key === 'Escape') cancelEditingName()
+                    }}
+                    maxLength={60}
+                    disabled={savingName}
+                    className="min-w-0 flex-1 text-sm font-semibold text-zinc-900 border border-zinc-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleSaveName}
+                    disabled={savingName}
+                    title="Guardar"
+                    className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    onClick={cancelEditingName}
+                    disabled={savingName}
+                    title="Cancelar"
+                    className="p-1 text-zinc-400 hover:bg-zinc-100 rounded transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
+                  {!isStaff && (
+                    <button
+                      onClick={startEditingName}
+                      title="Editar nombre de la tienda"
+                      className="p-0.5 text-zinc-400 hover:text-zinc-600 transition-colors flex-shrink-0"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-zinc-400 truncate">{storeDomain}</p>
+              {nameError && <p className="text-[11px] text-red-500 mt-0.5">{nameError}</p>}
             </div>
           </div>
           {isFounder && (
