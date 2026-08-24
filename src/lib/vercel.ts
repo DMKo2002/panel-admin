@@ -59,6 +59,69 @@ export interface DnsInstruction {
   value: string
 }
 
+// ── Detección de dominio raíz (apex) ────────────────────────────────────────
+// 2026-08-24: bug real encontrado con creai.com.ar — la heurística vieja
+// ("labels.length <= 2 es raíz") asume que el TLD siempre es un solo label
+// (.com, .ar). Pero en TLDs compuestos como .com.ar (Argentina), .co.uk,
+// .com.br, etc. el TLD real son DOS labels, así que "creai.com.ar" tiene 3
+// labels y la heurística vieja lo trataba como si "creai" fuera un
+// SUBDOMINIO de "com.ar" — le decía al tenant que cargara un CNAME llamado
+// "creai" en su propio DNS, algo que no tiene sentido dentro de la zona de
+// creai.com.ar (ahí "creai" es el apex, no un label hijo) y que Vercel
+// jamás iba a poder verificar. Con esto, "creai.com.ar" ahora se detecta
+// bien como apex y pide el registro A en '@' que realmente hace falta.
+//
+// Lista no exhaustiva pero cubre los casos reales de la plataforma (dominios
+// argentinos + los TLDs compuestos más comunes de la región/inglés). Si en
+// el futuro hace falta cubrir más casos raros, la solución robusta es una
+// public suffix list completa (paquete `tldts`), pero eso es dependencia
+// nueva — esta lista alcanza para lo que la plataforma ve en la práctica.
+const COMPOUND_SLDS = new Set([
+  'com.ar', 'net.ar', 'org.ar', 'gov.ar', 'edu.ar', 'int.ar', 'mil.ar', 'tur.ar',
+  'co.uk', 'org.uk', 'me.uk', 'ltd.uk', 'plc.uk',
+  'com.br', 'com.mx', 'com.co', 'com.pe', 'com.uy', 'com.cl', 'com.bo', 'com.py', 'com.ec',
+  'co.nz', 'com.au', 'co.za',
+])
+
+export function isApexDomain(domain: string): boolean {
+  const labels = domain.split('.')
+  if (labels.length < 2) return true
+  const lastTwo = labels.slice(-2).join('.')
+  const requiredLabels = COMPOUND_SLDS.has(lastTwo) ? 3 : 2
+  return labels.length <= requiredLabels
+}
+
+// El nombre del label a usar en el CNAME cuando NO es apex — por ejemplo
+// "shop.creai.com.ar" (apex real "creai.com.ar", TLD compuesto) debe pedir
+// un CNAME llamado "shop", no "shop.creai" ni solo el primer label a ciegas
+// (que rompía con TLDs compuestos de 3 labels).
+function subLabel(domain: string): string {
+  const labels = domain.split('.')
+  const lastTwo = labels.slice(-2).join('.')
+  const requiredLabels = COMPOUND_SLDS.has(lastTwo) ? 3 : 2
+  return labels.slice(0, labels.length - requiredLabels).join('.')
+}
+
+// ── Alias www ────────────────────────────────────────────────────────────────
+// 2026-08-24: aparte del bug de arriba, había un gap: aunque las instrucciones
+// de DNS siempre sugieren cargar el CNAME de "www" (por si el tenant escribe
+// de memoria www.mitienda.com), ese "www.mitienda.com" NUNCA se daba de alta
+// como dominio en el proyecto de Vercel — solo se agregaba el que el tenant
+// tipeó. Resultado: el DNS podía estar perfecto y aun así www.mitienda.com no
+// cargaba nada (Vercel no lo tenía asociado a ningún proyecto). Ahora, si el
+// tenant conecta un apex (mitienda.com) o un www explícito (www.mitienda.com),
+// se da de alta automáticamente también la otra variante con redirect 308 a
+// la que el tenant eligió como principal — así las dos siempre resuelven.
+// Subdominios que no son ni apex ni "www.<apex>" (ej. "shop.mitienda.com") no
+// generan alias: no hay una variante obvia que agregar sola.
+export function wwwAliasFor(domain: string): string | null {
+  if (domain.startsWith('www.')) {
+    const bare = domain.slice(4)
+    return isApexDomain(bare) ? bare : null
+  }
+  return isApexDomain(domain) ? `www.${domain}` : null
+}
+
 // `verification` (arriba) son los TXT de desafío de ownership que Vercel pide
 // en casos borde (dominio ya usado en otra cuenta, etc.) — la mayoría de las
 // veces viene vacío y ahí es donde el tenant se quedaba sin saber qué poner
@@ -78,25 +141,20 @@ export async function getDnsInstructions(template: string, domain: string): Prom
     return []
   }
 
-  // Heurística: dominio con un solo nivel antes del TLD (ej. "mitienda.com")
-  // es raíz. No cubre TLDs compuestos (.co.uk y similares) pero cubre bien
-  // los casos reales de la plataforma (.com/.ar).
-  const labels = domain.split('.')
-  const isApex = labels.length <= 2
   const ip = json.recommendedIPv4?.[0]?.value?.[0] ?? '76.76.21.21'
   const cname = json.recommendedCNAME?.[0]?.value ?? 'cname.vercel-dns.com'
   const instructions: DnsInstruction[] = []
 
-  if (isApex) {
-    // Dominio raíz: A en '@' para que funcione mitienda.com, más CNAME en
-    // 'www' — la mayoría de la gente escribe www.mitienda.com de memoria,
-    // sin este segundo registro esa versión no carga.
+  if (isApexDomain(domain)) {
+    // Dominio raíz: A en '@' para que funcione mitienda.com (o creai.com.ar),
+    // más CNAME en 'www' — la mayoría de la gente escribe www.mitienda.com
+    // de memoria, y ahora esa variante se da de alta sola (ver wwwAliasFor).
     instructions.push({ type: 'A', name: '@', value: ip })
     instructions.push({ type: 'CNAME', name: 'www', value: cname })
   } else {
-    // Ya es un subdominio (ej. "shop.mitienda.com") — el A del dominio raíz
-    // no aplica acá, solo el CNAME de ESE label.
-    instructions.push({ type: 'CNAME', name: labels[0], value: cname })
+    // Ya es un subdominio (ej. "shop.mitienda.com" o "shop.creai.com.ar") —
+    // el A del dominio raíz no aplica acá, solo el CNAME de ESE label.
+    instructions.push({ type: 'CNAME', name: subLabel(domain), value: cname })
   }
 
   return instructions
@@ -105,6 +163,12 @@ export async function getDnsInstructions(template: string, domain: string): Prom
 // POST — agrega el dominio al proyecto. Si ya estaba agregado (reintento
 // desde el panel, o el tenant lo había cargado antes), no falla: Vercel
 // devuelve 409 con el dominio existente y lo tratamos como éxito.
+//
+// 2026-08-24: además, si el dominio es apex o "www.<apex>", da de alta
+// también la otra variante con redirect 308 hacia la que el tenant eligió
+// (ver wwwAliasFor) — así las dos direcciones siempre resuelven, no solo la
+// que se tipeó. Es best-effort: si el alias falla, no aborta el alta del
+// dominio principal (que es el que de verdad importa), solo lo logea.
 export async function addDomainToProject(template: string, domain: string): Promise<VercelDomainStatus> {
   const projectId = projectIdForTemplate(template)
   const res = await fetch(`${VERCEL_API}/v10/projects/${projectId}/domains${teamQuery()}`, {
@@ -117,12 +181,36 @@ export async function addDomainToProject(template: string, domain: string): Prom
   if (!res.ok) {
     if (json?.error?.code === 'domain_already_in_use' && json?.error?.projectId === projectId) {
       // Ya está en ESTE proyecto — no es un error, seguir con el estado actual.
-      return getDomainStatus(template, domain)
+      const status = await getDomainStatus(template, domain)
+      await addWwwAlias(projectId, domain)
+      return status
     }
     throw new Error(json?.error?.message || `Error agregando el dominio en Vercel (HTTP ${res.status})`)
   }
 
+  await addWwwAlias(projectId, domain)
+
   return { verified: !!json.verified, verification: json.verification ?? null }
+}
+
+async function addWwwAlias(projectId: string, canonicalDomain: string): Promise<void> {
+  const alias = wwwAliasFor(canonicalDomain)
+  if (!alias) return
+  try {
+    const res = await fetch(`${VERCEL_API}/v10/projects/${projectId}/domains${teamQuery()}`, {
+      method: 'POST',
+      headers: vercelHeaders(),
+      body: JSON.stringify({ name: alias, redirect: canonicalDomain, redirectStatusCode: 308 }),
+    })
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      // 409 domain_already_in_use en ESTE proyecto = ya estaba, no es error.
+      if (json?.error?.code === 'domain_already_in_use' && json?.error?.projectId === projectId) return
+      console.error(`[vercel] no se pudo dar de alta el alias ${alias} -> ${canonicalDomain}:`, JSON.stringify(json))
+    }
+  } catch (e) {
+    console.error(`[vercel] error de red dando de alta el alias ${alias} -> ${canonicalDomain}:`, e)
+  }
 }
 
 // GET — estado actual sin forzar un nuevo intento de verificación.
@@ -152,6 +240,12 @@ export async function verifyDomain(template: string, domain: string): Promise<Ve
 // DELETE — desasocia el dominio del proyecto (ej. el tenant lo da de baja o
 // lo cambia por otro). No borra el dominio de la cuenta de Vercel entera,
 // solo la asociación a este proyecto — suficiente para dejar de servir ahí.
+//
+// 2026-08-24: también intenta quitar el alias www (o el apex, según cuál se
+// haya dado de alta automáticamente en addDomainToProject) — sin esto quedaba
+// un dominio huérfano en el proyecto de Vercel apuntando a un redirect roto.
+// Best-effort: si el alias no existe o falla, no aborta la baja del dominio
+// principal.
 export async function removeDomainFromProject(template: string, domain: string): Promise<void> {
   const projectId = projectIdForTemplate(template)
   const res = await fetch(`${VERCEL_API}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
@@ -161,6 +255,21 @@ export async function removeDomainFromProject(template: string, domain: string):
   if (!res.ok && res.status !== 404) {
     const json = await res.json().catch(() => ({}))
     throw new Error(json?.error?.message || `Error quitando el dominio en Vercel (HTTP ${res.status})`)
+  }
+
+  const alias = wwwAliasFor(domain)
+  if (alias) {
+    try {
+      const aliasRes = await fetch(`${VERCEL_API}/v9/projects/${projectId}/domains/${alias}${teamQuery()}`, {
+        method: 'DELETE',
+        headers: vercelHeaders(),
+      })
+      if (!aliasRes.ok && aliasRes.status !== 404) {
+        console.error(`[vercel] no se pudo quitar el alias ${alias}:`, await aliasRes.text())
+      }
+    } catch (e) {
+      console.error(`[vercel] error de red quitando el alias ${alias}:`, e)
+    }
   }
 }
 
