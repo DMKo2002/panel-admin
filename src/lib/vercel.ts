@@ -263,21 +263,21 @@ export async function verifyDomain(template: string, domain: string): Promise<Ve
 // lo cambia por otro). No borra el dominio de la cuenta de Vercel entera,
 // solo la asociación a este proyecto — suficiente para dejar de servir ahí.
 //
-// 2026-08-24: también intenta quitar el alias www (o el apex, según cuál se
-// haya dado de alta automáticamente en addDomainToProject) — sin esto quedaba
-// un dominio huérfano en el proyecto de Vercel apuntando a un redirect roto.
-// Best-effort: si el alias no existe o falla, no aborta la baja del dominio
-// principal.
+// 2026-08-24: también quita el alias www (o el apex, según cuál se haya
+// dado de alta automáticamente en addDomainToProject) — sin esto quedaba un
+// dominio huérfano en el proyecto de Vercel apuntando a un redirect roto.
+//
+// OJO CON EL ORDEN: el alias tiene `redirect: <domain>` apuntándole a este
+// dominio — Vercel se niega a borrar `domain` mientras ese redirect siga
+// existiendo ("Cannot remove X until existing redirects to X are removed").
+// Bug real visto el 24/8 con creai.com.ar: la primera versión de esta
+// función borraba el dominio principal PRIMERO, así que siempre fallaba acá
+// (el tenant se quedaba con domain_status='error' y el dominio nunca se
+// desconectaba). El alias tiene que borrarse ANTES que el dominio principal.
+// El alias es best-effort (si falla igual seguimos con el principal, que es
+// el que de verdad importa); el principal si falla sí se propaga como error.
 export async function removeDomainFromProject(template: string, domain: string): Promise<void> {
   const projectId = projectIdForTemplate(template)
-  const res = await fetch(`${VERCEL_API}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
-    method: 'DELETE',
-    headers: vercelHeaders(),
-  })
-  if (!res.ok && res.status !== 404) {
-    const json = await res.json().catch(() => ({}))
-    throw new Error(json?.error?.message || `Error quitando el dominio en Vercel (HTTP ${res.status})`)
-  }
 
   const alias = wwwAliasFor(domain)
   if (alias) {
@@ -292,6 +292,15 @@ export async function removeDomainFromProject(template: string, domain: string):
     } catch (e) {
       console.error(`[vercel] error de red quitando el alias ${alias}:`, e)
     }
+  }
+
+  const res = await fetch(`${VERCEL_API}/v9/projects/${projectId}/domains/${domain}${teamQuery()}`, {
+    method: 'DELETE',
+    headers: vercelHeaders(),
+  })
+  if (!res.ok && res.status !== 404) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error(json?.error?.message || `Error quitando el dominio en Vercel (HTTP ${res.status})`)
   }
 }
 
