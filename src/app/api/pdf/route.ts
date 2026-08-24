@@ -30,6 +30,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
     }
 
+    // Marca el pedido como "recibo impreso" (solo la primera vez) para que
+    // el panel de Pedidos resalte la fila en verde. No debe frenar la
+    // descarga del PDF si falla — es solo un dato informativo.
+    if (!order.receipt_printed_at) {
+      supabase
+        .from('orders')
+        .update({ receipt_printed_at: new Date().toISOString() })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('[pdf] no se pudo marcar receipt_printed_at:', error.message)
+        })
+    }
+
     // Cargar datos de la tienda
     const { data: tenant } = await supabase
       .from('tenants')

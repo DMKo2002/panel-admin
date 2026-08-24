@@ -156,7 +156,11 @@ export default async function PedidosPage({
                         href={`/api/pdf?order_id=${order.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 text-[11px] text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors whitespace-nowrap"
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] transition-colors whitespace-nowrap ${
+                          order.receipt_printed_at
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300'
+                            : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'
+                        }`}
                       >
                         <FileText size={11} />
                         Recibo
