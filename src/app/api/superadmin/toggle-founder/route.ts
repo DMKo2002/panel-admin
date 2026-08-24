@@ -24,7 +24,12 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isSuperAdmin } from '@/lib/superadmin'
 
-export const FOUNDER_LIMIT = 50
+// No exportado: Next.js solo permite exports específicos (GET/POST/config)
+// desde un route.ts — cualquier otro export rompe el build ("is not a valid
+// Route export field"). El cliente (SuperadminClient.tsx) tiene su propia
+// copia de este mismo número para el contador — si este valor cambia, hay
+// que actualizar los dos.
+const FOUNDER_LIMIT = 50
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
