@@ -67,4 +67,65 @@
   .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 9999px; }
   .scrollbar-thin:hover::-webkit-scrollbar-thumb { background-color: #a1a1aa; }
   .scrollbar-thin:hover { scrollbar-color: #a1a1aa transparent; }
+
+  /* ── Sensación de "suavidad" general del panel (pedido David 2026-08-24) ──
+     Tres piezas:
+     1) Entrada de cada página al navegar (ver DashboardShell.tsx, que le
+        pone key={pathname} al contenido para que esta animación se dispare
+        en cada cambio de ruta).
+     2) Entrada de los modales/popups del panel (bienvenida del tutorial,
+        cartel de transición entre páginas del tour) — antes aparecían y
+        desaparecían de un salto, sin ninguna transición.
+     3) El tutorial guiado en sí (react-joyride + react-floater, ver
+        TutorialProvider.tsx): por default, tanto el globo del tooltip como
+        el recuadro que resalta el campo (".react-joyride__spotlight")
+        reposicionan de forma INSTANTÁNEA cuando cambian de target (por
+        scroll o al pasar de paso con "Continuar") — eso es lo que se ve
+        como "se teletransporta". La librería solo anima la opacidad, nunca
+        la posición. Achicamos ese salto agregando transición al top/
+        left/ancho/alto del spotlight y al transform del floater — como son
+        estilos que las libs aplican directo por JS (no vía className),
+        hace falta !important para pisar el inline style que ellas ponen. */
+  .animate-page-enter {
+    animation: page-enter .24s ease-out;
+  }
+  .animate-modal-overlay {
+    animation: modal-overlay-in .18s ease-out;
+  }
+  .animate-modal-card {
+    animation: modal-card-in .24s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .__floater {
+    transition: opacity 0.3s ease, transform 0.22s ease-out !important;
+  }
+  .react-joyride__spotlight {
+    transition: opacity 0.2s ease, top 0.32s ease-in-out, left 0.32s ease-in-out,
+      width 0.32s ease-in-out, height 0.32s ease-in-out !important;
+  }
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-card-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-enter,
+  .animate-modal-overlay,
+  .animate-modal-card {
+    animation: none !important;
+  }
+  .__floater,
+  .react-joyride__spotlight {
+    transition: none !important;
+  }
 }

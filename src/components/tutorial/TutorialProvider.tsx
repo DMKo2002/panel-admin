@@ -197,6 +197,13 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
     <TutorialContext.Provider value={{ registerSteps, startFullTour, startPageTour, startFieldTour }}>
       {children}
 
+      {/* El "salto"/teletransporte del tooltip y del recuadro que resalta
+          el campo (spotlight) al pasar de paso o hacer scroll NO se arregla
+          acá — react-joyride/react-floater no exponen esa transición por
+          props. Se resuelve en globals.css con reglas sobre .__floater y
+          .react-joyride__spotlight (ver comentario ahí). scrollDuration más
+          alto le da tiempo al ojo de seguir el scroll antes de que aparezca
+          el siguiente paso. */}
       <Joyride
         steps={joyrideSteps}
         run={run}
@@ -206,7 +213,7 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
         showProgress={steps.length > 1}
         disableOverlayClose={false}
         scrollOffset={120}
-        scrollDuration={300}
+        scrollDuration={450}
         callback={handleCallback}
         locale={{ back: 'Atrás', close: 'Cerrar', last: 'Listo', next: 'Continuar', skip: 'Salir del tutorial' }}
         styles={{
@@ -228,8 +235,8 @@ export default function TutorialProvider({ children }: { children: React.ReactNo
       />
 
       {transition && (
-        <div className="fixed inset-0 z-[10001] bg-black/60 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <div className="fixed inset-0 z-[10001] bg-black/60 flex items-center justify-center p-6 animate-modal-overlay">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-modal-card">
             <p className="text-xs font-medium text-primary-600 uppercase tracking-wide mb-1">Tutorial guiado</p>
             <h2 className="text-lg font-semibold text-zinc-900 mb-2">¡Listo! Ahora vamos a {transition.toLabel}</h2>
             <p className="text-sm text-zinc-500 mb-5">Te muestro para qué sirve cada configuración de esta sección.</p>

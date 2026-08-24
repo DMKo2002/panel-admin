@@ -7,6 +7,7 @@
 // (mismo criterio que el menú mobile de gounuri-web).
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import type { StaffPermissions } from '@/lib/settings-nav'
@@ -27,6 +28,12 @@ export default function DashboardShell({
   children: React.ReactNode
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  // key={pathname} fuerza que React remonte este div en cada cambio de
+  // ruta, así la animación CSS de entrada (animate-page-enter, ver
+  // globals.css) se dispara de nuevo cada vez — antes el contenido
+  // cambiaba de un salto seco, sin ninguna transición entre una página
+  // del panel y otra.
+  const pathname = usePathname()
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
@@ -55,7 +62,9 @@ export default function DashboardShell({
         </div>
 
         <main className="flex-1 overflow-y-auto">
-          {children}
+          <div key={pathname} className="animate-page-enter">
+            {children}
+          </div>
         </main>
       </div>
     </div>

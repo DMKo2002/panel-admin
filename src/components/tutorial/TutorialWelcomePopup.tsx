@@ -49,8 +49,8 @@ export default function TutorialWelcomePopup() {
   if (!visible) return null
 
   return (
-    <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+    <div className="fixed inset-0 z-[10002] bg-black/50 flex items-center justify-center p-6 animate-modal-overlay">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-modal-card">
         <h2 className="text-lg font-semibold text-zinc-900 mb-2">¿Querés ver un tutorial rápido?</h2>
         <p className="text-sm text-zinc-600 mb-6 leading-relaxed">
           Te muestro, paso a paso, para qué sirve cada configuración del panel — empezando por{' '}
