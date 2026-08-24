@@ -134,15 +134,26 @@ export function emailPagoConfirmado({
 }
 
 // ── Email de bienvenida al tenant ────────────────────────────────────────────
+// 2026-08-24: hasta acá el único mail que recibía un tenant nuevo era este
+// (link solo al Panel Admin) — Aram/David pidieron sumar un link a
+// gounuri.com y uno a un FAQ nuevo (dominio, footer vacío, productos, plan,
+// etc. — ver gounuri-web/src/app/faq/page.tsx) para que la primera pantalla
+// vacía no sea la única guía que tiene un tenant recién creado.
+// gounuriUrl/faqUrl tienen default para no romper si algún call site viejo
+// no los pasa, pero create-tenant/route.ts ya los pasa explícitos.
 
 export function emailBienvenidaTenant({
   tenantName,
   email,
   panelUrl,
+  gounuriUrl = 'https://www.gounuri.com',
+  faqUrl = 'https://www.gounuri.com/faq',
 }: {
   tenantName: string
   email: string
   panelUrl: string
+  gounuriUrl?: string
+  faqUrl?: string
 }) {
   return `<!DOCTYPE html>
 <html lang="es">
@@ -168,13 +179,21 @@ export function emailBienvenidaTenant({
       Ya podés ingresar al panel de administración para configurar tus productos, medios de pago, envíos y personalización.
     </p>
 
-    <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;"><tr>
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
       <td style="background:#7c3aed;border-radius:8px;">
         <a href="${panelUrl}/dashboard" style="display:block;padding:14px 28px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;">
           Ir al panel de administración →
         </a>
       </td>
     </tr></table>
+
+    <p style="margin:0 0 28px;font-size:13px;color:#6b7280;line-height:1.6;">
+      <a href="${gounuriUrl}" style="color:#7c3aed;text-decoration:none;font-weight:600;">Conocé gounuri.com</a>
+      &nbsp;·&nbsp;
+      <a href="${faqUrl}" style="color:#7c3aed;text-decoration:none;font-weight:600;">Preguntas frecuentes</a>
+      <br/>
+      <span style="color:#9ca3af;">¿Por qué mi tienda está vacía? ¿Por qué no funciona mi dominio? Está todo ahí.</span>
+    </p>
 
     <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;border-left:3px solid #7c3aed;">
       <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Tu email de acceso</p>
@@ -185,7 +204,7 @@ export function emailBienvenidaTenant({
   <!-- Footer -->
   <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
     <p style="margin:0;font-size:12px;color:#9ca3af;">
-      Enviado por <strong>gounuri</strong> · <a href="${panelUrl}" style="color:#7c3aed;text-decoration:none;">gounuri.com</a>
+      Enviado por <strong>gounuri</strong> · <a href="${gounuriUrl}" style="color:#7c3aed;text-decoration:none;">gounuri.com</a>
     </p>
   </td></tr>
 
