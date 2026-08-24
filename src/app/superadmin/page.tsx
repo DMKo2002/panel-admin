@@ -40,7 +40,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -82,7 +82,7 @@ export default async function SuperadminPage() {
   }
 
   const rows: TenantRow[] = (tenants ?? []).map(t => {
-    const plan = getPlanForTenant(t.plan)
+    const plan = getPlanForTenant(t.plan, t.is_founder ?? false)
     const productCount = productCountByTenant[t.id] ?? 0
     const storageBytes = storageByTenant[t.id] ?? 0
     const storageMB = storageBytes / (1024 * 1024)
@@ -145,6 +145,10 @@ export default async function SuperadminPage() {
       manualPaymentPendingAt:   t.manual_payment_pending_at ?? null,
       manualPaymentPendingPlan: t.manual_payment_pending_plan ?? null,
       manualPaymentPendingTerm: t.manual_payment_pending_term ?? null,
+      // Promoción "Founders" (2026-08-24) — ver toggle-founder y lib/plans.ts.
+      isFounder:       t.is_founder ?? false,
+      founderMarkedAt: t.founder_marked_at ?? null,
+      founderMarkedBy: t.founder_marked_by ?? null,
     }
   })
 

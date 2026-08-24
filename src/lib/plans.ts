@@ -19,6 +19,12 @@ export interface PlanDef {
   storageMB: number
   maxProductos: number
   visitasMes: number
+  // true cuando este PlanDef ya tiene aplicado el override de límites
+  // Founders (ver getPlanForTenant) — así el resto del código (banners de
+  // uso, "Plan y uso", etc.) puede saber que está mirando límites de
+  // Premium aunque el tenant siga pagando Business, sin tener que
+  // reconsultar is_founder por su cuenta.
+  esFounder: boolean
 }
 
 // Límites recalibrados 2026-08-12 contra el uso real de las tiendas en
@@ -36,6 +42,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
     storageMB: 150,
     maxProductos: 30,
     visitasMes: 5_000,
+    esFounder: false,
   },
   mini: {
     id: 'mini',
@@ -44,6 +51,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
     storageMB: 300,
     maxProductos: 50,
     visitasMes: 15_000,
+    esFounder: false,
   },
   standard: {
     id: 'standard',
@@ -52,6 +60,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
     storageMB: 1_024,
     maxProductos: 300,
     visitasMes: 75_000,
+    esFounder: false,
   },
   premium: {
     id: 'premium',
@@ -60,6 +69,7 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
     storageMB: 3_072,
     maxProductos: 600,
     visitasMes: 300_000,
+    esFounder: false,
   },
 }
 
@@ -67,9 +77,25 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
 // ('basic', null, etc.) cae a Standard — así los tenants existentes no quedan
 // de golpe en 'free' con warnings de exceso. Cuando arranque la suscripción
 // (enero 2027), el registro nuevo debe crear tenants con plan = 'free'.
-export function getPlanForTenant(tenantPlan?: string | null): PlanDef {
-  if (tenantPlan && tenantPlan in PLANS) return PLANS[tenantPlan as PlanDef['id']]
-  return PLANS.standard
+//
+// Promoción "Founders" (2026-08-24): isFounder=true aplica los límites de
+// Premium (storage/productos/visitas) sobre el plan que el tenant esté
+// pagando en ese momento, SIN tocar nombre/precioARS — el precio siempre
+// sigue siendo el de tenants.plan (en la práctica, Business para todos los
+// Founders). Así ningún otro código (MP webhook, mark-plan-paid, el email de
+// "pago confirmado") necesita enterarse de is_founder: siguen leyendo
+// nombre/precioARS de un plan normal, y solo lo que mide cupo real
+// (getTenantUsage → banners de uso, cron/enforce) ve los límites ampliados.
+export function getPlanForTenant(tenantPlan?: string | null, isFounder?: boolean): PlanDef {
+  const base = tenantPlan && tenantPlan in PLANS ? PLANS[tenantPlan as PlanDef['id']] : PLANS.standard
+  if (!isFounder) return base
+  return {
+    ...base,
+    storageMB: PLANS.premium.storageMB,
+    maxProductos: PLANS.premium.maxProductos,
+    visitasMes: PLANS.premium.visitasMes,
+    esFounder: true,
+  }
 }
 
 export function formatStorage(mb: number): string {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, type BillingTerm } from '@/lib/plans'
 
@@ -64,6 +64,12 @@ export type TenantRow = {
   manualPaymentPendingAt: string | null
   manualPaymentPendingPlan: string | null
   manualPaymentPendingTerm: number | null
+  // Promoción "Founders" (2026-08-24) — precio Business para siempre,
+  // límites de Premium. Asignación manual, ver /api/superadmin/toggle-founder
+  // y getPlanForTenant en lib/plans.ts.
+  isFounder: boolean
+  founderMarkedAt: string | null
+  founderMarkedBy: string | null
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -103,6 +109,12 @@ const PLAN_COLORS: Record<string, string> = {
 }
 
 const PANEL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+
+// Promoción "Founders" (2026-08-24) — mismo número que FOUNDER_LIMIT en
+// /api/superadmin/toggle-founder/route.ts (el cupo real lo valida el
+// server; esto es solo para el contador y para deshabilitar el botón en el
+// cliente sin esperar el roundtrip cuando ya está lleno).
+const FOUNDER_LIMIT = 50
 
 // Estado del plan (2026-08-18) — independiente del badge "Deuda" de arriba,
 // que es específico de MP (past_due/payment_failed). Acá mostramos el
@@ -184,6 +196,12 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [payNote, setPayNote] = useState('')
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
+
+  // Toggle "Founder" (2026-08-24, ver /api/superadmin/toggle-founder) —
+  // togglingFounderId marca qué fila tiene el botón en vuelo (deshabilita el
+  // botón de esa fila nada más, igual que impersonatingId/savingId).
+  const [togglingFounderId, setTogglingFounderId] = useState<string | null>(null)
+  const [founderError, setFounderError] = useState<string | null>(null)
 
   // Buscador (2026-08-22) — antes solo existía en /superadmin/clientes (los
   // leads sin tienda); acá, la tabla real de tenants con plan/pago, no había
@@ -360,6 +378,41 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     setPayTarget(null)
   }
 
+  async function handleToggleFounder(tenant: TenantRow) {
+    const nextIsFounder = !tenant.isFounder
+    if (nextIsFounder && foundersCount >= FOUNDER_LIMIT) {
+      setFounderError(`Ya hay ${FOUNDER_LIMIT} Founders marcados — el cupo está completo.`)
+      return
+    }
+    setTogglingFounderId(tenant.id)
+    setFounderError(null)
+    const res = await fetch('/api/superadmin/toggle-founder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId: tenant.id, isFounder: nextIsFounder }),
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) {
+      setFounderError(data.error ?? 'No se pudo actualizar el estado de Founder')
+      setTogglingFounderId(null)
+      return
+    }
+    setTenants(prev => prev.map(t => t.id === tenant.id
+      ? {
+          ...t,
+          isFounder: nextIsFounder,
+          founderMarkedAt: nextIsFounder ? new Date().toISOString() : null,
+          founderMarkedBy: nextIsFounder ? 'vos' : null,
+          // El server fija plan = 'standard' al activar (ver
+          // toggle-founder/route.ts) — reflejarlo acá también para que la
+          // columna Plan no quede desactualizada hasta el próximo reload.
+          plan: nextIsFounder ? 'standard' : t.plan,
+        }
+      : t
+    ))
+    setTogglingFounderId(null)
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     setDeletingId(deleteTarget.id)
@@ -413,6 +466,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const totalVisits = tenants.reduce((sum, t) => sum + t.visitCount, 0)
   const totalOrders = tenants.reduce((sum, t) => sum + t.orderCount, 0)
   const ga4LinkedCount = tenants.filter(t => t.ga4Linked).length
+  const foundersCount = tenants.filter(t => t.isFounder).length
 
   return (
     <div>
@@ -480,7 +534,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
       )}
 
       {/* Resumen agregado — todos los tenants, sin importar su plan */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
           <p className="text-xs text-zinc-500">Tiendas activas</p>
           <p className="text-xl font-semibold text-zinc-100 mt-1">
@@ -503,7 +557,23 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
             <span className="text-sm font-normal text-zinc-500"> / {tenants.length}</span>
           </p>
         </div>
+        <div className="rounded-xl border border-amber-900/50 bg-zinc-900 p-4">
+          <p className="text-xs text-amber-500 flex items-center gap-1"><Crown size={11} /> Founders</p>
+          <p className="text-xl font-semibold text-zinc-100 mt-1">
+            {foundersCount}
+            <span className="text-sm font-normal text-zinc-500"> / {FOUNDER_LIMIT}</span>
+          </p>
+        </div>
       </div>
+
+      {founderError && (
+        <div className="mb-6 rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-xs text-red-300 flex items-center justify-between gap-3">
+          <span>{founderError}</span>
+          <button onClick={() => setFounderError(null)} className="text-red-400 hover:text-red-200">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative max-w-sm flex-1 min-w-[220px]">
@@ -628,6 +698,19 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[tenant.plan] ?? 'bg-zinc-800 text-zinc-400'}`}>
                       {PLAN_LABELS[tenant.plan] ?? tenant.plan}
                     </span>
+                    {tenant.isFounder && (
+                      <span
+                        title={[
+                          'Founder: precio Business para siempre, límites de Premium',
+                          tenant.founderMarkedAt ? `marcado ${new Date(tenant.founderMarkedAt).toLocaleDateString('es-AR')}` : null,
+                          tenant.founderMarkedBy ? `por ${tenant.founderMarkedBy}` : null,
+                        ].filter(Boolean).join(' · ')}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400 cursor-help"
+                      >
+                        <Crown size={12} />
+                        Founder
+                      </span>
+                    )}
                     {tenant.planStatus && (
                       <span
                         title={tenant.manualPaidUntil
@@ -834,6 +917,23 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-950 transition-colors"
                     >
                       <HandCoins size={14} />
+                    </button>
+
+                    {/* Founder — promoción 2026-08-24, ver
+                        /api/superadmin/toggle-founder. Deshabilitado para
+                        activar (no para desactivar) si el cupo de 50 ya
+                        está lleno y esta tienda todavía no es Founder. */}
+                    <button
+                      onClick={() => handleToggleFounder(tenant)}
+                      disabled={togglingFounderId === tenant.id || (!tenant.isFounder && foundersCount >= FOUNDER_LIMIT)}
+                      title={tenant.isFounder ? 'Quitar Founder' : `Marcar como Founder (${foundersCount}/${FOUNDER_LIMIT})`}
+                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                        tenant.isFounder
+                          ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-950'
+                          : 'text-zinc-500 hover:text-amber-400 hover:bg-amber-950'
+                      }`}
+                    >
+                      <Crown size={14} fill={tenant.isFounder ? 'currentColor' : 'none'} />
                     </button>
 
                     {/* Borrar tenant */}

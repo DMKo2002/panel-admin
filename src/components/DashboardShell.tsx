@@ -18,6 +18,7 @@ export default function DashboardShell({
   isSuperAdmin,
   role,
   permissions,
+  isFounder,
   children,
 }: {
   storeName: string
@@ -25,6 +26,8 @@ export default function DashboardShell({
   isSuperAdmin?: boolean
   role?: string | null
   permissions?: StaffPermissions | null
+  // Promoción "Founders" (2026-08-24) — ver Sidebar.tsx.
+  isFounder?: boolean
   children: React.ReactNode
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -43,6 +46,7 @@ export default function DashboardShell({
         isSuperAdmin={isSuperAdmin}
         role={role}
         permissions={permissions}
+        isFounder={isFounder}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />

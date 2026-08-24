@@ -24,11 +24,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let storeName  = 'Mi tienda'
   let storeDomain = ''
   let tenantStatus: string | null = null
+  // Promoción "Founders" (2026-08-24) — badge visible acá, en el Panel
+  // Admin del propio dueño (ver Sidebar.tsx), nunca en Superadmin ni en la
+  // tienda pública.
+  let isFounder = false
 
   if (userRow?.tenant_id) {
     const { data: tenant } = await supabase
       .from('tenants')
-      .select('name, domain, status')
+      .select('name, domain, status, is_founder')
       .eq('id', userRow.tenant_id)
       .single()
 
@@ -36,6 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       storeName    = tenant.name
       storeDomain  = tenant.domain ?? ''
       tenantStatus = tenant.status ?? null
+      isFounder    = tenant.is_founder ?? false
     }
   }
 
@@ -82,7 +87,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <TutorialProvider>
       <ThemeProvider />
-      <DashboardShell storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} role={userRow?.role} permissions={userRow?.permissions}>
+      <DashboardShell storeName={storeName} storeDomain={storeDomain} isSuperAdmin={superAdmin} role={userRow?.role} permissions={userRow?.permissions} isFounder={isFounder}>
         {children}
       </DashboardShell>
       <TutorialWelcomePopup />

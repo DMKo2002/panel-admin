@@ -62,12 +62,12 @@ export async function getTenantUsage(service: SupabaseClient, tenantId: string):
     service.rpc('tenant_storage_bytes', { tid: tenantId }),
     service.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     service.from('orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('created_at', monthStart.toISOString()),
-    service.from('tenants').select('over_limit_since, plan, plan_status, status, trial_ends_at, suspended_reason').eq('id', tenantId).limit(1),
+    service.from('tenants').select('over_limit_since, plan, plan_status, status, trial_ends_at, suspended_reason, is_founder').eq('id', tenantId).limit(1),
     service.from('tenant_visits').select('count').eq('tenant_id', tenantId).eq('month', monthKey).limit(1),
   ])
 
   const tenantRow = tenantRes.data?.[0]
-  const plan = getPlanForTenant(tenantRow?.plan)
+  const plan = getPlanForTenant(tenantRow?.plan, tenantRow?.is_founder ?? false)
 
   const storageError = storageRes.error != null
   const storageBytes = Number(storageRes.data ?? 0)

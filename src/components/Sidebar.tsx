@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2
+  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2, Crown
 } from 'lucide-react'
 import clsx from 'clsx'
 import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
@@ -47,13 +47,18 @@ interface SidebarProps {
   isSuperAdmin?: boolean
   role?: string | null
   permissions?: StaffPermissions | null
+  // Promoción "Founders" (2026-08-24) — precio Business para siempre,
+  // límites de Premium. Badge visible SOLO acá, en el Panel Admin del propio
+  // dueño de la tienda (ver dashboard/layout.tsx) — no en Superadmin (que
+  // tiene su propio badge en la tabla) ni en la tienda pública.
+  isFounder?: boolean
   // Drawer en mobile — en desktop (md+) el sidebar siempre se ve, estos dos
   // props no hacen nada ahí. Ver DashboardShell.tsx para el botón que abre.
   mobileOpen?: boolean
   onClose?: () => void
 }
 
-export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, permissions, mobileOpen = false, onClose }: SidebarProps) {
+export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, permissions, isFounder, mobileOpen = false, onClose }: SidebarProps) {
   const isStaff = role === 'staff'
   const visibleItems = navItems.filter(item => !isStaff || !item.key || hasSettingsPermission(permissions, item.key))
   const inicio = visibleItems.filter(i => INICIO_HREFS.includes(i.href))
@@ -119,6 +124,15 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
               <p className="text-xs text-zinc-400 truncate">{storeDomain}</p>
             </div>
           </div>
+          {isFounder && (
+            <div
+              title="Precio Business para siempre, con los límites de uso de Premium"
+              className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+            >
+              <Crown size={11} />
+              Founder
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-3 space-y-0.5">
