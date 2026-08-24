@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { addDomainToProject, getDomainStatus, verifyDomain, removeDomainFromProject, normalizeDomain, getDnsInstructions } from '@/lib/vercel'
+import { addDomainToProject, getDomainStatus, verifyDomain, removeDomainFromProject, normalizeDomain, getDnsInstructions, isDomainMisconfigured } from '@/lib/vercel'
 import { assignDomainToWidgetPool, removeDomainFromWidgetPool } from '@/lib/turnstile'
 
 async function getTenant() {
@@ -56,13 +56,20 @@ export async function POST(req: Request) {
 
   try {
     const status = await addDomainToProject(tenant.template, domain)
+    // "verified" = sos el dueño del dominio (casi siempre true de entrada).
+    // Eso NO significa que el DNS ya apunte a Vercel — sin este segundo
+    // chequeo el panel decía "tu tienda ya está en vivo" con el DNS todavía
+    // sin propagar (ver nota en isDomainMisconfigured). "live" = las dos
+    // cosas ciertas a la vez, que es lo único que importa para el tenant.
+    const misconfigured = status.verified ? await isDomainMisconfigured(domain).catch(() => true) : true
+    const live = status.verified && !misconfigured
 
     await service
       .from('tenants')
-      .update({ domain, domain_status: status.verified ? 'verified' : 'pending' })
+      .update({ domain, domain_status: live ? 'verified' : 'pending' })
       .eq('id', tenant.id)
 
-    if (status.verified) {
+    if (live) {
       const { widgetId, siteKey } = await assignDomainToWidgetPool(domain)
       await service
         .from('store_config')
@@ -72,10 +79,10 @@ export async function POST(req: Request) {
 
     // Los TXT de "verification" (arriba) casi nunca vienen — sin esto el
     // tenant se quedaba sin saber qué cargar en su proveedor de DNS. Si ya
-    // quedó verified no hace falta pedirlo.
-    const dns = status.verified ? [] : await getDnsInstructions(tenant.template, domain).catch(() => [])
+    // quedó live no hace falta pedirlo.
+    const dns = live ? [] : await getDnsInstructions(tenant.template, domain).catch(() => [])
 
-    return NextResponse.json({ ok: true, domain, verified: status.verified, verification: status.verification, dns })
+    return NextResponse.json({ ok: true, domain, verified: live, verification: status.verification, dns })
   } catch (e) {
     await service.from('tenants').update({ domain_status: 'error' }).eq('id', tenant.id)
     const message = e instanceof Error ? e.message : 'Error agregando el dominio'
@@ -95,13 +102,17 @@ export async function GET() {
   try {
     const status = await verifyDomain(tenant.template, tenant.domain)
     const wasVerified = tenant.domain_status === 'verified'
+    // Ver nota en el POST de acá arriba: "verified" es solo propiedad del
+    // dominio, "live" combina eso con que el DNS realmente apunte a Vercel.
+    const misconfigured = status.verified ? await isDomainMisconfigured(tenant.domain).catch(() => true) : true
+    const live = status.verified && !misconfigured
 
     await service
       .from('tenants')
-      .update({ domain_status: status.verified ? 'verified' : 'pending' })
+      .update({ domain_status: live ? 'verified' : 'pending' })
       .eq('id', tenant.id)
 
-    if (status.verified && !wasVerified) {
+    if (live && !wasVerified) {
       const { widgetId, siteKey } = await assignDomainToWidgetPool(tenant.domain)
       await service
         .from('store_config')
@@ -109,11 +120,11 @@ export async function GET() {
         .eq('tenant_id', tenant.id)
     }
 
-    const dns = status.verified ? [] : await getDnsInstructions(tenant.template, tenant.domain).catch(() => [])
+    const dns = live ? [] : await getDnsInstructions(tenant.template, tenant.domain).catch(() => [])
 
     return NextResponse.json({
       domain: tenant.domain,
-      status: status.verified ? 'verified' : 'pending',
+      status: live ? 'verified' : 'pending',
       verification: status.verification,
       dns,
     })

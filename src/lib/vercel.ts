@@ -160,6 +160,28 @@ export async function getDnsInstructions(template: string, domain: string): Prom
   return instructions
 }
 
+// 2026-08-24: gap encontrado en vivo con creai.com.ar — `verified` (que es lo
+// único que se chequeaba hasta ahora, ver addDomainToProject/getDomainStatus/
+// verifyDomain) es solo la PROPIEDAD del dominio (¿sos vos el dueño?, casi
+// siempre true de entrada si nadie más lo tiene cargado en otra cuenta de
+// Vercel) — es un concepto DISTINTO de si el DNS ya apunta bien a Vercel.
+// Un dominio puede estar "verified" y al mismo tiempo el panel de Vercel
+// mostrarlo en rojo "Invalid Configuration" porque el A/CNAME real todavía
+// no resuelve. Antes de esto, el Panel Admin marcaba domain_status='verified'
+// (y le decía al tenant "tu tienda ya está en vivo") con solo `verified`,
+// sin chequear esto — falso positivo. Ahora se combina con `misconfigured`
+// de acá, leído del mismo endpoint que ya usa getDnsInstructions.
+export async function isDomainMisconfigured(domain: string): Promise<boolean> {
+  const res = await fetch(`${VERCEL_API}/v6/domains/${domain}/config${teamQuery()}`, { headers: vercelHeaders() })
+  const json = await res.json()
+  if (!res.ok) {
+    console.error(`[vercel] isDomainMisconfigured falló para ${domain} (HTTP ${res.status}):`, JSON.stringify(json))
+    // No pudimos confirmar que el DNS esté bien — no afirmar que está en vivo.
+    return true
+  }
+  return !!json.misconfigured
+}
+
 // POST — agrega el dominio al proyecto. Si ya estaba agregado (reintento
 // desde el panel, o el tenant lo había cargado antes), no falla: Vercel
 // devuelve 409 con el dominio existente y lo tratamos como éxito.
