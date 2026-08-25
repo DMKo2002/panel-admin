@@ -71,9 +71,15 @@ export async function POST(req: Request) {
 
   // ── Cobro recurrente individual (mes 2 en adelante) ─────────────────────────
   // Distinto del alta/autorización de abajo: esto es un pago puntual, no un
-  // cambio de estado de la suscripción. Solo alimenta el historial
-  // (billing_charges) — no toca plan/plan_status, eso lo sigue manejando
-  // exclusivamente la rama de preapproval de más abajo.
+  // cambio de estado de la suscripción. Alimenta el historial
+  // (billing_charges) y, si el cobro fue aprobado, renueva next_billing_date
+  // (fix 2026-08-25: hasta ahora esto solo se actualizaba en el alta inicial
+  // y quedaba desactualizado a partir del segundo cobro real — el pago se
+  // procesaba bien pero /perfil/plan seguía mostrando la fecha del primer
+  // período). No toca plan/plan_status, eso lo sigue manejando
+  // exclusivamente la rama de preapproval de más abajo — un pago fallido acá
+  // no hace nada especial, es MP pausando el preapproval (rama 'paused' de
+  // abajo) lo que marca plan_status='past_due'.
   if (isPayment) {
     try {
       const payment = await getPayment(id)
@@ -108,6 +114,20 @@ export async function POST(req: Request) {
         mp_payment_id: String(payment.id),
         mp_preapproval_id: preapprovalId,
       })
+
+      // Cobro aprobado → renovar next_billing_date (ver comentario de arriba).
+      // Un pago no aprobado no suma período nuevo: se queda con la fecha que
+      // ya tenía (que en ese caso ya venció, es justo lo que dispara el
+      // dunning de MP).
+      if (payment.status === 'approved') {
+        const { data: tenantRow } = await service
+          .from('tenants').select('billing_term').eq('id', ref.tenantId).limit(1).single()
+        const months: BillingTerm = isBillingTerm(tenantRow?.billing_term) ? (tenantRow!.billing_term as BillingTerm) : 1
+        await service.from('tenants')
+          .update({ next_billing_date: addMonths(new Date(), months).toISOString() })
+          .eq('id', ref.tenantId)
+      }
+
       return NextResponse.json({ ok: true })
     } catch (e) {
       console.error('[billing/webhook] payment', e)
