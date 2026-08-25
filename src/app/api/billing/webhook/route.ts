@@ -15,13 +15,55 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getPreapproval, getPayment, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
 import { getPlanForTenant, isBillingTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, emailPagoConfirmado } from '@/lib/email'
 
 // now + N meses de calendario — mismo criterio que mark-plan-paid/route.ts.
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date)
   d.setMonth(d.getMonth() + months)
   return d
+}
+
+const PANEL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+
+async function ownerEmail(service: SupabaseClient, tenantId: string): Promise<string | null> {
+  const { data } = await service.from('users').select('email').eq('tenant_id', tenantId).eq('role', 'owner').limit(1)
+  return data?.[0]?.email ?? null
+}
+
+// Mail al tenant confirmando que su suscripción de Mercado Pago quedó activa
+// (2026-08-25, pedido de David/Aram — hasta acá solo se avisaba a Gounuri por
+// notifySubscriptionPaid, el tenant nunca recibía nada). Reusa el template de
+// emailPagoConfirmado (pensado originalmente para pagos manuales confirmados
+// desde /superadmin) porque el contenido aplica igual acá: plan, monto,
+// próximo vencimiento, link al panel.
+async function notifyTenantSubscribed(service: SupabaseClient, opts: {
+  tenantId: string
+  tenantName: string
+  planId: string
+  months: number
+  amount?: number
+  nextBillingIso: string
+}) {
+  try {
+    const email = await ownerEmail(service, opts.tenantId)
+    if (!email) return
+    const plan = getPlanForTenant(opts.planId)
+    await sendEmail({
+      to: email,
+      subject: `Tu suscripción a gounuri está activa — Plan ${plan.nombre}`,
+      html: emailPagoConfirmado({
+        tenantName: opts.tenantName,
+        planNombre: plan.nombre,
+        months: opts.months,
+        amount: opts.amount ?? plan.precioARS,
+        paidUntil: opts.nextBillingIso,
+        panelUrl: PANEL,
+      }),
+    })
+  } catch (e) {
+    console.error('[billing/webhook] error notificando al tenant:', e)
+  }
 }
 
 // Notificación a GOUNURI cada vez que MP confirma una suscripción — pedido
@@ -130,6 +172,16 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ ok: true })
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      // "Payment not found" (404) no es transitorio — pasa, por ejemplo, con
+      // notificaciones viejas de antes de rotar GOUNURI_MP_ACCESS_TOKEN a
+      // otra cuenta de MP (el payment_id pertenece a la cuenta anterior).
+      // Reintentar nunca lo va a resolver: se reconoce el evento para que MP
+      // deje de reintentarlo, en vez de acumular 500s para siempre.
+      if (msg.includes('MP get payment falló (404)')) {
+        console.warn('[billing/webhook] payment 404, ignorado (no reintentable):', msg)
+        return NextResponse.json({ ok: true, ignored: 'payment 404' })
+      }
       console.error('[billing/webhook] payment', e)
       return NextResponse.json({ ok: false }, { status: 500 })
     }
@@ -227,12 +279,13 @@ export async function POST(req: Request) {
 
     if (pre.status === 'authorized') {
       const months: BillingTerm = isBillingTerm(pre.auto_recurring?.frequency) ? (pre.auto_recurring!.frequency as BillingTerm) : 1
+      const nextBillingIso = addMonths(new Date(), months).toISOString()
       const { data: updatedTenant } = await service.from('tenants').update({
         plan: ref.planId,
         plan_status: 'active',
         mp_preapproval_id: pre.id,
         billing_term: months,
-        next_billing_date: addMonths(new Date(), months).toISOString(),
+        next_billing_date: nextBillingIso,
         billing_paused_by_user: false, // por si venía de un "dar de baja" y se volvió a suscribir
         over_limit_since: null, // el upgrade regulariza la gracia
         trial_ends_at: null,    // fin del trial: ya está pagando
@@ -247,11 +300,20 @@ export async function POST(req: Request) {
         .eq('id', ref.tenantId)
         .in('suspended_reason', ['trial_expired', 'over_limit'])
 
+      const tenantName = updatedTenant?.name ?? ref.tenantId
       await notifySubscriptionPaid(service, {
-        tenantName: updatedTenant?.name ?? ref.tenantId,
+        tenantName,
         planId: ref.planId,
         amount: pre.auto_recurring?.transaction_amount,
         metodo: 'Mercado Pago (débito automático)',
+      })
+      await notifyTenantSubscribed(service, {
+        tenantId: ref.tenantId,
+        tenantName,
+        planId: ref.planId,
+        months,
+        amount: pre.auto_recurring?.transaction_amount,
+        nextBillingIso,
       })
     } else if (pre.status === 'paused') {
       // OJO: esto es MP pausando SOLO porque falló un cobro (dunning) — el
@@ -261,6 +323,24 @@ export async function POST(req: Request) {
       // 'paused' es siempre un cobro fallido, nunca una baja voluntaria.
       await service.from('tenants').update({ plan_status: 'past_due' }).eq('id', ref.tenantId)
     } else if (pre.status === 'cancelled') {
+      // 2026-08-25: bug encontrado en pruebas — cancelar desde /perfil/plan
+      // (POST /api/billing/cancel) llama a cancelPreapproval, y eso deja el
+      // preapproval en 'cancelled' en MP — lo que dispara ESTE MISMO webhook
+      // (MP no distingue "quién" canceló). Antes de este fix, esta rama
+      // pisaba lo que /api/billing/cancel ya había dejado bien seteado
+      // (billing_paused_by_user=true, servicio activo hasta
+      // next_billing_date) y bajaba a gratis al instante — el tenant perdía
+      // de golpe el acceso que ya había pagado. Ahora: si
+      // billing_paused_by_user ya está en true, es porque /api/billing/cancel
+      // ya lo procesó — no hacer nada más acá, el cron (enforce, sección 5)
+      // es quien baja a gratis cuando llegue next_billing_date.
+      const { data: tenantNow } = await service
+        .from('tenants').select('billing_paused_by_user').eq('id', ref.tenantId).limit(1).single()
+
+      if (tenantNow?.billing_paused_by_user) {
+        return NextResponse.json({ ok: true, ignored: 'baja ya procesada por /api/billing/cancel' })
+      }
+
       // Cancelado en MP sin pasar por /api/billing/cancel (por ejemplo, el
       // tenant lo canceló desde su propia cuenta de MP en vez de desde acá).
       // Sin next_billing_date confiable en ese caso, se mantiene el
