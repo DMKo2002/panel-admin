@@ -18,14 +18,19 @@ export type GounuriAccountRow = {
 export default function ClientesClient({ initialAccounts }: { initialAccounts: GounuriAccountRow[] }) {
   const [query, setQuery] = useState('')
 
+  // Bug 2026-08-22: nombre/apellido/email/storeName/dni pueden venir null
+  // (son opcionales en /registro y /onboarding — no todos los que arrancan
+  // el registro llegan a completarlos) — .toLowerCase()/.includes() sobre
+  // null tiraba "a client-side exception has occurred" apenas se escribía
+  // algo en el buscador. `?? ''` en cada campo antes de compararlo.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return initialAccounts
     return initialAccounts.filter(a =>
-      `${a.nombre} ${a.apellido}`.toLowerCase().includes(q) ||
-      a.email.toLowerCase().includes(q) ||
-      a.storeName.toLowerCase().includes(q) ||
-      a.dni.includes(q)
+      `${a.nombre ?? ''} ${a.apellido ?? ''}`.toLowerCase().includes(q) ||
+      (a.email ?? '').toLowerCase().includes(q) ||
+      (a.storeName ?? '').toLowerCase().includes(q) ||
+      (a.dni ?? '').includes(q)
     )
   }, [initialAccounts, query])
 
