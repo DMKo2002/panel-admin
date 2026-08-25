@@ -9,6 +9,7 @@ import MarkCompletedButton from '@/components/MarkCompletedButton'
 import UpdateOrderStatusButton from '@/components/UpdateOrderStatusButton'
 import CancelOrderButton from '@/components/CancelOrderButton'
 import DeleteOrderButton from '@/components/DeleteOrderButton'
+import EditOrderModal from '@/components/EditOrderModal'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -174,6 +175,7 @@ export default async function PedidosPage({
                         <Package size={11} />
                         Envío
                       </a>
+                      <EditOrderModal orderId={order.id} />
                     </div>
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">

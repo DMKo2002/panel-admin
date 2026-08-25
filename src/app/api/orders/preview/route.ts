@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       status, created_at, notes, shipping_method_label,
       shipping_address_street, shipping_address_city, shipping_address_province, shipping_address_zip,
       customers (full_name, last_name, email, phone, address_street, address_city, address_province),
-      order_items (id, product_name, variant_label, quantity, unit_price)
+      order_items (id, product_name, variant_desc, quantity, unit_price)
     `)
     .eq('id', orderId)
     .eq('tenant_id', userRow.tenant_id)

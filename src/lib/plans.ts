@@ -47,7 +47,10 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   mini: {
     id: 'mini',
     nombre: 'Mini',
-    precioARS: 9_900,
+    // TEMP TEST 2026-08-25: bajado de 9_900 a 20 para probar el cobro real
+    // de Mercado Pago con el tenant Test/TEST2 sin gastar plata de verdad.
+    // REVERTIR A 9_900 apenas termine la prueba.
+    precioARS: 20,
     storageMB: 300,
     maxProductos: 50,
     visitasMes: 15_000,

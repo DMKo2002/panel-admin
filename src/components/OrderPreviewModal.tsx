@@ -6,7 +6,7 @@ import { X, FileText, Download, Package, Truck, User, CreditCard, MapPin } from 
 interface OrderItem {
   id: string
   product_name: string
-  variant_label: string | null
+  variant_desc: string | null
   quantity: number
   unit_price: number
 }
@@ -195,8 +195,8 @@ export default function OrderPreviewModal({ orderId, mode, label }: Props) {
                         <div key={item.id} className="flex items-center justify-between px-3 py-2.5">
                           <div>
                             <p className="text-xs font-medium text-zinc-800">{item.product_name}</p>
-                            {item.variant_label && (
-                              <p className="text-xs text-zinc-400">{item.variant_label}</p>
+                            {item.variant_desc && (
+                              <p className="text-xs text-zinc-400">{item.variant_desc}</p>
                             )}
                           </div>
                           <div className="text-right ml-4 shrink-0">
