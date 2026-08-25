@@ -1,6 +1,10 @@
 // Webhook de MercadoPago para suscripciones de Gounuri.
 // Configurar en MP (cuenta Gounuri) → Webhooks → URL:
-//   https://<panel>/api/billing/webhook  — evento: subscription_preapproval
+//   https://<panel>/api/billing/webhook  — eventos: "Planes y suscripciones"
+//   Y "Pagos" (2026-08-25: hace falta activar este segundo tópico a mano en
+//   el dashboard de MP para que lleguen los cobros recurrentes del mes 2 en
+//   adelante — el primero ya llega por el evento de preapproval autorizado.
+//   Sin esto activado, el historial de pagos solo muestra el primer cobro).
 //
 // Seguridad: no confiamos en el body del request — solo tomamos el id y
 // re-consultamos el estado real contra la API de MP con nuestro token.
@@ -8,10 +12,17 @@
 import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getPreapproval, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
-import { getPlanForTenant } from '@/lib/plans'
+import { getPreapproval, getPayment, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
+import { getPlanForTenant, isBillingTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 import { sendEmail } from '@/lib/email'
+
+// now + N meses de calendario — mismo criterio que mark-plan-paid/route.ts.
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return d
+}
 
 // Notificación a GOUNURI cada vez que MP confirma una suscripción — pedido
 // 2026-08-22, para no depender de entrar a mirar el panel. Nunca tira: si
@@ -50,17 +61,65 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false }, { status: 400 })
   }
 
-  // Solo nos interesan eventos de preapproval (suscripción)
-  const isPreapproval = (body.type ?? body.action ?? '').includes('preapproval')
+  const topic = body.type ?? body.action ?? ''
+  const isPreapproval = topic.includes('preapproval')
+  const isPayment = !isPreapproval && topic.includes('payment')
   const id = body.data?.id
-  if (!isPreapproval || !id) return NextResponse.json({ ok: true, ignored: true })
+  if (!id || (!isPreapproval && !isPayment)) return NextResponse.json({ ok: true, ignored: true })
 
+  const service = createServiceClient()
+
+  // ── Cobro recurrente individual (mes 2 en adelante) ─────────────────────────
+  // Distinto del alta/autorización de abajo: esto es un pago puntual, no un
+  // cambio de estado de la suscripción. Solo alimenta el historial
+  // (billing_charges) — no toca plan/plan_status, eso lo sigue manejando
+  // exclusivamente la rama de preapproval de más abajo.
+  if (isPayment) {
+    try {
+      const payment = await getPayment(id)
+      const ref = parseExternalReference(payment.external_reference)
+      // Los pagos del flujo "new:" (alta desde la landing, sin tenant
+      // todavía) no tienen historial que guardar — el tenant recién se crea
+      // cuando el preapproval queda autorizado.
+      if (!ref || ref.kind !== 'tenant') return NextResponse.json({ ok: true, ignored: 'sin tenant asociado' })
+
+      // MP no documenta un único campo estable para el id del preapproval
+      // dentro del objeto Payment — se intenta con los más plausibles y se
+      // guarda null si no aparece ninguno (mp_payment_id alcanza para no
+      // duplicar el historial; ver comment en la migración). Revisar contra
+      // un pago real la primera vez que se active el tópico "Pagos".
+      const preapprovalId =
+        (payment as { point_of_interaction?: { transaction_data?: { subscription_id?: string } } })
+          .point_of_interaction?.transaction_data?.subscription_id
+        ?? (payment as { metadata?: { preapproval_id?: string } }).metadata?.preapproval_id
+        ?? null
+
+      // Idempotencia simple: MP puede reintentar la misma notificación:  no
+      // insertar de nuevo si ya guardamos este mp_payment_id.
+      const { data: existing } = await service
+        .from('billing_charges').select('id').eq('mp_payment_id', String(payment.id)).limit(1)
+      if (existing?.length) return NextResponse.json({ ok: true, ignored: 'ya registrado' })
+
+      await service.from('billing_charges').insert({
+        tenant_id: ref.tenantId,
+        amount: payment.transaction_amount ?? 0,
+        status: payment.status,
+        status_detail: payment.status_detail ?? null,
+        mp_payment_id: String(payment.id),
+        mp_preapproval_id: preapprovalId,
+      })
+      return NextResponse.json({ ok: true })
+    } catch (e) {
+      console.error('[billing/webhook] payment', e)
+      return NextResponse.json({ ok: false }, { status: 500 })
+    }
+  }
+
+  // ── Alta / cambio de estado de la suscripción ───────────────────────────────
   try {
     const pre = await getPreapproval(id)
     const ref = parseExternalReference(pre.external_reference)
     if (!ref) return NextResponse.json({ ok: true, ignored: 'sin external_reference válido' })
-
-    const service = createServiceClient()
 
     if (ref.kind === 'signup') {
       // Alguien eligió un plan pago desde la landing de gounuri.com SIN tener
@@ -88,6 +147,7 @@ export async function POST(req: Request) {
       let slug = `pendiente-${Math.random().toString(36).slice(2, 10)}`
       let tenant: { id: string } | null = null
       let lastError: { code?: string; message: string } | null = null
+      const months: BillingTerm = isBillingTerm(ref.months) ? ref.months : 1
       for (let attempt = 0; attempt < 3 && !tenant; attempt++) {
         const { data, error } = await service
           .from('tenants')
@@ -100,6 +160,8 @@ export async function POST(req: Request) {
             trial_ends_at: null,
             status: 'active',
             mp_preapproval_id: pre.id,
+            billing_term: months,
+            next_billing_date: addMonths(new Date(), months).toISOString(),
           })
           .select('id')
           .single()
@@ -144,10 +206,14 @@ export async function POST(req: Request) {
     }
 
     if (pre.status === 'authorized') {
+      const months: BillingTerm = isBillingTerm(pre.auto_recurring?.frequency) ? (pre.auto_recurring!.frequency as BillingTerm) : 1
       const { data: updatedTenant } = await service.from('tenants').update({
         plan: ref.planId,
         plan_status: 'active',
         mp_preapproval_id: pre.id,
+        billing_term: months,
+        next_billing_date: addMonths(new Date(), months).toISOString(),
+        billing_paused_by_user: false, // por si venía de un "dar de baja" y se volvió a suscribir
         over_limit_since: null, // el upgrade regulariza la gracia
         trial_ends_at: null,    // fin del trial: ya está pagando
         trial_warned_at: null,
@@ -168,10 +234,25 @@ export async function POST(req: Request) {
         metodo: 'Mercado Pago (débito automático)',
       })
     } else if (pre.status === 'paused') {
+      // OJO: esto es MP pausando SOLO porque falló un cobro (dunning) — el
+      // "dar de baja" a pedido del tenant (/api/billing/cancel) usa
+      // 'cancelled', no 'paused', y ya marca billing_paused_by_user=true por
+      // su cuenta antes de que este webhook llegue — así que si acá vemos
+      // 'paused' es siempre un cobro fallido, nunca una baja voluntaria.
       await service.from('tenants').update({ plan_status: 'past_due' }).eq('id', ref.tenantId)
     } else if (pre.status === 'cancelled') {
-      // Canceló el débito — vuelve al plan gratuito
-      await service.from('tenants').update({ plan: 'free', plan_status: 'canceled' }).eq('id', ref.tenantId)
+      // Cancelado en MP sin pasar por /api/billing/cancel (por ejemplo, el
+      // tenant lo canceló desde su propia cuenta de MP en vez de desde acá).
+      // Sin next_billing_date confiable en ese caso, se mantiene el
+      // comportamiento anterior: vuelve al plan gratuito al instante en vez
+      // de esperar a un vencimiento que no se generó.
+      await service.from('tenants').update({
+        plan: 'free',
+        plan_status: 'canceled',
+        billing_term: null,
+        next_billing_date: null,
+        billing_paused_by_user: false,
+      }).eq('id', ref.tenantId)
     }
 
     return NextResponse.json({ ok: true })
