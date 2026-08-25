@@ -117,6 +117,45 @@ export async function getPreapproval(id: string): Promise<Preapproval> {
   return res.json()
 }
 
+// Cancela un preapproval en MP — usado tanto por "dar de baja" (el tenant
+// decide no renovar más, ver /api/billing/cancel) como internamente por
+// /api/billing/subscribe antes de crear uno nuevo cuando el tenant cambia
+// de plazo (evita quedar con dos débitos automáticos activos en paralelo).
+// Una vez cancelado, MP no permite reactivarlo — para volver hace falta un
+// preapproval nuevo con una autorización nueva.
+export async function cancelPreapproval(id: string): Promise<Preapproval> {
+  const res = await fetch(`${MP_API}/preapproval/${id}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'cancelled' }),
+  })
+  if (!res.ok) throw new Error(`[billing] MP cancelar preapproval falló (${res.status}): ${await res.text()}`)
+  return res.json()
+}
+
+// Detalle de un pago individual — usado por el webhook para construir el
+// historial de pagos cuando llega una notificación del tópico "Pagos" (un
+// cobro recurrente del mes 2 en adelante; el primer cobro se registra al
+// autorizarse el preapproval). Solo se tipan los campos que se usan; el
+// objeto real de MP trae muchos más.
+export interface Payment {
+  id: number | string
+  status: string
+  status_detail?: string
+  transaction_amount?: number
+  external_reference?: string
+  point_of_interaction?: { transaction_data?: { subscription_id?: string } }
+  metadata?: { preapproval_id?: string }
+}
+
+export async function getPayment(id: string): Promise<Payment> {
+  const res = await fetch(`${MP_API}/v1/payments/${id}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  })
+  if (!res.ok) throw new Error(`[billing] MP get payment falló (${res.status}): ${await res.text()}`)
+  return res.json()
+}
+
 export function billingEnabled(): boolean {
   return process.env.BILLING_ENABLED === 'true'
 }

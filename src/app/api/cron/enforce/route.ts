@@ -16,6 +16,15 @@
 // vuelve a marcar como pagado, mismo patrón de warning + gracia de 7 días
 // (PAID_TERM_GRACE_DAYS) → suspensión (suspended_reason = 'manual_payment_expired').
 //
+// 2026-08-25: se agregó el vencimiento de "dar de baja" del camino de
+// Mercado Pago (ver /api/billing/cancel) — a diferencia de todo lo anterior,
+// acá NO hay suspensión: el tenant decidió irse a propósito, así que al
+// llegar next_billing_date simplemente baja a plan gratis, sin días de
+// gracia ni avisos (billing_paused_by_user es justamente lo que evita que
+// esto se confunda con un cobro fallido). legacy_manual_billing queda
+// explícitamente afuera de esta sección — ver memoria de proyecto "Gounuri
+// billing/subscriptions".
+//
 // La suspensión funciona porque el middleware de tienda-core solo resuelve
 // tenants con status = 'active' — la tienda pública deja de responder sola.
 //
@@ -308,6 +317,34 @@ export async function GET(req: Request) {
         acciones.push(`reactivado (renovó): ${t.name}`)
       }
     }
+  }
+
+  // ── 5. "Dar de baja" de Mercado Pago vencido ────────────────────────────────
+  // El tenant canceló su preapproval desde /perfil/plan (ver
+  // /api/billing/cancel) — billing_paused_by_user queda en true y el
+  // servicio sigue activo hasta next_billing_date, SIN avisos de cobro
+  // fallido (billing_paused_by_user es justamente lo que evita confundir
+  // esto con la sección 3). Al llegar la fecha, sin días de gracia (fue
+  // decisión del propio tenant), baja a plan gratis — nunca suspende la
+  // tienda. legacy_manual_billing queda afuera a propósito, aunque hoy
+  // nunca tendría next_billing_date seteado de todos modos.
+  const { data: bajaTenants } = await service
+    .from('tenants')
+    .select('id, name, next_billing_date')
+    .eq('billing_paused_by_user', true)
+    .eq('legacy_manual_billing', false)
+    .not('next_billing_date', 'is', null)
+    .lte('next_billing_date', new Date(now).toISOString())
+
+  for (const t of bajaTenants ?? []) {
+    await service.from('tenants').update({
+      plan: 'free',
+      plan_status: 'canceled',
+      billing_term: null,
+      next_billing_date: null,
+      billing_paused_by_user: false,
+    }).eq('id', t.id)
+    acciones.push(`bajado a free (dar de baja de MP venció): ${t.name}`)
   }
 
   return NextResponse.json({ ok: true, acciones })
