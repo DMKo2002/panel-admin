@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
-  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2, Crown, Pencil, Check, X
+  FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2, Crown, Pencil, Check, X,
+  ChevronUp, ExternalLink, CreditCard
 } from 'lucide-react'
 import clsx from 'clsx'
-import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
+import { SETTINGS_ROUTES, hasSettingsPermission, GOUNURI_PLAN_URL, type StaffPermissions } from '@/lib/settings-nav'
 
 // Los ítems de "Configuración de la tienda" (General, Contacto, Cobranzas,
 // Envíos, Catálogo, Apariencia, Legal, Notificaciones) más Dominio, SEO,
@@ -75,6 +76,36 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
   useEffect(() => {
     setHasSuperadminTokens(!!sessionStorage.getItem('superadmin_tokens'))
   }, [])
+
+  // Menú de cuenta (2026-08-25, pedido de ARam) — antes "Cuentas", "Plan y
+  // uso", "Volver al Superadmin", "Mi cuenta" y "Cerrar sesión" eran 5 ítems
+  // sueltos apilados al pie del sidebar; con Facturación sumándose eran
+  // demasiados. Ahora un solo ícono de cuenta abre un menú que despliega
+  // hacia arriba (mismo patrón que el menú de cuenta de Claude Desktop) con
+  // todo agrupado, en este orden: Mi cuenta, Cuentas de Admin, Plan y Uso,
+  // Facturación, Volver al superadmin, Cerrar sesión.
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const accountMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!accountMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [accountMenuOpen])
+
+  // "Cuentas de Admin" y "Plan y Uso" siguen gateados por el mismo permiso
+  // granular de siempre (ver footer/hasSettingsPermission más arriba) — acá
+  // solo se sacan del array ya filtrado, no se duplica la lógica de permisos.
+  const cuentasItem = footer.find(i => i.href === '/dashboard/cuentas')
+  const usoItem = footer.find(i => i.href === '/dashboard/uso')
+  // Facturación es la misma "cuenta/facturación del dueño en gounuri.com"
+  // que Plan y Uso enlaza — mismo permiso ('uso'), un acceso más directo.
+  const showFacturacion = !isStaff || hasSettingsPermission(permissions, 'uso')
 
   // Editar el nombre de la tienda (2026-08-24, pedido de David — antes no
   // había NINGÚN lugar del Panel Admin para hacerlo). displayName arranca
@@ -261,55 +292,88 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
           )}
         </nav>
 
-        <div className="px-3 py-3 border-t border-zinc-100">
-          {footer.length > 0 && (
-            <div className="space-y-0.5 mb-3">
-              {footer.map(item => <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onClose} />)}
+        <div ref={accountMenuRef} className="relative px-3 py-3 border-t border-zinc-100">
+          {accountMenuOpen && (
+            <div className="absolute bottom-full left-3 right-3 mb-2 bg-white border border-zinc-200 rounded-xl shadow-lg py-1.5 space-y-0.5 z-50">
+              <Link
+                href="/dashboard/mi-cuenta"
+                onClick={() => { setAccountMenuOpen(false); onClose?.() }}
+                className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+              >
+                <UserCircle2 size={16} className="text-zinc-400" />
+                Mi cuenta
+              </Link>
+              {cuentasItem && (
+                <Link
+                  href={cuentasItem.href}
+                  onClick={() => { setAccountMenuOpen(false); onClose?.() }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+                >
+                  <Users size={16} className="text-zinc-400" />
+                  Cuentas de Admin
+                </Link>
+              )}
+              {usoItem && (
+                <Link
+                  href={usoItem.href}
+                  onClick={() => { setAccountMenuOpen(false); onClose?.() }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+                >
+                  <usoItem.icon size={16} className="text-zinc-400" />
+                  Plan y Uso
+                </Link>
+              )}
+              {showFacturacion && (
+                <a
+                  href={GOUNURI_PLAN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+                >
+                  <CreditCard size={16} className="text-zinc-400" />
+                  Facturación
+                  <ExternalLink size={12} className="text-zinc-300 ml-auto" />
+                </a>
+              )}
+              {hasSuperadminTokens && (
+                <button
+                  onClick={() => { setAccountMenuOpen(false); handleReturnToSuperadmin() }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-primary-600 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                >
+                  <ArrowLeft size={16} />
+                  Volver al Superadmin
+                </button>
+              )}
+              {isSuperAdmin && !hasSuperadminTokens && (
+                <Link
+                  href="/superadmin"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-primary-600 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                >
+                  <ShieldCheck size={16} />
+                  Superadmin
+                </Link>
+              )}
+              <div className="my-1 border-t border-zinc-100" />
+              <button
+                onClick={() => { setAccountMenuOpen(false); handleLogout() }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+              >
+                <LogOut size={16} />
+                Cerrar sesión
+              </button>
             </div>
           )}
-          <div className="space-y-0.5">
-            {hasSuperadminTokens && (
-              <button
-                onClick={handleReturnToSuperadmin}
-                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
-              >
-                <ArrowLeft size={16} />
-                Volver al Superadmin
-              </button>
-            )}
-            {isSuperAdmin && !hasSuperadminTokens && (
-              <Link
-                href="/superadmin"
-                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors font-medium"
-              >
-                <ShieldCheck size={16} />
-                Superadmin
-              </Link>
-            )}
-            {(hasSuperadminTokens || (isSuperAdmin && !hasSuperadminTokens)) && (
-              <div className="my-2 border-t border-zinc-100" />
-            )}
-            <Link
-              href="/dashboard/mi-cuenta"
-              onClick={onClose}
-              className={clsx(
-                'w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm transition-colors',
-                pathname === '/dashboard/mi-cuenta'
-                  ? 'bg-primary-50 text-primary-700 font-medium'
-                  : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50'
-              )}
-            >
-              <UserCircle2 size={16} />
-              Mi cuenta
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors"
-            >
-              <LogOut size={16} />
-              Cerrar sesión
-            </button>
-          </div>
+
+          <button
+            onClick={() => setAccountMenuOpen(o => !o)}
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+          >
+            <UserCircle2 size={18} className="text-zinc-400" />
+            <span className="flex-1 text-left truncate">Cuenta</span>
+            <ChevronUp size={14} className={clsx('text-zinc-400 transition-transform', accountMenuOpen && 'rotate-180')} />
+          </button>
         </div>
       </aside>
     </>

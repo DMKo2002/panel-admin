@@ -15,8 +15,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { ExternalLink, Package, HardDrive, Eye, ShoppingCart } from 'lucide-react'
 import { getTenantUsage } from '@/lib/usage'
-
-const GOUNURI_PLAN_URL = 'https://www.gounuri.com/perfil/plan'
+import { GOUNURI_PLAN_URL } from '@/lib/settings-nav'
 
 const PLAN_STATUS_LABELS: Record<string, string> = {
   trial:     'Prueba gratis',

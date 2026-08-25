@@ -45,6 +45,12 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'uso',            label: 'Plan y uso',            href: '/dashboard/uso',              icon: PieChart,   staffBlocked: true },
 ]
 
+// URL externa de "Facturación / Plan y uso" — vive en gounuri.com (cuenta
+// del dueño), no acá (Panel Admin es la operación día a día de la tienda).
+// Única fuente de verdad: /dashboard/uso/page.tsx y el menú de cuenta en
+// Sidebar.tsx la importan de acá para no desincronizarse.
+export const GOUNURI_PLAN_URL = 'https://www.gounuri.com/perfil/plan'
+
 // Usado por src/proxy.ts (matcher de prefijos de ruta)
 export const STAFF_BLOCKED_PREFIXES = SETTINGS_ROUTES.filter(r => r.staffBlocked).map(r => r.href)
 
