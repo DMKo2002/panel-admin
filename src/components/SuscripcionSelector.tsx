@@ -134,6 +134,7 @@ export default function SuscripcionSelector({
   const [canceling, setCanceling] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [subDetailOpen, setSubDetailOpen] = useState(false)
+  const [showPlanCards, setShowPlanCards] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -205,6 +206,12 @@ export default function SuscripcionSelector({
     )
   }
 
+  // Solo hay algo que "resumir" arriba cuando ya existe una suscripción real
+  // (activa o recién cancelada) -- si todavía no eligió ningún plan, no hay
+  // nada que mostrar ahí y las cards de plan son lo único que tiene sentido.
+  const hasSummary = !trialing && (mpPreapprovalId || billingPausedByUser)
+  const cardsVisible = showPlanCards || !hasSummary
+
   return (
     <div ref={sectionRef}>
       {/* Resumen de la suscripción actual arriba de todo (2026-08-26, pedido
@@ -213,7 +220,7 @@ export default function SuscripcionSelector({
           suscripción") atrás de la flecha, en vez de enterrado adentro de la
           card del plan. Solo aplica al flujo de Mercado Pago propio de este
           tenant -- legacyManualBilling ya cortó con un return antes de acá. */}
-      {!trialing && (mpPreapprovalId || billingPausedByUser) && (() => {
+      {hasSummary && (() => {
         const planActual = PLANES.find(p => p.id === currentPlan)
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
           ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
@@ -297,6 +304,24 @@ export default function SuscripcionSelector({
           </div>
         )
       })()}
+      {hasSummary && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setShowPlanCards(v => !v)}
+            className="btn-outline"
+          >
+            {showPlanCards ? 'Ocultar planes' : 'Cambiar de plan'}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+
+      {cardsVisible && (
+      <>
       <div className="mt-10 flex justify-center">
         {/* SVG de descuento inline (misma geometría del archivo original) para poder
             aplicar el hover como stroke sobre la forma real de cada píldora. */}
@@ -374,10 +399,6 @@ export default function SuscripcionSelector({
           </g>
         </svg>
       </div>
-
-      {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
 
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {PLANES.map(card => {
@@ -509,6 +530,8 @@ export default function SuscripcionSelector({
           )
         })}
       </div>
+      </>
+      )}
       {paymentHistory.length > 0 && (
         <div id="historial-de-pago" className="mt-14 scroll-mt-6">
           <h2 className="text-lg font-semibold text-zinc-900">Historial de pago</h2>
