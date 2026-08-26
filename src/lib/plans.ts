@@ -124,8 +124,19 @@ export function isBillingTerm(v: unknown): v is BillingTerm {
 }
 
 // Precio TOTAL a cobrar por el plazo elegido (ya con el descuento aplicado),
-// redondeado al peso — no es el precio mensual.
+// redondeado al peso — no es el precio mensual. Descuento solo aplica a
+// transferencia (2026-08-26, pedido de ARam) — ver fullPriceForTerm para lo
+// que se cobra via Mercado Pago.
 export function priceForTerm(plan: PlanDef, months: BillingTerm): number {
   const discount = TERM_DISCOUNTS[months]
   return Math.round(plan.precioARS * months * (1 - discount))
+}
+
+// Precio TOTAL sin descuento -- lo que cobra Mercado Pago para el plazo
+// elegido (el descuento por pago semestral/anual es un beneficio exclusivo
+// de transferencia, no de MP). MP si soporta cobrar cada 6 o 12 meses (un
+// solo preapproval con auto_recurring.frequency = esos meses), solo que al
+// precio de lista.
+export function fullPriceForTerm(plan: PlanDef, months: BillingTerm): number {
+  return plan.precioARS * months
 }
