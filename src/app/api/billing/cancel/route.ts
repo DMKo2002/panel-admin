@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { cancelPreapproval } from '@/lib/billing'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
+import { sendEmail, emailBajaConfirmada } from '@/lib/email'
 
 export async function POST(req: Request) {
   const service = createServiceClient()
@@ -33,8 +34,16 @@ export async function POST(req: Request) {
 
   // Motivo opcional de baja (2026-08-26, mismo criterio que gounuri-web
   // desde el 2026-08-25 -- ver billing_cancellation_feedback) -- no bloquea
-  // la baja si se deja vacío.
-  const { reason } = await req.json().catch(() => ({ reason: undefined as string | undefined }))
+  // la baja si se deja vacío. category = opción elegida en el multiple
+  // choice (muy_caro/no_me_gusto/solo_probando/otro, ver
+  // SuscripcionSelector.tsx); reason = el texto libre opcional que se
+  // muestra solo para algunas opciones.
+  const CATEGORIES = ['muy_caro', 'no_me_gusto', 'solo_probando', 'otro']
+  const { reason, category } = await req.json().catch(() => ({
+    reason: undefined as string | undefined,
+    category: undefined as string | undefined,
+  }))
+  const validCategory = typeof category === 'string' && CATEGORIES.includes(category) ? category : undefined
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -73,16 +82,39 @@ export async function POST(req: Request) {
     billing_paused_by_user: true,
   }).eq('id', tenantId)
 
-  if (typeof reason === 'string' && reason.trim()) {
-    const { data: tenantNameRow } = await service.from('tenants').select('name').eq('id', tenantId).limit(1).single()
+  // Mails de baja (2026-08-26, bug detectado por David en QA: esta ruta -- la
+  // que realmente usa SuscripcionSelector.tsx desde que "cancelar
+  // suscripción" se centralizó acá -- no avisaba a nadie, ni al tenant ni a
+  // Gounuri; el mismo aviso ya existía en gounuri-web/api/billing/cancel
+  // pero esa ruta quedó sin uso). Best-effort: la baja ya se procesó bien
+  // contra MP y la base, un mail que falla no debe romperla.
+  const activeUntil = tenantRow.next_billing_date ?? null
+  const { data: tenantNameRow } = await service.from('tenants').select('name').eq('id', tenantId).limit(1).single()
+  const tenantName = tenantNameRow?.name ?? tenantId
+
+  if (validCategory || (typeof reason === 'string' && reason.trim())) {
     await service.from('billing_cancellation_feedback').insert({
       tenant_id: tenantId,
-      tenant_name: tenantNameRow?.name ?? tenantId,
-      reason: reason.trim().slice(0, 2000),
+      tenant_name: tenantName,
+      category: validCategory ?? null,
+      reason: typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 2000) : null,
     }).then(({ error }) => {
       if (error) console.error('[billing/cancel] error guardando motivo de baja:', error)
     })
   }
 
-  return NextResponse.json({ ok: true, activeUntil: tenantRow.next_billing_date ?? null })
+  if (user.email) {
+    await sendEmail({
+      to: user.email,
+      subject: 'Diste de baja tu plan — gounuri',
+      html: emailBajaConfirmada({ tenantName, activeUntil, panelUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com' }),
+    }).catch(e => console.error('[billing/cancel] error notificando al tenant:', e))
+  }
+  await sendEmail({
+    to: paymentSettings.contactEmail,
+    subject: `📉 Baja de suscripción — ${tenantName}`,
+    html: `<p><strong>${tenantName}</strong> dio de baja su suscripción de Mercado Pago.</p><p>Sigue con acceso hasta: ${activeUntil ?? '(sin fecha registrada)'}</p>`,
+  }).catch(e => console.error('[billing/cancel] error notificando a Gounuri:', e))
+
+  return NextResponse.json({ ok: true, activeUntil })
 }

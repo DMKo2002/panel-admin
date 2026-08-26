@@ -36,6 +36,19 @@ function formatFecha(iso: string) {
 
 const TERM_LABEL: Record<BillingTerm, string> = { 1: 'Mensual', 6: 'Semestral', 12: 'Anual' }
 
+// Motivos de baja (2026-08-26, pedido de David en QA) -- multiple choice en
+// vez del textarea libre único que había antes: más fácil de completar para
+// el tenant y más fácil de agregar para nosotros en
+// billing_cancellation_feedback.category. needsDetail: solo para las
+// opciones donde vale la pena pedir más contexto -- "muy caro" y "solo
+// estaba probando" ya se explican solos.
+const CANCEL_REASONS: { id: string; label: string; needsDetail?: boolean }[] = [
+  { id: 'muy_caro', label: 'Muy caro' },
+  { id: 'no_me_gusto', label: 'No me gustó el sistema', needsDetail: true },
+  { id: 'solo_probando', label: 'Solo estaba probando' },
+  { id: 'otro', label: 'Otros', needsDetail: true },
+]
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Cards de plan -- mismo criterio que UpgradePlans.tsx (ya en desuso, ver
@@ -134,6 +147,7 @@ export default function SuscripcionSelector({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [canceling, setCanceling] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
+  const [cancelCategory, setCancelCategory] = useState<string | null>(null)
   const [subDetailOpen, setSubDetailOpen] = useState(false)
   const [showPlanCards, setShowPlanCards] = useState(false)
 
@@ -184,12 +198,13 @@ export default function SuscripcionSelector({
       const res = await fetch('/api/billing/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: cancelReason.trim() || undefined }),
+        body: JSON.stringify({ category: cancelCategory ?? undefined, reason: cancelReason.trim() || undefined }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error desconocido')
       setShowCancelConfirm(false)
       setCancelReason('')
+      setCancelCategory(null)
       window.location.reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo dar de baja la suscripción')
@@ -297,23 +312,45 @@ export default function SuscripcionSelector({
                         Después de esa fecha no te volvemos a cobrar y tu plan pasa a gratuito.
                       </p>
                       <div className="mt-3">
-                        <label className="block text-xs font-medium text-red-700 mb-1">
-                          Nos da pena que te vayas — ¿nos contás por qué cancelás? (opcional)
+                        <label className="block text-xs font-medium text-red-700 mb-2">
+                          Nos da pena que te vayas — ¿por qué cancelás?
                         </label>
-                        <textarea
-                          value={cancelReason}
-                          onChange={e => setCancelReason(e.target.value)}
-                          rows={2}
-                          maxLength={2000}
-                          placeholder="Tu respuesta nos ayuda a mejorar..."
-                          className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-zinc-700 placeholder:text-zinc-400 focus:border-red-400 focus:outline-none"
-                        />
+                        <div className="space-y-1.5">
+                          {CANCEL_REASONS.map(r => (
+                            <label key={r.id} className="flex items-center gap-2 text-sm text-red-800">
+                              <input
+                                type="radio"
+                                name="cancelCategory"
+                                value={r.id}
+                                checked={cancelCategory === r.id}
+                                onChange={() => setCancelCategory(r.id)}
+                                className="h-3.5 w-3.5 accent-red-600"
+                              />
+                              {r.label}
+                            </label>
+                          ))}
+                        </div>
+                        {CANCEL_REASONS.find(r => r.id === cancelCategory)?.needsDetail && (
+                          <div className="mt-3">
+                            <label className="block text-xs font-medium text-red-700 mb-1">
+                              ¿Podés contarnos más? Tu feedback puede ayudarnos a mejorar y brindar un mejor servicio (opcional)
+                            </label>
+                            <textarea
+                              value={cancelReason}
+                              onChange={e => setCancelReason(e.target.value)}
+                              rows={2}
+                              maxLength={2000}
+                              placeholder="Tu respuesta nos ayuda a mejorar..."
+                              className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-zinc-700 placeholder:text-zinc-400 focus:border-red-400 focus:outline-none"
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="mt-3 flex justify-end gap-2">
-                        <button onClick={() => { setShowCancelConfirm(false); setCancelReason('') }} disabled={canceling} className="btn-outline px-3 py-1.5 text-xs">
+                        <button onClick={() => { setShowCancelConfirm(false); setCancelReason(''); setCancelCategory(null) }} disabled={canceling} className="btn-outline px-3 py-1.5 text-xs">
                           Cancelar
                         </button>
-                        <button onClick={cancelMp} disabled={canceling} className="btn-black px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                        <button onClick={cancelMp} disabled={canceling || !cancelCategory} className="btn-black px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50">
                           {canceling && <Loader2 size={15} className="animate-spin" />}
                           Sí, dar de baja
                         </button>

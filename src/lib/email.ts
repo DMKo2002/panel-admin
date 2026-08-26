@@ -213,3 +213,44 @@ export function emailBienvenidaTenant({
 </body>
 </html>`
 }
+
+// ── Baja de suscripción confirmada (2026-08-26) ─────────────────────────────
+// Portado de gounuri-web/src/lib/email.ts (emailBajaConfirmada, 2026-08-25)
+// -- ese mail nunca llegaba a dispararse en la práctica porque desde el
+// cambio de hoy que centralizó "cancelar suscripción" en Panel Admin
+// (SuscripcionSelector.tsx / /dashboard/facturacion/suscripcion), la ruta
+// que realmente procesa la baja es Panel Admin/api/billing/cancel, no la de
+// gounuri-web (bug detectado por David en QA: ni el tenant ni Gounuri se
+// enteraban de una baja). Mismo contenido que el de gounuri-web, con el
+// layout()/ctaButton() de este archivo (cabecera violeta) en vez del layout
+// propio de gounuri-web.
+
+export function emailBajaConfirmada({
+  tenantName,
+  activeUntil,
+  panelUrl,
+}: {
+  tenantName: string
+  activeUntil: string | null // ISO
+  panelUrl: string
+}): string {
+  const fechaTxt = activeUntil
+    ? new Date(activeUntil).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : null
+  return layout(`
+  <tr><td style="padding:36px 40px 28px;">
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">¡Hola!</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      Confirmamos que diste de baja la suscripción de tu tienda <strong>${tenantName}</strong>. No te vamos a volver a cobrar.
+    </p>
+    ${fechaTxt ? `
+    <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;border-left:3px solid #7c3aed;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Seguís con acceso hasta</p>
+      <p style="margin:0;font-size:14px;color:#111827;font-weight:500;">${fechaTxt}</p>
+    </div>` : ''}
+    <p style="margin:0 0 28px;font-size:14px;color:#6b7280;line-height:1.6;">
+      Después de esa fecha tu tienda pasa al plan gratuito — tus datos y tu catálogo quedan intactos. Si te arrepentís, podés volver a suscribirte cuando quieras.
+    </p>
+    ${ctaButton(`${panelUrl}/dashboard`, 'Ir a mi panel')}
+  </td></tr>`)
+}
