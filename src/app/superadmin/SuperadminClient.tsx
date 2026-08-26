@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, isPlanId, type BillingTerm } from '@/lib/plans'
 
 export type TenantRow = {
@@ -344,14 +345,21 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     if (!tenant.ownerEmail) return
     setImpersonatingId(tenant.id)
 
-    // "Acceder" abre en una pestaña nueva (2026-08-26, pedido de ARam) en
-    // vez de navegar en la misma. OJO: la cookie de sesión de
-    // panel.gounuri.com es del navegador entero, no de la pestaña -- NO hay
-    // que "restaurar" automáticamente la sesión del superadmin acá con un
-    // setTimeout, porque eso pisa la sesión de la pestaña de impersonación
-    // si el usuario sigue navegando ahí (bug: "Tenant no encontrado" en
-    // Panel Admin, reportado por ARam). Si el superadmin necesita seguir
-    // operando en ESTA pestaña después de un rato, alcanza con recargar.
+    // "Acceder" navega en la MISMA pestaña (vuelta atrás 2026-08-26, pedido
+    // de ARam -- se había probado abrir en pestaña nueva pero daba "No
+    // autorizado" / pisaba la sesión de la pestaña de impersonación). Se
+    // guardan los tokens del superadmin ANTES de navegar para poder volver
+    // con el botón "Volver al Superadmin" del sidebar (mismo mecanismo de
+    // siempre, sessionStorage + /api/auth/set-session).
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      sessionStorage.setItem('superadmin_tokens', JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }))
+    }
+
     const res = await fetch('/api/superadmin/impersonate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -360,11 +368,12 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     const data = await res.json()
     setImpersonatingId(null)
     if (!data.url) {
+      sessionStorage.removeItem('superadmin_tokens')
       alert('Error: ' + (data.error ?? 'No se pudo generar el link'))
       return
     }
 
-    window.open(data.url, '_blank', 'noopener,noreferrer')
+    window.location.href = data.url
   }
 
   async function copyToClipboard(text: string, id: string) {
@@ -958,14 +967,14 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       }
                     </button>
 
-                    {/* Acceder como -- abre en pestaña nueva (2026-08-26,
-                        pedido de ARam) en vez de navegar en la misma, ver
-                        comentario en handleImpersonate. */}
+                    {/* Acceder como -- navega en la misma pestaña (vuelta
+                        atrás 2026-08-26, pedido de ARam), ver comentario en
+                        handleImpersonate. */}
                     {tenant.ownerEmail && (
                       <button
                         onClick={() => handleImpersonate(tenant)}
                         disabled={impersonatingId === tenant.id}
-                        title={`Acceder como ${tenant.ownerEmail} (se abre en una pestaña nueva)`}
+                        title={`Acceder como ${tenant.ownerEmail}`}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
                       >
                         <LogIn size={13} />
