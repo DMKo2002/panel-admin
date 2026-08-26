@@ -21,7 +21,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
-import Toggle from '@/components/Toggle'
 import { PLANS, priceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import type { PlatformPaymentSettings } from '@/lib/platformBilling'
@@ -251,24 +250,23 @@ export default function SuscripcionSelector({
           : null
         return (
           <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
-            <div className="hidden sm:grid grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <div className="hidden sm:grid grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <span>Estado</span>
               <span>Suscripción</span>
+              <span>Ciclo de facturación</span>
               <span>Vencimiento</span>
-              <span>Renovación automática</span>
               <span>Precio de renovación</span>
               <span />
             </div>
             <button
               type="button"
               onClick={() => setSubDetailOpen(o => !o)}
-              className="grid w-full grid-cols-2 sm:grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
+              className="grid w-full grid-cols-2 sm:grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
             >
+              <span className="text-sm text-zinc-700">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span>
               <span className="font-semibold text-zinc-900">{planActual?.nombre ?? currentPlan}</span>
+              <span className="text-sm text-zinc-700">{billingTerm ? TERM_LABEL[billingTerm] : '—'}</span>
               <span className="text-sm text-zinc-700 sm:text-left">{nextBillingDate ? formatFecha(nextBillingDate) : '—'}</span>
-              <span className="flex items-center gap-2 text-sm text-zinc-500 sm:text-transparent">
-                <Toggle checked={!!mpPreapprovalId} onChange={() => {}} disabled />
-                <span className="sm:hidden">Renovación automática</span>
-              </span>
               <span className="text-sm text-zinc-700">{precioRenovacion ? formatARS(precioRenovacion) : '—'}</span>
               <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
             </button>
@@ -350,24 +348,23 @@ export default function SuscripcionSelector({
         const nombrePlan = planActual?.nombre ?? 'Gratis'
         return (
         <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
-          <div className="hidden sm:grid grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <div className="hidden sm:grid grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <span>Estado</span>
             <span>Suscripción</span>
+            <span>Ciclo de facturación</span>
             <span>Vencimiento</span>
-            <span>Renovación automática</span>
             <span>Precio de renovación</span>
             <span />
           </div>
           <button
             type="button"
             onClick={() => setSubDetailOpen(o => !o)}
-            className="grid w-full grid-cols-2 sm:grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
+            className="grid w-full grid-cols-2 sm:grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
           >
-            <span className="font-semibold text-zinc-900">{nombrePlan} — prueba gratuita</span>
+            <span className="text-sm text-zinc-700">Prueba gratuita</span>
+            <span className="font-semibold text-zinc-900">{nombrePlan}</span>
+            <span className="text-sm text-zinc-700">—</span>
             <span className="text-sm text-zinc-700 sm:text-left">{trialEndsAt ? formatFecha(trialEndsAt) : '—'}</span>
-            <span className="flex items-center gap-2 text-sm text-zinc-500 sm:text-transparent">
-              <Toggle checked={false} onChange={() => {}} disabled />
-              <span className="sm:hidden">Renovación automática</span>
-            </span>
             <span className="text-sm text-zinc-700">—</span>
             <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
           </button>
