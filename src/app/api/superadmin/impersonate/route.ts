@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const { tenantOwnerEmail } = await req.json()
+  const { tenantOwnerEmail, target } = await req.json()
   if (!tenantOwnerEmail) {
     return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
   }
@@ -21,20 +21,30 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Siempre redirigir a la URL de producción — nunca localhost.
-  // Fallback apuntaba a un dominio .vercel.app viejo, de antes de configurar
+  // target: 'panel' (default, como siempre) entra al dashboard de panel-
+  // admin. target: 'web' (2026-08-26) entra a gounuri.com/perfil/plan —
+  // pedido de ARam para poder ver la pantalla de facturación de cualquier
+  // tenant de test sin tener su contraseña, igual que ya se podía "Acceder
+  // como" en el panel. Mismo mecanismo (magic link + /auth/confirm), pero
+  // apuntando al otro sitio — ver gounuri-web/src/app/auth/confirm/page.tsx.
+  //
+  // Siempre redirigir a la URL de producción — nunca localhost. Fallback
+  // apuntaba a un dominio .vercel.app viejo, de antes de configurar
   // panel.gounuri.com — si NEXT_PUBLIC_APP_URL faltara, el link de impersonar
   // mandaba al dueño de la tienda a una URL que ya no es la real.
   const panelUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith('http://localhost')
     ? 'https://panel.gounuri.com'
     : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com')
+  const webUrl = process.env.NEXT_PUBLIC_GOUNURI_WEB_URL ?? 'https://gounuri.com'
+
+  const redirectTo = target === 'web'
+    ? `${webUrl}/auth/confirm?next=${encodeURIComponent('/perfil/plan')}`
+    : `${panelUrl}/auth/confirm`
 
   const { data, error } = await serviceClient.auth.admin.generateLink({
     type: 'magiclink',
     email: tenantOwnerEmail,
-    options: {
-      redirectTo: `${panelUrl}/auth/confirm`,
-    },
+    options: { redirectTo },
   })
 
   if (error || !data?.properties?.action_link) {

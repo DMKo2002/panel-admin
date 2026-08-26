@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, type BillingTerm } from '@/lib/plans'
 
@@ -179,6 +179,10 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [editName, setEditName] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
+  // "Ver facturación" (2026-08-26) — entra directo a gounuri.com/perfil/plan
+  // del tenant, mismo mecanismo que "Acceder" (impersonate) de abajo pero
+  // apuntando al otro sitio. Ver /api/superadmin/impersonate (target: 'web').
+  const [impersonatingWebId, setImpersonatingWebId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -287,32 +291,37 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     setEditingId(null)
   }
 
-  async function handleImpersonate(tenant: TenantRow) {
+  async function handleImpersonate(tenant: TenantRow, target: 'panel' | 'web' = 'panel') {
     if (!tenant.ownerEmail) return
-    setImpersonatingId(tenant.id)
+    const setLoadingId = target === 'web' ? setImpersonatingWebId : setImpersonatingId
+    setLoadingId(tenant.id)
 
-    // Guardar tokens del superadmin ANTES de navegar (en la misma tab)
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      sessionStorage.setItem('superadmin_tokens', JSON.stringify({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      }))
+    // Guardar tokens del superadmin ANTES de navegar (en la misma tab) — solo
+    // hace falta para poder volver al panel logueado como superadmin; no
+    // aplica cuando target es 'web' (gounuri.com es un sitio aparte).
+    if (target === 'panel') {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        sessionStorage.setItem('superadmin_tokens', JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        }))
+      }
     }
 
     const res = await fetch('/api/superadmin/impersonate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantOwnerEmail: tenant.ownerEmail }),
+      body: JSON.stringify({ tenantOwnerEmail: tenant.ownerEmail, target }),
     })
     const data = await res.json()
-    setImpersonatingId(null)
+    setLoadingId(null)
     if (data.url) {
       // Navegar en la MISMA tab — sin BroadcastChannel, sin race condition
       window.location.href = data.url
     } else {
-      sessionStorage.removeItem('superadmin_tokens')
+      if (target === 'panel') sessionStorage.removeItem('superadmin_tokens')
       alert('Error: ' + (data.error ?? 'No se pudo generar el link'))
     }
   }
@@ -906,6 +915,20 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       >
                         <LogIn size={13} />
                         {impersonatingId === tenant.id ? 'Generando...' : 'Acceder'}
+                      </button>
+                    )}
+
+                    {/* Ver facturación — entra directo a gounuri.com/perfil/plan
+                        del tenant (2026-08-26), sin pasar por el panel. */}
+                    {tenant.ownerEmail && (
+                      <button
+                        onClick={() => handleImpersonate(tenant, 'web')}
+                        disabled={impersonatingWebId === tenant.id}
+                        title={`Ver facturación como ${tenant.ownerEmail}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                      >
+                        <CreditCard size={13} />
+                        {impersonatingWebId === tenant.id ? 'Generando...' : 'Facturación'}
                       </button>
                     )}
 
