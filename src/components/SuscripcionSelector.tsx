@@ -214,6 +214,15 @@ export default function SuscripcionSelector({
   const isPaidPlan = isPlanId(currentPlan)
   const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser)
   const hasTrialSummary = trialing
+  // Sin suscripción activa (2026-08-26, pedido de ARam -- reportado con los
+  // tenants Test2 y Beck): ni pago vigente ni en prueba -- plan quedó en
+  // 'free'/cancelado (trial vencido sin pagar, suscripción de MP dada de
+  // baja, o nunca eligió plan). Antes esto no mostraba NADA arriba de las
+  // cards, ahora se explicita el estado en vez de dejarlo mudo. mpPreapprovalId
+  // puede seguir seteado acá por un checkout de MP viejo/abandonado -- no
+  // cuenta como suscripción real porque isPaidPlan ya lo filtra (mismo
+  // criterio que cicloVigente() en SuperadminClient.tsx).
+  const hasFreeSummary = !hasPaidSummary && !hasTrialSummary
   const hasSummary = hasPaidSummary || hasTrialSummary
   const cardsVisible = showPlanCards || !hasSummary
 
@@ -371,6 +380,15 @@ export default function SuscripcionSelector({
         </div>
         )
       })()}
+      {hasFreeSummary && (
+        <div className="mt-8 rounded-xl border border-zinc-200 bg-zinc-50 px-5 py-4">
+          <p className="text-sm font-medium text-zinc-900">
+            Estado: <span className="font-normal text-zinc-600">Sin suscripción activa</span>
+          </p>
+          <p className="mt-1 text-sm text-zinc-500">Elegí un plan para activar tu tienda.</p>
+        </div>
+      )}
+
       {hasSummary && (
         <div className="mt-6">
           <button
