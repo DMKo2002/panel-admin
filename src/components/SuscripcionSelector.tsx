@@ -321,7 +321,7 @@ export default function SuscripcionSelector({
                     </div>
                   ) : (
                     <div className="mt-3 flex justify-end">
-                      <button onClick={() => setShowCancelConfirm(true)} className="btn-outline bg-transparent text-zinc-500 border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700">
+                      <button onClick={() => setShowCancelConfirm(true)} className="btn-outline min-w-[230px] bg-transparent text-zinc-500 border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700">
                         Cancelar suscripción
                       </button>
                     </div>
@@ -420,9 +420,9 @@ export default function SuscripcionSelector({
           <button
             type="button"
             onClick={() => setShowPlanCards(v => !v)}
-            className="btn-black"
+            className="btn-black min-w-[230px]"
           >
-            {showPlanCards ? 'Ocultar planes' : 'Cambiar de plan'}
+            {showPlanCards ? 'Ocultar planes' : 'Renovar o Cambiar de Plan'}
           </button>
         </div>
       )}
