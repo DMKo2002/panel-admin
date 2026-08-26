@@ -8,7 +8,7 @@
 // crea el preapproval (status pending) y devuelve init_point → el tenant
 // autoriza su tarjeta en MP → MP pega al webhook → se actualiza tenants.plan.
 
-import { PLANS, fullPriceForTerm, type PlanDef, type BillingTerm } from '@/lib/plans'
+import { PLANS, priceForTerm, type PlanDef, type BillingTerm } from '@/lib/plans'
 
 const MP_API = 'https://api.mercadopago.com'
 
@@ -84,9 +84,9 @@ export async function createPreapproval(opts: {
 }): Promise<Preapproval> {
   const plan = PLANS[opts.planId]
   const months = opts.months ?? 1
-  // Mercado Pago cobra precio de lista, sin el descuento por plazo -- ese
-  // descuento es solo para transferencia (2026-08-26, pedido de ARam).
-  const amount = fullPriceForTerm(plan, months)
+  // Mismo precio con descuento que transferencia (unificado 2026-08-26,
+  // pedido de ARam) -- ver comentario en priceForTerm, lib/plans.ts.
+  const amount = priceForTerm(plan, months)
   const reason = months === 1
     ? `Gounuri — Plan ${plan.nombre}`
     : `Gounuri — Plan ${plan.nombre} (${months} meses)`

@@ -123,20 +123,21 @@ export function isBillingTerm(v: unknown): v is BillingTerm {
   return v === 1 || v === 6 || v === 12
 }
 
-// Precio TOTAL a cobrar por el plazo elegido (ya con el descuento aplicado),
-// redondeado al peso — no es el precio mensual. Descuento solo aplica a
-// transferencia (2026-08-26, pedido de ARam) — ver fullPriceForTerm para lo
-// que se cobra via Mercado Pago.
+// Precio TOTAL a cobrar por el plazo elegido, ya con el descuento de
+// semestral/anual aplicado, redondeado al peso -- no es el precio mensual.
+// Se usa TANTO para transferencia como para Mercado Pago (unificado
+// 2026-08-26, pedido de ARam: antes MP cobraba precio de lista sin
+// descuento y transferencia sí lo tenía, resultaba inconsistente que el
+// mismo plan/plazo saliera distinto según el método de pago). Ver
+// createPreapproval en lib/billing.ts y el mismo cambio en gounuri-web.
 export function priceForTerm(plan: PlanDef, months: BillingTerm): number {
   const discount = TERM_DISCOUNTS[months]
   return Math.round(plan.precioARS * months * (1 - discount))
 }
 
-// Precio TOTAL sin descuento -- lo que cobra Mercado Pago para el plazo
-// elegido (el descuento por pago semestral/anual es un beneficio exclusivo
-// de transferencia, no de MP). MP si soporta cobrar cada 6 o 12 meses (un
-// solo preapproval con auto_recurring.frequency = esos meses), solo que al
-// precio de lista.
+// Precio de lista sin descuento -- ya NO se usa para cobrar (ver
+// priceForTerm más arriba), queda solo por si hace falta mostrar el precio
+// "antes del descuento" en algún lado.
 export function fullPriceForTerm(plan: PlanDef, months: BillingTerm): number {
   return plan.precioARS * months
 }

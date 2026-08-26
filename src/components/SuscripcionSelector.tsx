@@ -22,7 +22,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
 import Toggle from '@/components/Toggle'
-import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
+import { PLANS, priceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import type { PlatformPaymentSettings } from '@/lib/platformBilling'
 import TransferPaymentBlock from '@/components/TransferPaymentBlock'
@@ -236,8 +236,10 @@ export default function SuscripcionSelector({
           tenant -- legacyManualBilling ya cortó con un return antes de acá. */}
       {hasPaidSummary && (() => {
         const planActual = PLANES.find(p => p.id === currentPlan)
+        // Mismo precio con descuento que transferencia (unificado 2026-08-26,
+        // pedido de ARam) -- ver comentario en priceForTerm, lib/plans.ts.
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
-          ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
+          ? priceForTerm(PLANS[currentPlan], billingTerm ?? 1)
           : null
         return (
           <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
@@ -503,23 +505,17 @@ export default function SuscripcionSelector({
               <p className="mt-1 min-h-[60px] text-sm text-zinc-600">{card.descripcion}</p>
 
               {term > 1 ? (
-                <div className="mt-6 space-y-3">
-                  <div>
-                    <span className="text-2xl font-bold tracking-tight text-zinc-900">
-                      {formatARS(fullPriceForTerm(card, term))}
-                    </span>
-                    <span className="ml-1 text-sm text-zinc-500">con Mercado Pago / {term} meses</span>
-                    <p className="mt-0.5 text-xs text-zinc-400">precio de lista, sin descuento por plazo</p>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-bold tracking-tight text-zinc-900">
-                      {formatARS(priceForTerm(card, term))}
-                    </span>
-                    <span className="ml-1 text-sm text-zinc-500">por transferencia / {term} meses</span>
-                    <p className="mt-0.5 text-xs text-emerald-600">
-                      equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes — {Math.round(TERM_DISCOUNTS[term] * 100)}% off
-                    </p>
-                  </div>
+                // Un solo precio para los dos métodos de pago (unificado
+                // 2026-08-26, pedido de ARam) -- MP y transferencia cobran
+                // lo mismo con el descuento de plazo aplicado.
+                <div className="mt-6">
+                  <span className="text-3xl font-bold tracking-tight text-zinc-900">
+                    {formatARS(priceForTerm(card, term))}
+                  </span>
+                  <span className="ml-1 text-sm text-zinc-500">/ {term} meses</span>
+                  <p className="mt-0.5 text-xs text-emerald-600">
+                    equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes — {Math.round(TERM_DISCOUNTS[term] * 100)}% off
+                  </p>
                 </div>
               ) : (
                 <div className="mt-6">
