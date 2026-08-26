@@ -274,12 +274,14 @@ export default function SuscripcionSelector({
             </button>
             {subDetailOpen && (
               <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
-                <p className="font-medium text-zinc-900">Detalles de Suscripción</p>
-                <p className="mt-1">Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span></p>
-                <p>Suscripción: <span className="font-medium text-zinc-900">{planActual?.nombre ?? currentPlan}</span></p>
-                <p>Ciclo de facturación: {billingTerm ? TERM_LABEL[billingTerm] : '—'}</p>
-                <p>Vencimiento: {nextBillingDate ? formatFecha(nextBillingDate) : '—'}</p>
-                <p>Precio de renovación: {formatARS(precioRenovacion ?? 0)}</p>
+                <p className="font-bold text-zinc-900">Detalles de Suscripción</p>
+                <div className="mt-2 space-y-1.5">
+                  <p>Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span></p>
+                  <p>Suscripción: <span className="font-medium text-zinc-900">{planActual?.nombre ?? currentPlan}</span></p>
+                  <p>Ciclo de facturación: {billingTerm ? TERM_LABEL[billingTerm] : '—'}</p>
+                  <p>Vencimiento: {nextBillingDate ? formatFecha(nextBillingDate) : '—'}</p>
+                  <p>Precio de renovación: {formatARS(precioRenovacion ?? 0)}</p>
+                </div>
                 {mpPreapprovalId && (
                   <p>
                     ID de suscripción: <span className="font-mono text-xs">{mpPreapprovalId}</span>
@@ -319,7 +321,7 @@ export default function SuscripcionSelector({
                     </div>
                   ) : (
                     <div className="mt-3 flex justify-end">
-                      <button onClick={() => setShowCancelConfirm(true)} className="btn-outline px-3 py-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50">
+                      <button onClick={() => setShowCancelConfirm(true)} className="btn-outline bg-transparent text-zinc-500 border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700">
                         Cancelar suscripción
                       </button>
                     </div>
@@ -349,7 +351,7 @@ export default function SuscripcionSelector({
         const nombrePlan = planActual?.nombre ?? 'Gratis'
         return (
         <>
-          <p className="mt-8 text-sm text-zinc-600">
+          <p className="mt-8 px-5 text-sm text-zinc-600">
             Te quedan {trialDaysLeft} día{trialDaysLeft === 1 ? '' : 's'} de prueba gratuita. Disfrutá este módulo y, si te gusta, elegí un plan para continuar.
           </p>
           <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200">
@@ -375,12 +377,14 @@ export default function SuscripcionSelector({
             </button>
             {subDetailOpen && (
               <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
-                <p className="font-medium text-zinc-900">Detalles de Suscripción</p>
-                <p className="mt-1">Estado: <span className="font-medium text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span></p>
-                <p>Suscripción: <span className="font-medium text-zinc-900">{nombrePlan}</span></p>
-                <p>Ciclo de facturación: —</p>
-                <p>Vencimiento: {trialEndsAt ? formatFecha(trialEndsAt) : '—'}</p>
-                <p>Precio de renovación: {formatARS(0)}</p>
+                <p className="font-bold text-zinc-900">Detalles de Suscripción</p>
+                <div className="mt-2 space-y-1.5">
+                  <p>Estado: <span className="font-medium text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span></p>
+                  <p>Suscripción: <span className="font-medium text-zinc-900">{nombrePlan}</span></p>
+                  <p>Ciclo de facturación: —</p>
+                  <p>Vencimiento: {trialEndsAt ? formatFecha(trialEndsAt) : '—'}</p>
+                  <p>Precio de renovación: {formatARS(0)}</p>
+                </div>
                 <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
                   Estás probando el plan <strong>{nombrePlan}</strong> sin cargo{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí cómo pagar para que tu tienda siga activa cuando termine la prueba.
                 </p>
