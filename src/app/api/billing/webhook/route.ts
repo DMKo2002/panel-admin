@@ -228,6 +228,31 @@ export async function POST(req: Request) {
         .eq('id', ref.tenantId)
         .in('suspended_reason', ['trial_expired', 'over_limit'])
 
+      // Registrar el primer cobro en billing_charges (2026-08-26, bug
+      // reportado por David en QA: "Ver historial de pago" es un link
+      // muerto porque billing_charges está vacía para TODOS los tenants).
+      // La rama isPayment de arriba (tópico "Pagos" de MP) es la única que
+      // insertaba acá, y ese tópico nunca llegó a activarse/dispararse en
+      // la práctica -- este insert es la red de seguridad para que al
+      // menos el alta quede en el historial sin depender de esa
+      // activación manual en el dashboard de MP. mp_payment_id null (no
+      // tenemos un Payment id real acá, solo el preapproval) -- si más
+      // adelante se activa el tópico "Pagos" y llega el payment real de
+      // este mismo cobro, puede quedar duplicado una vez; no vale la pena
+      // complicar la dedup por eso.
+      const { data: _existingCharge } = await service
+        .from('billing_charges').select('id').eq('mp_preapproval_id', pre.id).limit(1)
+      if (!_existingCharge?.length) {
+        await service.from('billing_charges').insert({
+          tenant_id: ref.tenantId,
+          amount: pre.auto_recurring?.transaction_amount ?? 0,
+          status: 'approved',
+          status_detail: 'preapproval_authorized',
+          mp_payment_id: null,
+          mp_preapproval_id: pre.id,
+        })
+      }
+
       await notifySubscriptionPaid(service, {
         tenantName: updatedTenant?.name ?? ref.tenantId,
         planId: ref.planId,

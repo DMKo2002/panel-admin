@@ -21,7 +21,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
-import { PLANS, priceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
+import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import type { PlatformPaymentSettings } from '@/lib/platformBilling'
 import TransferPaymentBlock from '@/components/TransferPaymentBlock'
@@ -260,10 +260,11 @@ export default function SuscripcionSelector({
           tenant -- legacyManualBilling ya cortó con un return antes de acá. */}
       {hasPaidSummary && (() => {
         const planActual = PLANES.find(p => p.id === currentPlan)
-        // Mismo precio con descuento que transferencia (unificado 2026-08-26,
-        // pedido de ARam) -- ver comentario en priceForTerm, lib/plans.ts.
+        // 2026-08-26 (bug reportado por David en QA): esto es lo que
+        // Mercado Pago va a volver a cobrar -- el descuento por plazo es
+        // solo para transferencia, ver fullPriceForTerm en lib/plans.ts.
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
-          ? priceForTerm(PLANS[currentPlan], billingTerm ?? 1)
+          ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
           : null
         return (
           <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
@@ -369,9 +370,11 @@ export default function SuscripcionSelector({
                   </p>
                 )}
 
-                <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
-                  Ver historial de pago
-                </a>
+                {paymentHistory.length > 0 && (
+                  <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
+                    Ver historial de pago
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -425,9 +428,11 @@ export default function SuscripcionSelector({
                 <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
                   Estás probando el plan <strong>{nombrePlan}</strong> sin cargo{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí cómo pagar para que tu tienda siga activa cuando termine la prueba.
                 </p>
-                <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
-                  Ver historial de pago
-                </a>
+                {paymentHistory.length > 0 && (
+                  <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
+                    Ver historial de pago
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -566,16 +571,18 @@ export default function SuscripcionSelector({
               <p className="mt-1 min-h-[60px] text-sm text-zinc-600">{card.descripcion}</p>
 
               {term > 1 ? (
-                // Un solo precio para los dos métodos de pago (unificado
-                // 2026-08-26, pedido de ARam) -- MP y transferencia cobran
-                // lo mismo con el descuento de plazo aplicado.
+                // 2026-08-26 (bug reportado por David en QA): precio de
+                // lista siempre acá, sin el descuento por plazo -- ese
+                // descuento es solo para transferencia (ver
+                // fullPriceForTerm en lib/plans.ts y el aviso de ahorro
+                // más abajo, junto al botón de transferencia).
                 <div className="mt-6">
                   <span className="text-3xl font-bold tracking-tight text-zinc-900">
-                    {formatARS(priceForTerm(card, term))}
+                    {formatARS(fullPriceForTerm(card, term))}
                   </span>
                   <span className="ml-1 text-sm text-zinc-500">/ {term} meses</span>
-                  <p className="mt-0.5 text-xs text-emerald-600">
-                    equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes — {Math.round(TERM_DISCOUNTS[term] * 100)}% off
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    equivale a {formatARS(Math.round(fullPriceForTerm(card, term) / term))}/mes
                   </p>
                 </div>
               ) : (
@@ -656,6 +663,11 @@ export default function SuscripcionSelector({
 
                   {paymentSettings.manualTransferEnabled && expandedPlan === card.id && (
                     <div className="mt-3">
+                      {term > 1 && (
+                        <p className="mb-2 text-xs font-medium text-emerald-600">
+                          Pagando por transferencia ahorrás {Math.round(TERM_DISCOUNTS[term] * 100)}% ({formatARS(fullPriceForTerm(card, term) - priceForTerm(card, term))}) sobre el precio de Mercado Pago.
+                        </p>
+                      )}
                       <TransferPaymentBlock
                         paymentSettings={paymentSettings}
                         planId={card.id}

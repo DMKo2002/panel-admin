@@ -8,7 +8,7 @@
 // crea el preapproval (status pending) y devuelve init_point → el tenant
 // autoriza su tarjeta en MP → MP pega al webhook → se actualiza tenants.plan.
 
-import { PLANS, priceForTerm, type PlanDef, type BillingTerm } from '@/lib/plans'
+import { PLANS, fullPriceForTerm, type PlanDef, type BillingTerm } from '@/lib/plans'
 
 const MP_API = 'https://api.mercadopago.com'
 
@@ -84,9 +84,15 @@ export async function createPreapproval(opts: {
 }): Promise<Preapproval> {
   const plan = PLANS[opts.planId]
   const months = opts.months ?? 1
-  // Mismo precio con descuento que transferencia (unificado 2026-08-26,
-  // pedido de ARam) -- ver comentario en priceForTerm, lib/plans.ts.
-  const amount = priceForTerm(plan, months)
+  // 2026-08-26 (bug reportado por David en QA): el descuento por plazo
+  // (6/12 meses) es SOLO para transferencia -- el "unificar precio" de
+  // hoy mismo (ver git blame) hizo que Mercado Pago también lo aplicara,
+  // que no era la idea acordada con David/Aram. MP siempre cobra precio de
+  // lista x meses, sin descuento -- fullPriceForTerm en vez de
+  // priceForTerm. El descuento sigue existiendo, pero solo se ve/cobra en
+  // el flujo de transferencia (TransferPaymentBlock, notify-manual-intent,
+  // mark-plan-paid).
+  const amount = fullPriceForTerm(plan, months)
   const reason = months === 1
     ? `Gounuri — Plan ${plan.nombre}`
     : `Gounuri — Plan ${plan.nombre} (${months} meses)`
