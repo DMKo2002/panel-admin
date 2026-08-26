@@ -10,6 +10,11 @@ export type TenantRow = {
   name: string
   slug: string
   domain: string | null
+  // 'none' | 'pending' | 'verified' | 'error' — ver DomainStatus en
+  // dashboard/dominio/page.tsx. 2026-08-26: hace falta para no tratar un
+  // dominio propio todavía sin DNS configurado como si ya fuera la
+  // dirección real de la tienda (ver frontendUrl en superadmin/page.tsx).
+  domainStatus: string | null
   template: string
   status: string
   plan: string
@@ -841,12 +846,24 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   )}
                 </td>
 
-                {/* Dominio */}
+                {/* Dominio — si hay uno propio cargado pero todavía no está
+                    'verified' (DNS sin configurar o con error), se aclara acá
+                    mismo: antes esto se veía igual que un dominio ya en vivo,
+                    y "Ver tienda" (más abajo) llevaba directo a una URL que
+                    no resolvía nada (bug real 2026-08-26, HAEJIN_HAEJIN). */}
                 <td className="px-5 py-4">
                   {tenant.domain ? (
                     <div className="flex items-center gap-1.5">
                       <Globe size={12} className="text-zinc-500 flex-shrink-0" />
                       <span className="text-zinc-300 text-xs font-mono">{tenant.domain}</span>
+                      {tenant.domainStatus !== 'verified' && (
+                        <span
+                          title={tenant.domainStatus === 'error' ? 'Error conectando el dominio' : 'DNS todavía sin configurar — la tienda no responde en este dominio'}
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-950 text-amber-400"
+                        >
+                          {tenant.domainStatus === 'error' ? 'error' : 'pendiente'}
+                        </span>
+                      )}
                     </div>
                   ) : tenant.frontendUrl ? (
                     <span className="text-zinc-500 text-xs font-mono">{tenant.frontendUrl.replace('https://', '')}</span>
@@ -942,10 +959,14 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 {/* Acciones */}
                 <td className="px-5 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    {/* Ver tienda */}
-                    {(tenant.domain || tenant.frontendUrl) && (
+                    {/* Ver tienda — usa siempre frontendUrl (server-side ya
+                        elige domain propio SOLO si domainStatus==='verified',
+                        si no cae al {slug}.gounuri.com que sí funciona) en vez
+                        de tenant.domain directo, que podía apuntar a un
+                        dominio todavía sin DNS configurado (bug 2026-08-26). */}
+                    {tenant.frontendUrl && (
                       <a
-                        href={tenant.domain ? `https://${tenant.domain}` : tenant.frontendUrl!}
+                        href={tenant.frontendUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         title="Ver tienda"

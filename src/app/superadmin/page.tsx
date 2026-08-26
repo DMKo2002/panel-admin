@@ -40,7 +40,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, billing_term, next_billing_date, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, domain_status, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, billing_term, next_billing_date, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -110,11 +110,18 @@ export default async function SuperadminPage() {
       ownerApellido: accountByTenant[t.id]?.apellido ?? null,
       ownerDni:      accountByTenant[t.id]?.dni ?? null,
       ownerCelular:  accountByTenant[t.id]?.celular ?? null,
+      domainStatus: t.domain_status ?? 'none',
       // La dirección real del tenant siempre es {slug}.gounuri.com de fallback
-      // (o su dominio propio si tiene uno) — antes acá se mostraba una URL fija
-      // de preview por template (*.vercel.app), que no correspondía a ESE
-      // tenant en particular. Ver bug de dominios del 2026-08-12.
-      frontendUrl: t.domain ? `https://${t.domain}` : `https://${t.slug}.gounuri.com`,
+      // (o su dominio propio si tiene uno Y ya está verificado) — antes acá
+      // se mostraba una URL fija de preview por template (*.vercel.app), que
+      // no correspondía a ESE tenant en particular (bug del 2026-08-12).
+      // 2026-08-26: bug encontrado en vivo con HAEJIN_HAEJIN — esto trataba
+      // "domain" como la dirección real apenas el tenant lo tipeaba, aunque
+      // domain_status siguiera en 'none'/'pending' (DNS todavía sin
+      // configurar) y el dominio propio todavía no resolviera nada. Ahora
+      // solo se usa el dominio propio acá si ya está 'verified'; si no, cae
+      // al fallback {slug}.gounuri.com que sí funciona siempre.
+      frontendUrl: (t.domain && t.domain_status === 'verified') ? `https://${t.domain}` : `https://${t.slug}.gounuri.com`,
       visitCount:  visitsByTenant[t.id] ?? 0,
       orderCount:  orderCountByTenant[t.id] ?? 0,
       ga4Linked:   ga4ByTenant[t.id] ?? false,
