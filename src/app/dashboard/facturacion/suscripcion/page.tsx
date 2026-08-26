@@ -23,7 +23,7 @@ export default async function SuscripcionPage() {
 
   const { data: _tenantRows } = await service
     .from('tenants')
-    .select('name, plan, plan_status, status, billing_term, next_billing_date, mp_preapproval_id, billing_paused_by_user, legacy_manual_billing')
+    .select('name, plan, plan_status, status, billing_term, next_billing_date, trial_ends_at, mp_preapproval_id, billing_paused_by_user, legacy_manual_billing')
     .eq('id', tenantId)
     .limit(1)
   const tenant = _tenantRows?.[0]
@@ -67,6 +67,7 @@ export default async function SuscripcionPage() {
           paymentSettings={paymentSettings}
           billingTerm={tenant.billing_term ?? null}
           nextBillingDate={tenant.next_billing_date ?? null}
+          trialEndsAt={tenant.trial_ends_at ?? null}
           mpPreapprovalId={tenant.mp_preapproval_id ?? null}
           billingPausedByUser={tenant.billing_paused_by_user ?? false}
           legacyManualBilling={tenant.legacy_manual_billing ?? false}

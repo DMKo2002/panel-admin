@@ -22,7 +22,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
 import Toggle from '@/components/Toggle'
-import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
+import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import type { PlatformPaymentSettings } from '@/lib/platformBilling'
 import TransferPaymentBlock from '@/components/TransferPaymentBlock'
@@ -105,6 +105,7 @@ export default function SuscripcionSelector({
   paymentSettings,
   billingTerm,
   nextBillingDate,
+  trialEndsAt,
   mpPreapprovalId,
   billingPausedByUser,
   legacyManualBilling,
@@ -115,6 +116,7 @@ export default function SuscripcionSelector({
   paymentSettings: PlatformPaymentSettings
   billingTerm: BillingTerm | null
   nextBillingDate: string | null
+  trialEndsAt: string | null
   mpPreapprovalId: string | null
   billingPausedByUser: boolean
   legacyManualBilling: boolean
@@ -209,7 +211,10 @@ export default function SuscripcionSelector({
   // Solo hay algo que "resumir" arriba cuando ya existe una suscripción real
   // (activa o recién cancelada) -- si todavía no eligió ningún plan, no hay
   // nada que mostrar ahí y las cards de plan son lo único que tiene sentido.
-  const hasSummary = !trialing && (mpPreapprovalId || billingPausedByUser)
+  const isPaidPlan = isPlanId(currentPlan)
+  const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser)
+  const hasTrialSummary = !isPaidPlan
+  const hasSummary = hasPaidSummary || hasTrialSummary
   const cardsVisible = showPlanCards || !hasSummary
 
   return (
@@ -220,7 +225,7 @@ export default function SuscripcionSelector({
           suscripción") atrás de la flecha, en vez de enterrado adentro de la
           card del plan. Solo aplica al flujo de Mercado Pago propio de este
           tenant -- legacyManualBilling ya cortó con un return antes de acá. */}
-      {hasSummary && (() => {
+      {hasPaidSummary && (() => {
         const planActual = PLANES.find(p => p.id === currentPlan)
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
           ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
@@ -241,8 +246,8 @@ export default function SuscripcionSelector({
             >
               <span className="font-semibold text-zinc-900">{planActual?.nombre ?? currentPlan}</span>
               <span className="text-sm text-zinc-700 sm:text-left">{nextBillingDate ? formatFecha(nextBillingDate) : '—'}</span>
-              <span onClick={e => e.stopPropagation()} className="flex items-center gap-2 text-sm text-zinc-500 sm:text-transparent">
-                <Toggle checked={!!mpPreapprovalId} onChange={() => setSubDetailOpen(true)} />
+              <span className="flex items-center gap-2 text-sm text-zinc-500 sm:text-transparent">
+                <Toggle checked={!!mpPreapprovalId} onChange={() => {}} disabled />
                 <span className="sm:hidden">Renovación automática</span>
               </span>
               <span className="text-sm text-zinc-700">{precioRenovacion ? formatARS(precioRenovacion) : '—'}</span>
@@ -251,8 +256,17 @@ export default function SuscripcionSelector({
             {subDetailOpen && (
               <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
                 <p className="font-medium text-zinc-900">Detalle de tu suscripción</p>
-                {billingTerm && <p className="mt-1">Facturación: {TERM_LABEL[billingTerm]}</p>}
-                {nextBillingDate && <p>Próximo cobro: {formatFecha(nextBillingDate)}</p>}
+                <p className="mt-1">
+                  Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Activa' : 'Cancelada'}</span>
+                </p>
+                {billingTerm && <p>Ciclo de facturación: {TERM_LABEL[billingTerm]}</p>}
+                {nextBillingDate && <p>Fecha de vencimiento: {formatFecha(nextBillingDate)}</p>}
+                {precioRenovacion != null && <p>Precio de renovación: {formatARS(precioRenovacion)}</p>}
+                {mpPreapprovalId && (
+                  <p>
+                    ID de suscripción: <span className="font-mono text-xs">{mpPreapprovalId}</span>
+                  </p>
+                )}
 
                 {mpPreapprovalId ? (
                   showCancelConfirm ? (
@@ -275,20 +289,22 @@ export default function SuscripcionSelector({
                           className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-zinc-700 placeholder:text-zinc-400 focus:border-red-400 focus:outline-none"
                         />
                       </div>
-                      <div className="mt-3 flex gap-2">
-                        <button onClick={cancelMp} disabled={canceling} className="btn-black flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button onClick={() => { setShowCancelConfirm(false); setCancelReason('') }} disabled={canceling} className="btn-outline px-3 py-1.5 text-xs">
+                          Cancelar
+                        </button>
+                        <button onClick={cancelMp} disabled={canceling} className="btn-black px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50">
                           {canceling && <Loader2 size={15} className="animate-spin" />}
                           Sí, dar de baja
-                        </button>
-                        <button onClick={() => { setShowCancelConfirm(false); setCancelReason('') }} disabled={canceling} className="btn-outline flex-1">
-                          Cancelar
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => setShowCancelConfirm(true)} className="btn-outline mt-3 w-full text-red-600 border-red-200 hover:bg-red-50">
-                      Cancelar suscripción
-                    </button>
+                    <div className="mt-3 flex justify-end">
+                      <button onClick={() => setShowCancelConfirm(true)} className="btn-outline px-3 py-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50">
+                        Cancelar suscripción
+                      </button>
+                    </div>
                   )
                 ) : (
                   <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
@@ -304,12 +320,53 @@ export default function SuscripcionSelector({
           </div>
         )
       })()}
+      {hasTrialSummary && !hasPaidSummary && (
+        <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
+          <div className="hidden sm:grid grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <span>Suscripción</span>
+            <span>Vencimiento</span>
+            <span>Renovación automática</span>
+            <span>Precio de renovación</span>
+            <span />
+          </div>
+          <button
+            type="button"
+            onClick={() => setSubDetailOpen(o => !o)}
+            className="grid w-full grid-cols-2 sm:grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
+          >
+            <span className="font-semibold text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span>
+            <span className="text-sm text-zinc-700 sm:text-left">{trialEndsAt ? formatFecha(trialEndsAt) : '—'}</span>
+            <span className="flex items-center gap-2 text-sm text-zinc-500 sm:text-transparent">
+              <Toggle checked={false} onChange={() => {}} disabled />
+              <span className="sm:hidden">Renovación automática</span>
+            </span>
+            <span className="text-sm text-zinc-700">—</span>
+            <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
+          </button>
+          {subDetailOpen && (
+            <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
+              <p className="font-medium text-zinc-900">Detalle de tu suscripción</p>
+              <p className="mt-1">
+                Estado: <span className="font-medium text-zinc-900">Prueba gratuita</span>
+              </p>
+              <p>Ciclo de facturación: —</p>
+              {trialEndsAt && <p>Fecha de vencimiento: {formatFecha(trialEndsAt)}</p>}
+              <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
+                Estás usando el plan gratuito{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí un plan pago para seguir con tu tienda activa sin límites de prueba.
+              </p>
+              <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
+                Ver historial de pago
+              </a>
+            </div>
+          )}
+        </div>
+      )}
       {hasSummary && (
         <div className="mt-6">
           <button
             type="button"
             onClick={() => setShowPlanCards(v => !v)}
-            className="btn-outline"
+            className="btn-black"
           >
             {showPlanCards ? 'Ocultar planes' : 'Cambiar de plan'}
           </button>
