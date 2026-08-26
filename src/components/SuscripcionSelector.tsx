@@ -224,6 +224,14 @@ export default function SuscripcionSelector({
   // criterio que cicloVigente() en SuperadminClient.tsx).
   const hasFreeSummary = !hasPaidSummary && !hasTrialSummary
   const hasSummary = hasPaidSummary || hasTrialSummary
+  // Dias restantes de prueba para el mensaje de hasFreeSummary (2026-08-26,
+  // pedido de ARam): tenants que todavia no eligieron plan pero les queda
+  // trial_ends_at a futuro (p.ej. recien creados, antes de que plan_status
+  // se resuelva a 'trial') -- si no hay trial_ends_at o ya paso, se cae al
+  // mensaje generico de siempre.
+  const freeTrialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86_400_000))
+    : 0
   const cardsVisible = showPlanCards || !hasSummary
 
   return (
@@ -387,7 +395,16 @@ export default function SuscripcionSelector({
           <p className="text-sm font-medium text-zinc-900">
             Estado: <span className="font-normal text-zinc-600">Sin suscripción activa</span>
           </p>
-          <p className="mt-1 text-sm text-zinc-500">Elegí un plan para activar tu tienda.</p>
+          {freeTrialDaysLeft > 0 ? (
+            <>
+              <p className="mt-1 text-sm text-zinc-500">
+                Te quedan {freeTrialDaysLeft} día{freeTrialDaysLeft === 1 ? '' : 's'} de prueba gratuita.
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">Disfrutá este módulo y, si te gusta, elegí un plan para continuar.</p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-zinc-500">Elegí un plan para activar tu tienda.</p>
+          )}
         </div>
       )}
 
