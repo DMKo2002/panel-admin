@@ -56,6 +56,10 @@ export type TenantRow = {
   // Fin del trial (2026-08-20) — junto con manualPaidUntil de arriba,
   // alimenta el contador de "días para renovar" del badge de plan_status.
   trialEndsAt: string | null
+  // Ciclo de facturación via Mercado Pago (2026-08-26) -- ver comentario en
+  // superadmin/page.tsx. Solo se usan para el popover de "Facturación".
+  billingTerm: number | null
+  nextBillingDate: string | null
   // Fecha de alta — "ordenar por fecha de unión" (2026-08-22).
   createdAt: string
   // "Pago a confirmar" (2026-08-22) — declaró intención de pago por
@@ -109,6 +113,37 @@ const PLAN_COLORS: Record<string, string> = {
 }
 
 const PANEL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+
+// Popover "Facturación" de la tabla (2026-08-26, pedido de ARam) -- antes el
+// botón "Facturación" llevaba a gounuri.com/perfil/plan logueado como el
+// dueño del tenant; ahora los tres datos que importan (ciclo, vencimiento,
+// días que faltan) se ven acá mismo, sin salir del superadmin.
+const CICLO_LABEL: Record<number, string> = { 1: 'Mensual', 6: 'Semestral', 12: 'Anual' }
+
+function formatFechaCorta(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+// Mismo criterio de "está en trial" que gounuri-web/perfil/plan y Panel Admin
+// /facturacion/suscripcion (plan_status en 'trial' o tienda suspendida) --
+// NO alcanza con mirar si trialEndsAt está seteado, porque ese campo queda
+// con un valor viejo aunque el tenant ya haya salido del trial (ver bug de
+// Beck del 2026-08-26, mismo motivo por el que se corrigió en las otras dos
+// pantallas).
+function estaEnPrueba(t: TenantRow): boolean {
+  return t.planStatus === 'trial' || t.status === 'suspended'
+}
+
+// Ciclo pagado vigente -- transferencia (manualPaymentTerm/manualPaidUntil) o
+// Mercado Pago (billingTerm/nextBillingDate), nunca los dos a la vez en la
+// práctica. null durante el trial (ahí el ciclo todavía no aplica) o si el
+// tenant está en plan gratis sin ningún pago en curso.
+function cicloVigente(t: TenantRow): { term: number | null; fecha: string | null } {
+  if (estaEnPrueba(t)) return { term: null, fecha: null }
+  if (t.manualPaidUntil) return { term: t.manualPaymentTerm, fecha: t.manualPaidUntil }
+  if (t.nextBillingDate) return { term: t.billingTerm, fecha: t.nextBillingDate }
+  return { term: null, fecha: null }
+}
 
 // Promoción "Founders" (2026-08-24) — mismo número que FOUNDER_LIMIT en
 // /api/superadmin/toggle-founder/route.ts (el cupo real lo valida el
@@ -179,10 +214,10 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   const [editName, setEditName] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
-  // "Ver facturación" (2026-08-26) — entra directo a gounuri.com/perfil/plan
-  // del tenant, mismo mecanismo que "Acceder" (impersonate) de abajo pero
-  // apuntando al otro sitio. Ver /api/superadmin/impersonate (target: 'web').
-  const [impersonatingWebId, setImpersonatingWebId] = useState<string | null>(null)
+  // Popover "Facturación" (2026-08-26) — reemplaza el botón que antes
+  // entraba a gounuri.com/perfil/plan; ver CICLO_LABEL/cicloVigente() más
+  // arriba. Un solo id porque solo puede haber un popover abierto a la vez.
+  const [billingPopoverId, setBillingPopoverId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -223,6 +258,13 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
   type EstadoFiltro = 'todos' | 'pagados' | 'deuda' | 'a_confirmar'
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('todos')
 
+  // Filtro por ciclo de facturación (2026-08-26, pedido de ARam) — "Prueba"
+  // usa el mismo criterio que estaEnPrueba() de arriba; mensual/semestral/
+  // anual filtran por el término vigente (transferencia o Mercado Pago, ver
+  // cicloVigente()).
+  type CicloFiltro = 'todos' | 'prueba' | 'mensual' | 'semestral' | 'anual'
+  const [cicloFiltro, setCicloFiltro] = useState<CicloFiltro>('todos')
+
   // Orden (2026-08-22) — "fecha de unión" es lo que pidieron explícitamente;
   // se agregan nombre y vencimiento porque son las otras dos formas obvias
   // de mirar esta tabla y no cuesta nada tenerlas ya que se arma el selector.
@@ -260,6 +302,11 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     else if (estadoFiltro === 'deuda') rows = rows.filter(t => t.debe)
     else if (estadoFiltro === 'a_confirmar') rows = rows.filter(t => !!t.manualPaymentPendingAt)
 
+    if (cicloFiltro === 'prueba') rows = rows.filter(t => estaEnPrueba(t))
+    else if (cicloFiltro === 'mensual') rows = rows.filter(t => cicloVigente(t).term === 1)
+    else if (cicloFiltro === 'semestral') rows = rows.filter(t => cicloVigente(t).term === 6)
+    else if (cicloFiltro === 'anual') rows = rows.filter(t => cicloVigente(t).term === 12)
+
     rows = [...rows].sort((a, b) => {
       if (ordenPor === 'nombre_asc') return (a.name ?? '').localeCompare(b.name ?? '')
       if (ordenPor === 'vencimiento_asc') return vencimientoMs(a) - vencimientoMs(b)
@@ -269,9 +316,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     })
 
     return rows
-  }, [tenants, query, estadoFiltro, ordenPor])
-
-  // No necesitamos BroadcastChannel — guardamos tokens antes de navegar
+  }, [tenants, query, estadoFiltro, cicloFiltro, ordenPor])
 
   async function handleRename(tenant: TenantRow) {
     if (!editName.trim() || editName.trim() === tenant.name) {
@@ -291,38 +336,45 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     setEditingId(null)
   }
 
-  async function handleImpersonate(tenant: TenantRow, target: 'panel' | 'web' = 'panel') {
+  async function handleImpersonate(tenant: TenantRow) {
     if (!tenant.ownerEmail) return
-    const setLoadingId = target === 'web' ? setImpersonatingWebId : setImpersonatingId
-    setLoadingId(tenant.id)
+    setImpersonatingId(tenant.id)
 
-    // Guardar tokens del superadmin ANTES de navegar (en la misma tab) — solo
-    // hace falta para poder volver al panel logueado como superadmin; no
-    // aplica cuando target es 'web' (gounuri.com es un sitio aparte).
-    if (target === 'panel') {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        sessionStorage.setItem('superadmin_tokens', JSON.stringify({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        }))
-      }
-    }
+    // Tokens del superadmin ANTES de generar el link -- 2026-08-26, pedido
+    // de ARam: "Acceder" ahora abre en una pestaña nueva en vez de navegar
+    // en la misma (antes había que ir y volver todo el tiempo). El magic
+    // link de abajo pisa la cookie de sesión de panel.gounuri.com para TODO
+    // el navegador (no solo esa pestaña) apenas la pestaña nueva confirma
+    // el login -- por eso, unos segundos después de abrirla, volvemos a
+    // asentar la cookie del superadmin EN ESTA pestaña con estos mismos
+    // tokens (mismo mecanismo que "Volver al Superadmin" en Sidebar.tsx),
+    // así las próximas acciones de superadmin acá (marcar pagado, impersonar
+    // a otro tenant, etc.) no se rompen con un 403 por sesión pisada.
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
 
     const res = await fetch('/api/superadmin/impersonate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantOwnerEmail: tenant.ownerEmail, target }),
+      body: JSON.stringify({ tenantOwnerEmail: tenant.ownerEmail }),
     })
     const data = await res.json()
-    setLoadingId(null)
-    if (data.url) {
-      // Navegar en la MISMA tab — sin BroadcastChannel, sin race condition
-      window.location.href = data.url
-    } else {
-      if (target === 'panel') sessionStorage.removeItem('superadmin_tokens')
+    setImpersonatingId(null)
+    if (!data.url) {
       alert('Error: ' + (data.error ?? 'No se pudo generar el link'))
+      return
+    }
+
+    window.open(data.url, '_blank', 'noopener,noreferrer')
+
+    if (session) {
+      setTimeout(() => {
+        fetch('/api/auth/set-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token }),
+        })
+      }, 2500)
     }
   }
 
@@ -604,6 +656,18 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
           <option value="pagados">Pagados</option>
           <option value="deuda">En deuda</option>
           <option value="a_confirmar">Pago a confirmar</option>
+        </select>
+
+        <select
+          value={cicloFiltro}
+          onChange={e => setCicloFiltro(e.target.value as CicloFiltro)}
+          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+        >
+          <option value="todos">Todos los ciclos</option>
+          <option value="prueba">Prueba</option>
+          <option value="mensual">Mensual</option>
+          <option value="semestral">Semestral</option>
+          <option value="anual">Anual</option>
         </select>
 
         <select
@@ -905,12 +969,14 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       }
                     </button>
 
-                    {/* Acceder como */}
+                    {/* Acceder como -- abre en pestaña nueva (2026-08-26,
+                        pedido de ARam) en vez de navegar en la misma, ver
+                        comentario en handleImpersonate. */}
                     {tenant.ownerEmail && (
                       <button
                         onClick={() => handleImpersonate(tenant)}
                         disabled={impersonatingId === tenant.id}
-                        title={`Acceder como ${tenant.ownerEmail}`}
+                        title={`Acceder como ${tenant.ownerEmail} (se abre en una pestaña nueva)`}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
                       >
                         <LogIn size={13} />
@@ -918,19 +984,54 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       </button>
                     )}
 
-                    {/* Ver facturación — entra directo a gounuri.com/perfil/plan
-                        del tenant (2026-08-26), sin pasar por el panel. */}
-                    {tenant.ownerEmail && (
+                    {/* Facturación (2026-08-26, pedido de ARam) -- antes
+                        entraba a gounuri.com/perfil/plan logueado como el
+                        dueño; ahora un popover con ciclo/vencimiento/días
+                        que faltan, sin salir del superadmin. Se abre al
+                        pasar el mouse (group-hover) o al clickear (queda
+                        fijo con billingPopoverId hasta clickear de nuevo). */}
+                    <div className="relative group">
                       <button
-                        onClick={() => handleImpersonate(tenant, 'web')}
-                        disabled={impersonatingWebId === tenant.id}
-                        title={`Ver facturación como ${tenant.ownerEmail}`}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                        type="button"
+                        onClick={() => setBillingPopoverId(id => id === tenant.id ? null : tenant.id)}
+                        title="Ver ciclo de facturación"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium transition-colors"
                       >
                         <CreditCard size={13} />
-                        {impersonatingWebId === tenant.id ? 'Generando...' : 'Facturación'}
+                        Facturación
                       </button>
-                    )}
+                      <div
+                        className={`absolute right-0 top-full z-20 mt-1 w-60 rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-xs shadow-2xl ${
+                          billingPopoverId === tenant.id ? 'block' : 'hidden group-hover:block'
+                        }`}
+                      >
+                        {(() => {
+                          const prueba = estaEnPrueba(tenant)
+                          const { term, fecha } = cicloVigente(tenant)
+                          const vencimiento = prueba ? tenant.trialEndsAt : fecha
+                          return (
+                            <div className="space-y-1.5">
+                              <p>
+                                <span className="text-zinc-500">Ciclo de facturación:</span>{' '}
+                                <span className="text-zinc-100">
+                                  {prueba ? 'Prueba gratuita' : term ? (CICLO_LABEL[term] ?? '—') : '—'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className="text-zinc-500">Fecha de vencimiento:</span>{' '}
+                                <span className="text-zinc-100">{vencimiento ? formatFechaCorta(vencimiento) : '—'}</span>
+                              </p>
+                              <p>
+                                <span className="text-zinc-500">Días que faltan:</span>{' '}
+                                <span className={vencimiento ? colorDiasRestantes(vencimiento) : 'text-zinc-500'}>
+                                  {vencimiento ? textoDiasRestantes(vencimiento) : '—'}
+                                </span>
+                              </p>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    </div>
 
                     {/* Marcar pagado — pilot Avellaneda (transferencia, sin
                         Mercado Pago), ver /api/superadmin/mark-plan-paid */}

@@ -40,7 +40,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, billing_term, next_billing_date, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -135,6 +135,15 @@ export default async function SuperadminPage() {
       // arriba). Un tenant nunca tiene los dos a la vez: manual_paid_until
       // solo se setea cuando plan_status pasa a 'active' vía mark-plan-paid.
       trialEndsAt: t.trial_ends_at ?? null,
+      // Ciclo de facturación via Mercado Pago (2026-08-26) -- billingTerm
+      // (1/6/12 meses) + nextBillingDate del preapproval, mismos campos que
+      // usa Panel Admin /facturacion/suscripcion. Se agregan acá para poder
+      // mostrar "Ciclo de facturación / Fecha de vencimiento / Días que
+      // faltan" en el popover de "Facturación" de la tabla de superadmin,
+      // sin tener que salir a gounuri.com/perfil/plan a mirarlo tenant por
+      // tenant.
+      billingTerm: t.billing_term ?? null,
+      nextBillingDate: t.next_billing_date ?? null,
       // Fecha de alta — para "ordenar por fecha de unión" en la tabla
       // (2026-08-22).
       createdAt: t.created_at,
