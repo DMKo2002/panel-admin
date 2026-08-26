@@ -6,10 +6,11 @@
 //
 // Portado de gounuri-web/src/app/perfil/plan/PlanSelector.tsx (misma logica,
 // mismo flujo de Mercado Pago/transferencia que se armo ahi durante toda la
-// sesion) -- adaptado acá a las convenciones visuales propias de Panel Admin:
-// btn-primary/btn-secondary en vez de btn-black/btn-outline (que no existen
-// en este proyecto), color de marca primary-600 en vez de zinc-900 puro, y
-// card con border-zinc-200 en vez del borde negro marcado que usa gounuri.com.
+// sesion) -- 2026-08-26, pedido de ARam: se ve "tal como esta" en
+// gounuri.com/perfil/plan (negro/blanco, btn-black/btn-outline, card con
+// borde zinc-900), NO el primary-600/btn-primary/btn-secondary que usa el
+// resto de Panel Admin. Esas dos clases (btn-black/btn-outline) se agregaron
+// a globals.css solo para esta pantalla -- ver comentario ahí.
 //
 // gounuri-web/perfil/plan sigue existiendo tal cual (no se tocó) -- decisión
 // pendiente de qué hacer con esa pantalla una vez que esta quede aprobada,
@@ -21,7 +22,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
 import Toggle from '@/components/Toggle'
-import { PLANS, formatStorage, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
+import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import type { PlatformPaymentSettings } from '@/lib/platformBilling'
 import TransferPaymentBlock from '@/components/TransferPaymentBlock'
@@ -57,21 +58,44 @@ const PLANES: PlanCard[] = [
     id: 'mini',
     descripcion: 'Para empezar a vender online sin vueltas.',
     destacado: false,
-    features: [`${formatStorage(PLANS.mini.storageMB)} de almacenamiento`, `Hasta ${PLANS.mini.maxProductos} productos`, 'Pedidos ilimitados'],
+    features: [
+      'Hasta 50 productos',
+      '300 MB de almacenamiento',
+      '15.000 visitas por mes',
+      'Pedidos ilimitados, sin comisión por venta',
+      'Pagos con MercadoPago y transferencia',
+      'Personalización de logo y colores',
+    ],
   },
   {
     ...PLANS.standard,
     id: 'standard',
     descripcion: 'Para tiendas en crecimiento.',
     destacado: true,
-    features: [`${formatStorage(PLANS.standard.storageMB)} de almacenamiento`, `Hasta ${PLANS.standard.maxProductos} productos`, 'Pedidos ilimitados', 'Personalización completa'],
+    features: [
+      'Hasta 300 productos',
+      '1 GB de almacenamiento',
+      '75.000 visitas por mes',
+      'Todo lo del plan Mini',
+      'Precios mayoristas y minoristas',
+      'Etiquetas de envío en PDF',
+      'Emails transaccionales con tu marca',
+    ],
   },
   {
     ...PLANS.premium,
     id: 'premium',
     descripcion: 'Para marcas establecidas que quieren todo.',
     destacado: false,
-    features: [`${formatStorage(PLANS.premium.storageMB)} de almacenamiento`, `Hasta ${PLANS.premium.maxProductos} productos`, 'Pedidos ilimitados', 'Todos los templates', 'Soporte prioritario'],
+    features: [
+      'Hasta 600 productos',
+      '3 GB de almacenamiento',
+      '300.000 visitas por mes',
+      'Todo lo del plan Business',
+      'Modo sin stock y pedidos por encargo',
+      'Cuentas y roles para tu equipo',
+      'Soporte prioritario',
+    ],
   },
 ]
 
@@ -245,17 +269,17 @@ export default function SuscripcionSelector({
                         />
                       </div>
                       <div className="mt-3 flex gap-2">
-                        <button onClick={cancelMp} disabled={canceling} className="btn-primary flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                        <button onClick={cancelMp} disabled={canceling} className="btn-black flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50">
                           {canceling && <Loader2 size={15} className="animate-spin" />}
                           Sí, dar de baja
                         </button>
-                        <button onClick={() => { setShowCancelConfirm(false); setCancelReason('') }} disabled={canceling} className="btn-secondary flex-1">
+                        <button onClick={() => { setShowCancelConfirm(false); setCancelReason('') }} disabled={canceling} className="btn-outline flex-1">
                           Cancelar
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => setShowCancelConfirm(true)} className="btn-secondary mt-3 w-full text-red-600 border-red-200 hover:bg-red-50">
+                    <button onClick={() => setShowCancelConfirm(true)} className="btn-outline mt-3 w-full text-red-600 border-red-200 hover:bg-red-50">
                       Cancelar suscripción
                     </button>
                   )
@@ -361,7 +385,7 @@ export default function SuscripcionSelector({
           return (
             <div
               key={card.id}
-              className={`relative flex flex-col rounded-xl border border-zinc-200 bg-white p-6 transition-shadow ${card.destacado ? 'shadow-md' : ''} ${highlightPlan === card.id ? 'ring-2 ring-emerald-400' : ''}`}
+              className={`relative flex flex-col rounded-xl border border-zinc-900 bg-white p-8 transition-shadow ${card.destacado ? 'shadow-md' : ''} ${highlightPlan === card.id ? 'ring-2 ring-emerald-400' : ''}`}
             >
               {card.destacado && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white">
@@ -413,7 +437,7 @@ export default function SuscripcionSelector({
                 // El detalle (plazo, próximo cobro, cancelar) ahora vive en
                 // el resumen de arriba de todo (2026-08-26, pedido de ARam)
                 // -- acá la card del plan actual solo necesita decir eso.
-                <button disabled className="btn-primary mt-8 w-full opacity-50">
+                <button disabled className="btn-black mt-8 w-full opacity-50">
                   Tu plan actual
                 </button>
               ) : (
@@ -423,7 +447,7 @@ export default function SuscripcionSelector({
                       <button
                         onClick={() => setMpEmailPlan(p => (p === card.id ? null : card.id))}
                         disabled={loading !== null}
-                        className="btn-secondary w-full disabled:opacity-50"
+                        className="btn-outline w-full disabled:opacity-50"
                       >
                         {mpEmailPlan === card.id
                           ? 'Ocultar datos de MP'
@@ -437,7 +461,7 @@ export default function SuscripcionSelector({
                             </label>
                             <input
                               type="email"
-                              className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-base focus:border-primary-600 focus:outline-none"
+                              className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-base focus:border-zinc-900 focus:outline-none"
                               value={payerEmail}
                               onChange={e => setPayerEmail(e.target.value)}
                               placeholder="tu@email.com"
@@ -449,7 +473,7 @@ export default function SuscripcionSelector({
                           <button
                             onClick={() => subscribeMp(card.id)}
                             disabled={loading !== null}
-                            className="btn-primary w-full disabled:opacity-50"
+                            className="btn-black w-full disabled:opacity-50"
                           >
                             {loading === card.id && <Loader2 size={15} className="animate-spin" />}
                             Continuar
@@ -461,7 +485,7 @@ export default function SuscripcionSelector({
                   {paymentSettings.manualTransferEnabled && (
                     <button
                       onClick={() => setExpandedPlan(p => (p === card.id ? null : card.id))}
-                      className="btn-primary w-full"
+                      className="btn-black w-full"
                     >
                       {expandedPlan === card.id ? 'Ocultar datos de transferencia' : 'Pagar por transferencia'}
                     </button>

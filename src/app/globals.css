@@ -37,6 +37,18 @@
   .btn-primary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors;
   }
+  /* btn-black / btn-outline -- mismas clases que gounuri-web/src/app/globals.css
+     (2026-08-26, pedido de ARam: la pantalla de /facturacion/suscripcion
+     tiene que verse "tal como esta" en gounuri.com/perfil/plan, negro/blanco,
+     no el primary-600 del resto del panel). Solo las usa
+     SuscripcionSelector.tsx -- el resto del panel sigue con
+     btn-primary/btn-secondary como siempre. */
+  .btn-black {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition-colors;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm font-medium hover:border-zinc-900 transition-colors;
+  }
   .btn-secondary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50 transition-colors;
   }
