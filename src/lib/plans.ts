@@ -140,3 +140,13 @@ export function priceForTerm(plan: PlanDef, months: BillingTerm): number {
 export function fullPriceForTerm(plan: PlanDef, months: BillingTerm): number {
   return plan.precioARS * months
 }
+
+// Tipo/guard para los 3 planes pagos (sin 'free') -- 2026-08-26, para
+// /dashboard/suscripcion (mismo criterio que PlanId/isPlanId en
+// gounuri-web/src/lib/plans.ts, pero acá PlanDef['id'] ya incluye 'free' así
+// que hace falta excluirlo a mano).
+export type PlanId = Exclude<PlanDef['id'], 'free'>
+
+export function isPlanId(v: unknown): v is PlanId {
+  return v === 'mini' || v === 'standard' || v === 'premium'
+}

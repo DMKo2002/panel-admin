@@ -16,18 +16,30 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { cancelPreapproval, billingEnabled } from '@/lib/billing'
+import { cancelPreapproval } from '@/lib/billing'
+import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 
 export async function POST(req: Request) {
-  if (!billingEnabled()) {
-    return NextResponse.json({ error: 'La facturación todavía no está habilitada' }, { status: 403 })
+  const service = createServiceClient()
+
+  // Gate movido de BILLING_ENABLED (env var) a platform_billing_settings
+  // (2026-08-26, mismo criterio que gounuri-web desde el 2026-08-22) -- esta
+  // ruta era código muerto hasta ahora, la activa por primera vez
+  // /dashboard/suscripcion.
+  const paymentSettings = await getPlatformPaymentSettings(service)
+  if (!paymentSettings.mercadopagoEnabled) {
+    return NextResponse.json({ error: 'El pago con Mercado Pago todavía no está habilitado' }, { status: 403 })
   }
+
+  // Motivo opcional de baja (2026-08-26, mismo criterio que gounuri-web
+  // desde el 2026-08-25 -- ver billing_cancellation_feedback) -- no bloquea
+  // la baja si se deja vacío.
+  const { reason } = await req.json().catch(() => ({ reason: undefined as string | undefined }))
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const service = createServiceClient()
   const { data: _rows } = await service.from('users').select('tenant_id, role').eq('id', user.id).limit(1)
   const userRow = _rows?.[0]
   if (!userRow?.tenant_id) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -60,6 +72,17 @@ export async function POST(req: Request) {
     mp_preapproval_id: null,
     billing_paused_by_user: true,
   }).eq('id', tenantId)
+
+  if (typeof reason === 'string' && reason.trim()) {
+    const { data: tenantNameRow } = await service.from('tenants').select('name').eq('id', tenantId).limit(1).single()
+    await service.from('billing_cancellation_feedback').insert({
+      tenant_id: tenantId,
+      tenant_name: tenantNameRow?.name ?? tenantId,
+      reason: reason.trim().slice(0, 2000),
+    }).then(({ error }) => {
+      if (error) console.error('[billing/cancel] error guardando motivo de baja:', error)
+    })
+  }
 
   return NextResponse.json({ ok: true, activeUntil: tenantRow.next_billing_date ?? null })
 }

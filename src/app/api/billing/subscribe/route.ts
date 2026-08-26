@@ -6,8 +6,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { createPreapproval, cancelPreapproval, billingEnabled } from '@/lib/billing'
+import { createPreapproval, cancelPreapproval } from '@/lib/billing'
 import { isBillingTerm, type BillingTerm } from '@/lib/plans'
+import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 
 // now + N meses de calendario (no N*30 días) — mismo criterio que
 // mark-plan-paid/route.ts para next_billing_date.
@@ -18,8 +19,17 @@ function addMonths(date: Date, months: number): Date {
 }
 
 export async function POST(req: Request) {
-  if (!billingEnabled()) {
-    return NextResponse.json({ error: 'La facturación todavía no está habilitada' }, { status: 403 })
+  const service = createServiceClient()
+
+  // Gate movido de BILLING_ENABLED (env var) a platform_billing_settings
+  // (2026-08-26, mismo criterio que gounuri-web desde el 2026-08-22 — ver
+  // memoria de proyecto "Gounuri billing/subscriptions") -- esta ruta era
+  // código muerto hasta ahora (solo la llamaba UpgradePlans.tsx, que no
+  // renderiza ninguna página), la activa por primera vez
+  // /dashboard/suscripcion.
+  const paymentSettings = await getPlatformPaymentSettings(service)
+  if (!paymentSettings.mercadopagoEnabled) {
+    return NextResponse.json({ error: 'El pago con Mercado Pago todavía no está habilitado' }, { status: 403 })
   }
 
   const supabase = await createClient()
@@ -45,7 +55,6 @@ export async function POST(req: Request) {
     ? payerEmailInput.trim()
     : user.email
 
-  const service = createServiceClient()
   const { data: _rows } = await service.from('users').select('tenant_id, role').eq('id', user.id).limit(1)
   const userRow = _rows?.[0]
   if (!userRow?.tenant_id) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -88,7 +97,7 @@ export async function POST(req: Request) {
       tenantId,
       planId: plan,
       payerEmail,
-      backUrl: `${origin}/dashboard/uso?sub=pendiente`,
+      backUrl: `${origin}/dashboard/suscripcion?sub=pendiente`,
       months,
     })
     // Guardar ya mismo el plazo elegido y el id — el webhook confirma la
