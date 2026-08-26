@@ -15,7 +15,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getPreapproval, getPayment, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
 import { getPlanForTenant, isBillingTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, emailPagoConfirmado } from '@/lib/email'
 
 // now + N meses de calendario — mismo criterio que mark-plan-paid/route.ts.
 function addMonths(date: Date, months: number): Date {
@@ -207,12 +207,13 @@ export async function POST(req: Request) {
 
     if (pre.status === 'authorized') {
       const months: BillingTerm = isBillingTerm(pre.auto_recurring?.frequency) ? (pre.auto_recurring!.frequency as BillingTerm) : 1
+      const nextBillingDate = addMonths(new Date(), months)
       const { data: updatedTenant } = await service.from('tenants').update({
         plan: ref.planId,
         plan_status: 'active',
         mp_preapproval_id: pre.id,
         billing_term: months,
-        next_billing_date: addMonths(new Date(), months).toISOString(),
+        next_billing_date: nextBillingDate.toISOString(),
         billing_paused_by_user: false, // por si venía de un "dar de baja" y se volvió a suscribir
         over_limit_since: null, // el upgrade regulariza la gracia
         trial_ends_at: null,    // fin del trial: ya está pagando
@@ -233,6 +234,38 @@ export async function POST(req: Request) {
         amount: pre.auto_recurring?.transaction_amount,
         metodo: 'Mercado Pago (débito automático)',
       })
+
+      // Mail al tenant confirmando el pago (2026-08-26, bug detectado por
+      // David en QA: esta rama solo avisaba a Gounuri con
+      // notifySubscriptionPaid de arriba -- el dueño de la tienda no se
+      // enteraba de nada más que los mails propios de Mercado Pago). Mismo
+      // template/patrón que mark-plan-paid/route.ts usa para el flujo de
+      // transferencia manual -- acá es el flujo de débito automático de MP.
+      // Best-effort: un mail que falla no debe romper el webhook (MP
+      // reintentaría de más si devolviéramos error).
+      try {
+        const { data: ownerRows } = await service
+          .from('users').select('email').eq('tenant_id', ref.tenantId).eq('role', 'owner').limit(1)
+        const ownerEmail = ownerRows?.[0]?.email
+        if (ownerEmail) {
+          const plan = getPlanForTenant(ref.planId)
+          const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+          await sendEmail({
+            to: ownerEmail,
+            subject: '✅ Pago confirmado — tu tienda ya está activa',
+            html: emailPagoConfirmado({
+              tenantName: updatedTenant?.name ?? 'tu tienda',
+              planNombre: plan.nombre,
+              months,
+              amount: pre.auto_recurring?.transaction_amount ?? 0,
+              paidUntil: nextBillingDate.toISOString(),
+              panelUrl,
+            }),
+          })
+        }
+      } catch (e) {
+        console.error('[billing/webhook] error notificando al tenant del pago:', e)
+      }
     } else if (pre.status === 'paused') {
       // OJO: esto es MP pausando SOLO porque falló un cobro (dunning) — el
       // "dar de baja" a pedido del tenant (/api/billing/cancel) usa
@@ -241,6 +274,21 @@ export async function POST(req: Request) {
       // 'paused' es siempre un cobro fallido, nunca una baja voluntaria.
       await service.from('tenants').update({ plan_status: 'past_due' }).eq('id', ref.tenantId)
     } else if (pre.status === 'cancelled') {
+      // Si billing_paused_by_user ya está en true, esto es el eco async de
+      // una baja voluntaria que ya procesó /api/billing/cancel (2026-08-26,
+      // bug detectado por David en QA: el popover de "Facturación" en
+      // superadmin mostraba "—" en vez de la fecha de vencimiento apenas se
+      // cancelaba, porque esta rama pisaba plan/next_billing_date a los
+      // pocos segundos de la baja voluntaria). Esa ruta ya dejó
+      // next_billing_date intacto a propósito para que el servicio siga
+      // vigente hasta esa fecha (lo baja cron/enforce cuando corresponda) —
+      // acá no hay nada más que hacer.
+      const { data: _pausedRows } = await service
+        .from('tenants').select('billing_paused_by_user').eq('id', ref.tenantId).limit(1)
+      if (_pausedRows?.[0]?.billing_paused_by_user) {
+        return NextResponse.json({ ok: true, ignored: 'baja voluntaria ya procesada por /api/billing/cancel' })
+      }
+
       // Cancelado en MP sin pasar por /api/billing/cancel (por ejemplo, el
       // tenant lo canceló desde su propia cuenta de MP en vez de desde acá).
       // Sin next_billing_date confiable en ese caso, se mantiene el
