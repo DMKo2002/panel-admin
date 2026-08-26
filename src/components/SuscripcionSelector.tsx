@@ -223,12 +223,14 @@ export default function SuscripcionSelector({
   // criterio que cicloVigente() en SuperadminClient.tsx).
   const hasFreeSummary = !hasPaidSummary && !hasTrialSummary
   const hasSummary = hasPaidSummary || hasTrialSummary
-  // Dias restantes de prueba para el mensaje de hasFreeSummary (2026-08-26,
-  // pedido de ARam): tenants que todavia no eligieron plan pero les queda
-  // trial_ends_at a futuro (p.ej. recien creados, antes de que plan_status
-  // se resuelva a 'trial') -- si no hay trial_ends_at o ya paso, se cae al
-  // mensaje generico de siempre.
-  const freeTrialDaysLeft = trialEndsAt
+  // Dias restantes de prueba (2026-08-26, pedido de ARam) -- se usa tanto
+  // arriba del marco de hasTrialSummary (trial 'formal', plan_status
+  // 'trial') como dentro de hasFreeSummary (tenants que todavia no
+  // eligieron plan pero les queda trial_ends_at a futuro, p.ej. recien
+  // creados antes de que plan_status se resuelva a 'trial') -- si no hay
+  // trial_ends_at o ya paso, cae a 0 y cada bloque muestra su mensaje
+  // generico de siempre.
+  const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86_400_000))
     : 0
   const cardsVisible = showPlanCards || !hasSummary
@@ -250,7 +252,7 @@ export default function SuscripcionSelector({
           : null
         return (
           <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
-            <div className="hidden sm:grid grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <div className="hidden sm:grid grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] gap-3 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
               <span>Estado</span>
               <span>Suscripción</span>
               <span>Ciclo de facturación</span>
@@ -261,24 +263,23 @@ export default function SuscripcionSelector({
             <button
               type="button"
               onClick={() => setSubDetailOpen(o => !o)}
-              className="grid w-full grid-cols-2 sm:grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
+              className="grid w-full grid-cols-2 sm:grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] items-center gap-x-3 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
             >
               <span className="text-sm text-zinc-700">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span>
               <span className="font-semibold text-zinc-900">{planActual?.nombre ?? currentPlan}</span>
               <span className="text-sm text-zinc-700">{billingTerm ? TERM_LABEL[billingTerm] : '—'}</span>
               <span className="text-sm text-zinc-700 sm:text-left">{nextBillingDate ? formatFecha(nextBillingDate) : '—'}</span>
-              <span className="text-sm text-zinc-700">{precioRenovacion ? formatARS(precioRenovacion) : '—'}</span>
+              <span className="text-sm text-zinc-700">{formatARS(precioRenovacion ?? 0)}</span>
               <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
             </button>
             {subDetailOpen && (
               <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
-                <p className="font-medium text-zinc-900">Detalle de tu suscripción</p>
-                <p className="mt-1">
-                  Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Activa' : 'Cancelada'}</span>
-                </p>
-                {billingTerm && <p>Ciclo de facturación: {TERM_LABEL[billingTerm]}</p>}
-                {nextBillingDate && <p>Fecha de vencimiento: {formatFecha(nextBillingDate)}</p>}
-                {precioRenovacion != null && <p>Precio de renovación: {formatARS(precioRenovacion)}</p>}
+                <p className="font-medium text-zinc-900">Detalles de Suscripción</p>
+                <p className="mt-1">Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span></p>
+                <p>Suscripción: <span className="font-medium text-zinc-900">{planActual?.nombre ?? currentPlan}</span></p>
+                <p>Ciclo de facturación: {billingTerm ? TERM_LABEL[billingTerm] : '—'}</p>
+                <p>Vencimiento: {nextBillingDate ? formatFecha(nextBillingDate) : '—'}</p>
+                <p>Precio de renovación: {formatARS(precioRenovacion ?? 0)}</p>
                 {mpPreapprovalId && (
                   <p>
                     ID de suscripción: <span className="font-mono text-xs">{mpPreapprovalId}</span>
@@ -347,44 +348,49 @@ export default function SuscripcionSelector({
         const planActual = PLANES.find(p => p.id === currentPlan)
         const nombrePlan = planActual?.nombre ?? 'Gratis'
         return (
-        <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
-          <div className="hidden sm:grid grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
-            <span>Estado</span>
-            <span>Suscripción</span>
-            <span>Ciclo de facturación</span>
-            <span>Vencimiento</span>
-            <span>Precio de renovación</span>
-            <span />
-          </div>
-          <button
-            type="button"
-            onClick={() => setSubDetailOpen(o => !o)}
-            className="grid w-full grid-cols-2 sm:grid-cols-[0.9fr_1.1fr_0.9fr_0.9fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
-          >
-            <span className="text-sm text-zinc-700">Prueba gratuita</span>
-            <span className="font-semibold text-zinc-900">{nombrePlan}</span>
-            <span className="text-sm text-zinc-700">—</span>
-            <span className="text-sm text-zinc-700 sm:text-left">{trialEndsAt ? formatFecha(trialEndsAt) : '—'}</span>
-            <span className="text-sm text-zinc-700">—</span>
-            <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
-          </button>
-          {subDetailOpen && (
-            <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
-              <p className="font-medium text-zinc-900">Detalle de tu suscripción</p>
-              <p className="mt-1">
-                Estado: <span className="font-medium text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span>
-              </p>
-              <p>Ciclo de facturación: —</p>
-              {trialEndsAt && <p>Fecha de vencimiento: {formatFecha(trialEndsAt)}</p>}
-              <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
-                Estás probando el plan <strong>{nombrePlan}</strong> sin cargo{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí cómo pagar para que tu tienda siga activa cuando termine la prueba.
-              </p>
-              <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
-                Ver historial de pago
-              </a>
+        <>
+          <p className="mt-8 text-sm text-zinc-600">
+            Te quedan {trialDaysLeft} día{trialDaysLeft === 1 ? '' : 's'} de prueba gratuita. Disfrutá este módulo y, si te gusta, elegí un plan para continuar.
+          </p>
+          <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200">
+            <div className="hidden sm:grid grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] gap-3 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <span>Estado</span>
+              <span>Suscripción</span>
+              <span>Ciclo de facturación</span>
+              <span>Vencimiento</span>
+              <span>Precio de renovación</span>
+              <span />
             </div>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={() => setSubDetailOpen(o => !o)}
+              className="grid w-full grid-cols-2 sm:grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] items-center gap-x-3 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
+            >
+              <span className="text-sm text-zinc-700">Prueba gratuita</span>
+              <span className="font-semibold text-zinc-900">{nombrePlan}</span>
+              <span className="text-sm text-zinc-700">—</span>
+              <span className="text-sm text-zinc-700 sm:text-left">{trialEndsAt ? formatFecha(trialEndsAt) : '—'}</span>
+              <span className="text-sm text-zinc-700">{formatARS(0)}</span>
+              <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {subDetailOpen && (
+              <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
+                <p className="font-medium text-zinc-900">Detalles de Suscripción</p>
+                <p className="mt-1">Estado: <span className="font-medium text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span></p>
+                <p>Suscripción: <span className="font-medium text-zinc-900">{nombrePlan}</span></p>
+                <p>Ciclo de facturación: —</p>
+                <p>Vencimiento: {trialEndsAt ? formatFecha(trialEndsAt) : '—'}</p>
+                <p>Precio de renovación: {formatARS(0)}</p>
+                <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
+                  Estás probando el plan <strong>{nombrePlan}</strong> sin cargo{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí cómo pagar para que tu tienda siga activa cuando termine la prueba.
+                </p>
+                <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
+                  Ver historial de pago
+                </a>
+              </div>
+            )}
+          </div>
+        </>
         )
       })()}
       {hasFreeSummary && (
@@ -392,10 +398,10 @@ export default function SuscripcionSelector({
           <p className="text-sm font-medium text-zinc-900">
             Estado: <span className="font-normal text-zinc-600">Sin suscripción activa</span>
           </p>
-          {freeTrialDaysLeft > 0 ? (
+          {trialDaysLeft > 0 ? (
             <>
               <p className="mt-1 text-sm text-zinc-500">
-                Te quedan {freeTrialDaysLeft} día{freeTrialDaysLeft === 1 ? '' : 's'} de prueba gratuita.
+                Te quedan {trialDaysLeft} día{trialDaysLeft === 1 ? '' : 's'} de prueba gratuita.
               </p>
               <p className="mt-1 text-sm text-zinc-500">Disfrutá este módulo y, si te gusta, elegí un plan para continuar.</p>
             </>
