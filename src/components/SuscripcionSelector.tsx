@@ -213,7 +213,7 @@ export default function SuscripcionSelector({
   // nada que mostrar ahí y las cards de plan son lo único que tiene sentido.
   const isPaidPlan = isPlanId(currentPlan)
   const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser)
-  const hasTrialSummary = !isPaidPlan
+  const hasTrialSummary = trialing
   const hasSummary = hasPaidSummary || hasTrialSummary
   const cardsVisible = showPlanCards || !hasSummary
 
@@ -320,7 +320,16 @@ export default function SuscripcionSelector({
           </div>
         )
       })()}
-      {hasTrialSummary && !hasPaidSummary && (
+      {hasTrialSummary && !hasPaidSummary && (() => {
+        // El trial es de 7 días del plan elegido en el alta (self-serve,
+        // ver create-tenant/route.ts en gounuri-web: plan: chosenPlan,
+        // plan_status: 'trial') -- NO es un "plan gratuito", por eso acá
+        // abajo mostramos el nombre del plan elegido, no un genérico
+        // "Gratis". PLANES no incluye 'free' -- currentPlan === 'free' acá
+        // sería un caso residual/legacy, con nombrePlan cayendo a 'Gratis'.
+        const planActual = PLANES.find(p => p.id === currentPlan)
+        const nombrePlan = planActual?.nombre ?? 'Gratis'
+        return (
         <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
           <div className="hidden sm:grid grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] gap-4 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
             <span>Suscripción</span>
@@ -334,7 +343,7 @@ export default function SuscripcionSelector({
             onClick={() => setSubDetailOpen(o => !o)}
             className="grid w-full grid-cols-2 sm:grid-cols-[1.4fr_1fr_1.3fr_1fr_28px] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
           >
-            <span className="font-semibold text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span>
+            <span className="font-semibold text-zinc-900">{nombrePlan} — prueba gratuita</span>
             <span className="text-sm text-zinc-700 sm:text-left">{trialEndsAt ? formatFecha(trialEndsAt) : '—'}</span>
             <span className="flex items-center gap-2 text-sm text-zinc-500 sm:text-transparent">
               <Toggle checked={false} onChange={() => {}} disabled />
@@ -347,12 +356,12 @@ export default function SuscripcionSelector({
             <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
               <p className="font-medium text-zinc-900">Detalle de tu suscripción</p>
               <p className="mt-1">
-                Estado: <span className="font-medium text-zinc-900">Prueba gratuita</span>
+                Estado: <span className="font-medium text-zinc-900">Prueba gratuita ({TRIAL_DAYS} días)</span>
               </p>
               <p>Ciclo de facturación: —</p>
               {trialEndsAt && <p>Fecha de vencimiento: {formatFecha(trialEndsAt)}</p>}
               <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
-                Estás usando el plan gratuito{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí un plan pago para seguir con tu tienda activa sin límites de prueba.
+                Estás probando el plan <strong>{nombrePlan}</strong> sin cargo{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí cómo pagar para que tu tienda siga activa cuando termine la prueba.
               </p>
               <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
                 Ver historial de pago
@@ -360,7 +369,8 @@ export default function SuscripcionSelector({
             </div>
           )}
         </div>
-      )}
+        )
+      })()}
       {hasSummary && (
         <div className="mt-6">
           <button

@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, type BillingTerm } from '@/lib/plans'
+import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, isPlanId, type BillingTerm } from '@/lib/plans'
 
 export type TenantRow = {
   id: string
@@ -141,7 +140,12 @@ function estaEnPrueba(t: TenantRow): boolean {
 function cicloVigente(t: TenantRow): { term: number | null; fecha: string | null } {
   if (estaEnPrueba(t)) return { term: null, fecha: null }
   if (t.manualPaidUntil) return { term: t.manualPaymentTerm, fecha: t.manualPaidUntil }
-  if (t.nextBillingDate) return { term: t.billingTerm, fecha: t.nextBillingDate }
+  // isPlanId(t.plan) -- 2026-08-26, bug reportado por ARam: nextBillingDate
+  // puede quedar "colgado" de un intento de pago viejo aunque el tenant ya
+  // no tenga un plan pago vigente (plan volvió a 'free'). Cruce de datos
+  // tiene que ser preciso: sin este chequeo se mostraba un ciclo de
+  // facturación falso para tenants sin suscripción real.
+  if (isPlanId(t.plan) && t.nextBillingDate) return { term: t.billingTerm, fecha: t.nextBillingDate }
   return { term: null, fecha: null }
 }
 
@@ -340,19 +344,14 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     if (!tenant.ownerEmail) return
     setImpersonatingId(tenant.id)
 
-    // Tokens del superadmin ANTES de generar el link -- 2026-08-26, pedido
-    // de ARam: "Acceder" ahora abre en una pestaña nueva en vez de navegar
-    // en la misma (antes había que ir y volver todo el tiempo). El magic
-    // link de abajo pisa la cookie de sesión de panel.gounuri.com para TODO
-    // el navegador (no solo esa pestaña) apenas la pestaña nueva confirma
-    // el login -- por eso, unos segundos después de abrirla, volvemos a
-    // asentar la cookie del superadmin EN ESTA pestaña con estos mismos
-    // tokens (mismo mecanismo que "Volver al Superadmin" en Sidebar.tsx),
-    // así las próximas acciones de superadmin acá (marcar pagado, impersonar
-    // a otro tenant, etc.) no se rompen con un 403 por sesión pisada.
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-
+    // "Acceder" abre en una pestaña nueva (2026-08-26, pedido de ARam) en
+    // vez de navegar en la misma. OJO: la cookie de sesión de
+    // panel.gounuri.com es del navegador entero, no de la pestaña -- NO hay
+    // que "restaurar" automáticamente la sesión del superadmin acá con un
+    // setTimeout, porque eso pisa la sesión de la pestaña de impersonación
+    // si el usuario sigue navegando ahí (bug: "Tenant no encontrado" en
+    // Panel Admin, reportado por ARam). Si el superadmin necesita seguir
+    // operando en ESTA pestaña después de un rato, alcanza con recargar.
     const res = await fetch('/api/superadmin/impersonate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -366,16 +365,6 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
     }
 
     window.open(data.url, '_blank', 'noopener,noreferrer')
-
-    if (session) {
-      setTimeout(() => {
-        fetch('/api/auth/set-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token }),
-        })
-      }, 2500)
-    }
   }
 
   async function copyToClipboard(text: string, id: string) {
