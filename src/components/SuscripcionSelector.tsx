@@ -569,7 +569,7 @@ export default function SuscripcionSelector({
                               placeholder="tu@email.com"
                             />
                             <p className="mt-2 text-sm text-zinc-500">
-                              Asegurate de ingresar el email asociado a tu cuenta — de lo contrario, la suscripción no podrá concretarse.
+                              Importante: tiene que ser el mismo email con el que vas a iniciar sesión en Mercado Pago al pagar — si no coincide, Mercado Pago rechaza el cobro.
                             </p>
                           </div>
                           <button
