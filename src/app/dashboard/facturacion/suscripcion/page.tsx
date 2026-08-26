@@ -1,4 +1,4 @@
-// /dashboard/suscripcion -- pantalla de facturación/suscripción DENTRO de
+// /dashboard/facturacion/suscripcion -- pantalla de facturación/suscripción DENTRO de
 // Panel Admin (2026-08-26, pedido de ARam -- ver memoria de proyecto
 // "Gounuri billing/subscriptions"). Mismo patrón de resolución de tenant que
 // dashboard/uso/page.tsx; el contenido (cards de plan, resumen arriba de

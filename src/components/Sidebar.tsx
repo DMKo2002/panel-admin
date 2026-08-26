@@ -7,10 +7,10 @@ import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, ShoppingCart, Shirt,
   FolderOpen, LogOut, Store, ShieldCheck, Users, ArrowLeft, BarChart3, UserCircle2, Crown, Pencil, Check, X,
-  ChevronUp, ExternalLink, CreditCard
+  ChevronUp, CreditCard
 } from 'lucide-react'
 import clsx from 'clsx'
-import { SETTINGS_ROUTES, hasSettingsPermission, GOUNURI_PLAN_URL, type StaffPermissions } from '@/lib/settings-nav'
+import { SETTINGS_ROUTES, hasSettingsPermission, type StaffPermissions } from '@/lib/settings-nav'
 
 // Los ítems de "Configuración de la tienda" (General, Contacto, Cobranzas,
 // Envíos, Catálogo, Apariencia, Legal, Notificaciones) más Dominio, SEO,
@@ -324,17 +324,19 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
                 </Link>
               )}
               {showFacturacion && (
-                <a
-                  href={GOUNURI_PLAN_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setAccountMenuOpen(false)}
+                // Antes abría gounuri.com/perfil/plan en pestaña nueva --
+                // 2026-08-26, pedido de ARam: la facturación/suscripción
+                // ahora vive DENTRO de Panel Admin (ver
+                // src/app/dashboard/facturacion/suscripcion/page.tsx), así
+                // que es navegación interna como el resto del menú.
+                <Link
+                  href="/facturacion/suscripcion"
+                  onClick={() => { setAccountMenuOpen(false); onClose?.() }}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
                 >
                   <CreditCard size={16} className="text-zinc-400" />
                   Facturación
-                  <ExternalLink size={12} className="text-zinc-300 ml-auto" />
-                </a>
+                </Link>
               )}
               {hasSuperadminTokens && (
                 <button

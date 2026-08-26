@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       tenantId,
       planId: plan,
       payerEmail,
-      backUrl: `${origin}/dashboard/suscripcion?sub=pendiente`,
+      backUrl: `${origin}/dashboard/facturacion/suscripcion?sub=pendiente`,
       months,
     })
     // Guardar ya mismo el plazo elegido y el id — el webhook confirma la
