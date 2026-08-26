@@ -1,6 +1,14 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { isSuperAdmin } from '@/lib/superadmin'
+
+// Título de pestaña distinto al de Panel Admin (2026-08-26, pedido de
+// ARam) -- para poder diferenciar a simple vista la pestaña del
+// superadmin de la del panel de un tenant cuando están las dos abiertas.
+export const metadata: Metadata = {
+  title: 'Panel Superadmin',
+}
 
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
