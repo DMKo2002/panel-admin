@@ -623,7 +623,7 @@ export default function SuscripcionSelector({
       )}
 
 
-      <div className="mt-10 space-y-1 text-xs text-zinc-400">
+      <div className="mt-10 pl-5 space-y-1 text-xs text-zinc-400">
         {paymentSettings.mercadopagoEnabled && (
           <>
             <p>El pago con Mercado Pago se procesa en su sitio seguro — nunca guardamos los datos de tu tarjeta.</p>
