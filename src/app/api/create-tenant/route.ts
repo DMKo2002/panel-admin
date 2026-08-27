@@ -73,9 +73,19 @@ export async function POST(req: Request) {
   }
 
   // Glow y Bazaar son templates de rubros que en general no manejan talle/
-  // color y usan foto de producto cuadrada — arrancan en modo simple con
-  // fotos 1:1 en vez del default de indumentaria (sizes_colors + 2:3). Ver
-  // mismo criterio en gounuri-web/src/app/api/create-tenant/route.ts.
+  // color y usan foto de producto cuadrada — fotos 1:1 en vez del default de
+  // indumentaria (2:3). Ver mismo criterio en
+  // gounuri-web/src/app/api/create-tenant/route.ts.
+  //
+  // (2026-08-27) Antes arrancaban en variant_mode='simple' (sin tabla de
+  // variantes para nada — ni siquiera la tabla libre). En la práctica los
+  // rubros que eligen estos templates (comida, productos por peso/cantidad,
+  // etc.) sí necesitan una tabla — la piden manualmente en Catálogo apenas
+  // arrancan (caso real: HAEJIN-HAEJIN, bazaar). Ahora arrancan directo con
+  // la tabla libre activada (variant_column_type='text') y los ejes ya
+  // nombrados con el caso de uso más común de estos rubros — el tenant
+  // puede cambiar los nombres de fila/columna en Catálogo en cualquier
+  // momento si no le sirven.
   const isSimpleTemplate = chosenTemplate === 'glow' || chosenTemplate === 'bazaar'
 
   // Crear store_config con atributos por defecto
@@ -87,7 +97,10 @@ export async function POST(req: Request) {
         { key: 'talle', label: 'Talle', type: 'select', options: ['XS','S','M','L','XL','XXL'] },
         { key: 'color', label: 'Color', type: 'text' },
       ],
-      variant_mode: isSimpleTemplate ? 'simple' : 'sizes_colors',
+      variant_mode: 'sizes_colors',
+      variant_column_type: isSimpleTemplate ? 'text' : 'color',
+      variant_row_label: isSimpleTemplate ? 'Cantidad' : null,
+      variant_column_label: isSimpleTemplate ? 'Peso' : null,
       product_image_ratio: isSimpleTemplate ? '1:1' : '2:3',
       mp_enabled: true,
       transfer_enabled: true,

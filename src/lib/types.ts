@@ -204,6 +204,11 @@ export interface Product {
   length_cm: number | null
   height_cm: number | null
   weight_kg: number | null
+  // Override puntual de los nombres de eje de la tabla libre para ESTE
+  // producto — null = usa el default del tenant (store_config.variant_row_label
+  // / variant_column_label). Solo tiene efecto si variant_column_type='text'.
+  row_label: string | null
+  column_label: string | null
   // Orden manual del tenant (menor = aparece primero). Se edita arrastrando
   // en /dashboard/productos ("Editar orden") y se refleja en /tienda y en
   // los destacados de la home de cada template.

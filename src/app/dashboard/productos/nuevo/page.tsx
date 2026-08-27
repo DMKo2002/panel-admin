@@ -83,6 +83,7 @@ export default function NuevoProductoPage() {
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
   const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
   const [initialSizes, setInitialSizes] = useState<string[] | null>(null)
+  const [initialColors, setInitialColors] = useState<string[] | undefined>(undefined)
   const [variantMode, setVariantMode] = useState<'sizes_colors' | 'simple'>('sizes_colors')
   const [configLoaded, setConfigLoaded] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -95,6 +96,10 @@ export default function NuevoProductoPage() {
   const [columnType, setColumnType] = useState<'color' | 'text'>('color')
   const [rowLabel, setRowLabel] = useState('')
   const [columnLabel, setColumnLabel] = useState('')
+  // Override puntual para ESTE producto nuevo (vacío = usa el default del
+  // tenant de arriba) — ver mismo campo en productos/[id]/page.tsx.
+  const [productRowLabel, setProductRowLabel] = useState('')
+  const [productColumnLabel, setProductColumnLabel] = useState('')
 
   useEffect(() => {
     // Límites del plan — si el endpoint falla, no bloquear (best effort)
@@ -134,10 +139,18 @@ export default function NuevoProductoPage() {
 
       if (mode === 'simple') { setInitialSizes([]); setConfigLoaded(true); return }
 
-      // Sizes from tenant config
+      // Sizes from tenant config — si es tabla libre (columnType='text') y el
+      // tenant no configuró talles/opciones propias, no tiene sentido arrancar
+      // con talles de indumentaria (XS..XL): arranca en un 1x1 en blanco para
+      // que cargue sus propias filas/columnas desde cero (mismo criterio que
+      // ya usa productos/[id]/page.tsx para un producto existente sin variantes).
+      const isTextMode = (configData as any)?.variant_column_type === 'text'
       const sizeAttr = allAttrs.find(a => SIZE_KEYS.includes(a.key))
-      const sizes = sizeAttr?.options?.length ? sizeAttr.options : ['XS', 'S', 'M', 'L', 'XL']
+      const sizes = sizeAttr?.options?.length
+        ? sizeAttr.options
+        : isTextMode ? [''] : ['XS', 'S', 'M', 'L', 'XL']
       setInitialSizes(sizes)
+      if (isTextMode) setInitialColors([''])
       setConfigLoaded(true)
     }
     load()
@@ -241,6 +254,8 @@ export default function NuevoProductoPage() {
           length_cm: lengthCm ? Number(lengthCm) : null,
           height_cm: heightCm ? Number(heightCm) : null,
           weight_kg: weightKg ? Number(weightKg) : null,
+          row_label: productRowLabel.trim() || null,
+          column_label: productColumnLabel.trim() || null,
         })
         .select().single()
       if (productError) throw productError
@@ -490,19 +505,51 @@ export default function NuevoProductoPage() {
           variantMode === 'simple' ? (
             <SimpleVariantForm ref={simpleRef} showRetail={showRetail} showWholesale={showWholesale} showDiscount={showDiscount} />
           ) : initialSizes && (
-            <VariantMatrix
-              ref={matrixRef}
-              mode="create"
-              initialSizes={initialSizes}
-              favoriteColors={favoriteColors}
-              onToggleFavorite={toggleFavorite}
-              columnType={columnType}
-              rowLabel={rowLabel}
-              columnLabel={columnLabel}
-              showRetail={showRetail}
-              showWholesale={showWholesale}
-              showDiscount={showDiscount}
-            />
+            <>
+              {columnType === 'text' && (
+                <div className="flex flex-wrap gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">
+                      Nombre de fila (solo este producto)
+                    </label>
+                    <input
+                      className="input text-sm max-w-[220px]"
+                      value={productRowLabel}
+                      onChange={e => setProductRowLabel(e.target.value)}
+                      placeholder={rowLabel || 'Fila'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">
+                      Nombre de columna (solo este producto)
+                    </label>
+                    <input
+                      className="input text-sm max-w-[220px]"
+                      value={productColumnLabel}
+                      onChange={e => setProductColumnLabel(e.target.value)}
+                      placeholder={columnLabel || 'Columna'}
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-400 w-full">
+                    Vacío = usa el default de la tienda (“{rowLabel || 'Fila'}” / “{columnLabel || 'Columna'}”, configurado en Mi Tienda &gt; Catálogo). Completar acá solo cambia el nombre para este producto puntual.
+                  </p>
+                </div>
+              )}
+              <VariantMatrix
+                ref={matrixRef}
+                mode="create"
+                initialSizes={initialSizes}
+                initialColors={initialColors}
+                favoriteColors={favoriteColors}
+                onToggleFavorite={toggleFavorite}
+                columnType={columnType}
+                rowLabel={productRowLabel.trim() || rowLabel}
+                columnLabel={productColumnLabel.trim() || columnLabel}
+                showRetail={showRetail}
+                showWholesale={showWholesale}
+                showDiscount={showDiscount}
+              />
+            </>
           )
         )}
 

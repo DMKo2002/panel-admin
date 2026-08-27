@@ -188,7 +188,14 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
   // ── Size (row) management ──────────────────────────────────────────────────
   function addSize() {
-    const newSize = ''
+    // Nombre único (nunca en blanco) para evitar que dos filas nuevas sin
+    // renombrar todavía compartan la misma cellKey y se pisen los datos
+    // entre sí — mismo criterio que addColor() de acá abajo.
+    const existing = new Set(sizes)
+    let candidate = 'fila'
+    let n = 2
+    while (existing.has(candidate)) { candidate = `fila-${n++}` }
+    const newSize = candidate
     setSizes(prev => [...prev, newSize])
     setCells(prev => {
       const next = { ...prev }
@@ -221,6 +228,13 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
   function renameSize(idx: number, newName: string) {
     const oldName = sizes[idx]
+    if (oldName === newName) return
+    // Mismo resguardo que renameColor(): si ya existe OTRA fila con ese
+    // mismo nombre, renombrar acá pisaría sus datos al compartir cellKey.
+    const trimmedNew = newName.trim()
+    if (trimmedNew && sizes.some((s, i) => i !== idx && s.trim().toLowerCase() === trimmedNew.toLowerCase())) {
+      return
+    }
     setSizes(prev => prev.map((s, i) => i === idx ? newName : s))
     setCells(prev => {
       const next = { ...prev }

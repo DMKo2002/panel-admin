@@ -97,6 +97,12 @@ export default function EditarProductoPage() {
   const [columnType, setColumnType] = useState<'color' | 'text'>('color')
   const [rowLabel, setRowLabel] = useState('')
   const [columnLabel, setColumnLabel] = useState('')
+  // Override PUNTUAL de este producto — vacío = usa el default del tenant
+  // (rowLabel/columnLabel de arriba, que sale de store_config). Persiste en
+  // products.row_label/column_label, a diferencia del default que es por
+  // tenant y aplica a todos los productos.
+  const [productRowLabel, setProductRowLabel] = useState('')
+  const [productColumnLabel, setProductColumnLabel] = useState('')
 
   // Basic product fields
   const [name, setName] = useState('')
@@ -171,6 +177,8 @@ export default function EditarProductoPage() {
       setLengthCm(product.length_cm != null ? String(product.length_cm) : '')
       setHeightCm(product.height_cm != null ? String(product.height_cm) : '')
       setWeightKg(product.weight_kg != null ? String(product.weight_kg) : '')
+      setProductRowLabel(product.row_label ?? '')
+      setProductColumnLabel(product.column_label ?? '')
 
       // Categorías (multi) — vienen de la tabla puente product_categories.
       // Fallback a category_id para productos viejos creados antes de la
@@ -435,6 +443,8 @@ export default function EditarProductoPage() {
         length_cm: lengthCm ? Number(lengthCm) : null,
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
+        row_label: productRowLabel.trim() || null,
+        column_label: productColumnLabel.trim() || null,
       }).eq('id', id)
       if (prodErr) throw prodErr
 
@@ -469,6 +479,14 @@ export default function EditarProductoPage() {
         ? (simpleRef.current ? [{ ...simpleRef.current.getVariant(), size: null, color: null, colorHex: null, attrs: {} }] : [])
         : (matrixRef.current?.getVariants() ?? [])
 
+      // IDs de variantes recién insertadas en ESTE guardado (sin v.id todavía
+      // porque son celdas nuevas de la matriz) — hay que sumarlas a
+      // keptVariantIds más abajo, si no la limpieza de huérfanas de abajo las
+      // toma como huérfanas y las borra al toque (bug real visto en HaeJin:
+      // agregar una fila/columna nueva a la tabla libre y guardar la borraba
+      // en el mismo guardado, porque recién creada nunca contaba como "kept").
+      const newlyCreatedVariantIds: string[] = []
+
       for (const v of variantsToSave as any[]) {
         const attrs = { ...(v.attrs ?? {}), ...extraAttrValues }
         const rules: any[] = []
@@ -488,6 +506,7 @@ export default function EditarProductoPage() {
             .select().single()
           if (nvErr) throw nvErr
           if (nv) {
+            newlyCreatedVariantIds.push(nv.id)
             if (v.retailPrice > 0) rules.push({ variant_id: nv.id, type: 'retail', min_qty: 1, price: v.retailPrice, compare_at_price: v.retailCompareAt > 0 ? v.retailCompareAt : null, active: true })
             if (v.wholesalePrice > 0) rules.push({ variant_id: nv.id, type: 'wholesale', min_qty: v.wholesaleMinQty || 6, price: v.wholesalePrice, compare_at_price: v.wholesaleCompareAt > 0 ? v.wholesaleCompareAt : null, active: true })
             if (rules.length > 0) { const { error: rErr } = await supabase.from('price_rules').insert(rules); if (rErr) throw rErr }
@@ -503,7 +522,7 @@ export default function EditarProductoPage() {
       // tienda aunque el producto ya esté configurado como simple. Bug real
       // visto con HaeJin-HaeJin (2026-08): 2 de 3 productos migrados a
       // "simple" seguían mostrando talles en el storefront.
-      const keptVariantIds = (variantsToSave as any[]).filter(v => v.id).map(v => v.id)
+      const keptVariantIds = [...(variantsToSave as any[]).filter(v => v.id).map(v => v.id), ...newlyCreatedVariantIds]
       const { data: existingVariantRows } = await supabase.from('variants').select('id').eq('product_id', id)
       const orphanVariantIds = (existingVariantRows ?? [])
         .map((v: any) => v.id)
@@ -894,25 +913,56 @@ export default function EditarProductoPage() {
           variantMode === 'simple' ? (
             <SimpleVariantForm key={matrixVersion} ref={simpleRef} initial={simpleInitial} showRetail={showRetail} showWholesale={showWholesale} showDiscount={showDiscount} />
           ) : (
-            <VariantMatrix
-              key={matrixVersion}
-              ref={matrixRef}
-              mode="edit"
-              initialSizes={matrixInitialSizes}
-              initialColors={matrixInitialColors}
-              initialColorHexes={matrixInitialColorHexes}
-              initialCells={matrixInitialCells}
-              onRemoveColor={(color) => removeVariantGroup('color', color)}
-              onRemoveSize={(size) => removeVariantGroup('size', size)}
-              favoriteColors={favoriteColors}
-              onToggleFavorite={toggleFavorite}
-              columnType={columnType}
-              rowLabel={rowLabel}
-              columnLabel={columnLabel}
-              showRetail={showRetail}
-              showWholesale={showWholesale}
-              showDiscount={showDiscount}
-            />
+            <>
+              {columnType === 'text' && (
+                <div className="flex flex-wrap gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">
+                      Nombre de fila (solo este producto)
+                    </label>
+                    <input
+                      className="input text-sm max-w-[220px]"
+                      value={productRowLabel}
+                      onChange={e => setProductRowLabel(e.target.value)}
+                      placeholder={rowLabel || 'Fila'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">
+                      Nombre de columna (solo este producto)
+                    </label>
+                    <input
+                      className="input text-sm max-w-[220px]"
+                      value={productColumnLabel}
+                      onChange={e => setProductColumnLabel(e.target.value)}
+                      placeholder={columnLabel || 'Columna'}
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-400 w-full">
+                    Vacío = usa el default de la tienda (“{rowLabel || 'Fila'}” / “{columnLabel || 'Columna'}”, configurado en Mi Tienda &gt; Catálogo). Completar acá solo cambia el nombre para este producto puntual.
+                  </p>
+                </div>
+              )}
+              <VariantMatrix
+                key={matrixVersion}
+                ref={matrixRef}
+                mode="edit"
+                initialSizes={matrixInitialSizes}
+                initialColors={matrixInitialColors}
+                initialColorHexes={matrixInitialColorHexes}
+                initialCells={matrixInitialCells}
+                onRemoveColor={(color) => removeVariantGroup('color', color)}
+                onRemoveSize={(size) => removeVariantGroup('size', size)}
+                favoriteColors={favoriteColors}
+                onToggleFavorite={toggleFavorite}
+                columnType={columnType}
+                rowLabel={productRowLabel.trim() || rowLabel}
+                columnLabel={productColumnLabel.trim() || columnLabel}
+                showRetail={showRetail}
+                showWholesale={showWholesale}
+                showDiscount={showDiscount}
+              />
+            </>
           )
         )}
 

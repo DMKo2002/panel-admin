@@ -13,7 +13,13 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const { productId, by, value } = await req.json()
-  if (!productId || !by || !value) {
+  // OJO: "value" puede ser legítimamente una cadena vacía (variantes viejas
+  // sin talle/color, o una fila/columna de la tabla libre que nunca se
+  // llegó a nombrar) — un chequeo con "!value" las trata como "falta el
+  // dato" y bloquea el borrado con este mismo error 400, aunque productId
+  // y by estén perfectos. Se valida presencia real (undefined/null) en vez
+  // de truthiness.
+  if (!productId || !by || value === undefined || value === null) {
     return NextResponse.json({ error: 'Faltan datos (productId, by, value)' }, { status: 400 })
   }
   if (by !== 'color' && by !== 'size') {
