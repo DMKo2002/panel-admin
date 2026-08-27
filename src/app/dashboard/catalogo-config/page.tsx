@@ -384,8 +384,8 @@ export default function CatalogoConfigPage() {
               <p className="text-xs text-zinc-400 mt-1">Se usa en ancho, largo y altura de cada producto, y en la etiqueta de envío.</p>
             </div>
           </div>
-          <p className="text-xs text-amber-600">
-            Ojo: cambiar una unidad NO convierte los valores ya cargados en tus productos — solo cambia cómo se muestran. Si ya cargaste medidas, revisalas después de cambiar acá.
+          <p className="text-xs text-zinc-400">
+            Cambiar una unidad NO convierte los valores ya cargados en tus productos — solo cambia cómo se muestran. Si ya cargaste medidas, revisalas después de cambiar acá.
           </p>
         </div>
 
