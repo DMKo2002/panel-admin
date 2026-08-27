@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     if (variantIds.length > 0) {
       const { data: variantRows } = await supabase
         .from('variants')
-        .select('id, products (width_cm, length_cm, height_cm, weight_kg)')
+        .select('id, products (width_cm, length_cm, height_cm, weight_kg, weight_unit, dimension_unit)')
         .in('id', variantIds)
       for (const v of variantRows ?? []) {
         const p: any = Array.isArray((v as any).products) ? (v as any).products[0] : (v as any).products
@@ -63,6 +63,12 @@ export async function GET(req: NextRequest) {
           length: p.length_cm,
           height: p.height_cm,
           weight: p.weight_kg,
+          // Unidades propias del producto — null cae al default del tenant.
+          // Dos productos del mismo pedido pueden estar cargados en unidades
+          // distintas (fideos en g, arroz en kg), así que la unidad viaja
+          // pegada a cada valor y la conversión se hace al sumar.
+          weightUnit:    p.weight_unit ?? null,
+          dimensionUnit: p.dimension_unit ?? null,
         }
       }
     }

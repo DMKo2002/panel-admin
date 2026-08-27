@@ -8,6 +8,7 @@ import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronR
 import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, FavoriteColor } from '@/components/VariantMatrix'
 import VariantList, { VariantListHandle, ListVariantData } from '@/components/VariantList'
 import { buildDisplayNameByRawColor } from '@/lib/colorNames'
+import { WEIGHT_UNIT_LABELS, LENGTH_UNIT_LABELS, effectiveWeightUnit, effectiveDimensionUnit } from '@/lib/units'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -102,8 +103,12 @@ export default function EditarProductoPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [storeDomain, setStoreDomain] = useState<string>('')
   const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
+  // Unidades por defecto de la tienda (store_config)
   const [weightUnit, setWeightUnit] = useState<string>('kg')
   const [dimensionUnit, setDimensionUnit] = useState<string>('cm')
+  // Override propio de ESTE producto — vacío = usa el de la tienda.
+  const [productWeightUnit, setProductWeightUnit] = useState<string>('')
+  const [productDimensionUnit, setProductDimensionUnit] = useState<string>('')
   const [productSlug, setProductSlug] = useState<string>('')
   const [showRetail, setShowRetail] = useState(true)
   const [showWholesale, setShowWholesale] = useState(true)
@@ -196,6 +201,8 @@ export default function EditarProductoPage() {
       setHeightCm(product.height_cm != null ? String(product.height_cm) : '')
       setWeightKg(product.weight_kg != null ? String(product.weight_kg) : '')
       setProductRowLabel(product.row_label ?? '')
+      setProductWeightUnit(product.weight_unit ?? '')
+      setProductDimensionUnit(product.dimension_unit ?? '')
       setProductColumnLabel(product.column_label ?? '')
 
       // Categorías (multi) — vienen de la tabla puente product_categories.
@@ -465,6 +472,8 @@ export default function EditarProductoPage() {
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
         row_label: productRowLabel.trim() || null,
+        weight_unit: productWeightUnit || null,
+        dimension_unit: productDimensionUnit || null,
         column_label: productColumnLabel.trim() || null,
       }).eq('id', id)
       if (prodErr) throw prodErr
@@ -830,23 +839,48 @@ export default function EditarProductoPage() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-zinc-700">Dimensiones y peso</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Opcional — por ahora es solo un dato de ficha, todavía no se usa para calcular el envío</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Opcional — se muestran en la etiqueta de envío. Todavía no se usan para calcular el costo del envío</p>
           </div>
+
+          {/* Unidades de ESTE producto — permiten que convivan en la misma
+              tienda un paquete de fideos en gramos y una bolsa de arroz en
+              kilos. Vacío = usa la unidad configurada en Catálogo. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de medidas</label>
+              <select className="input text-sm" value={productDimensionUnit} onChange={e => setProductDimensionUnit(e.target.value)}>
+                <option value="">Usar la de la tienda ({dimensionUnit})</option>
+                {Object.entries(LENGTH_UNIT_LABELS).map(([u, label]) => (
+                  <option key={u} value={u}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso / contenido</label>
+              <select className="input text-sm" value={productWeightUnit} onChange={e => setProductWeightUnit(e.target.value)}>
+                <option value="">Usar la de la tienda ({weightUnit})</option>
+                {Object.entries(WEIGHT_UNIT_LABELS).map(([u, label]) => (
+                  <option key={u} value={u}>{label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Ancho ({dimensionUnit})</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Ancho ({effectiveDimensionUnit(productDimensionUnit, dimensionUnit)})</label>
               <input className="input" type="number" min={0} step="0.1" value={widthCm} onChange={e => setWidthCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Largo ({dimensionUnit})</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Largo ({effectiveDimensionUnit(productDimensionUnit, dimensionUnit)})</label>
               <input className="input" type="number" min={0} step="0.1" value={lengthCm} onChange={e => setLengthCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Altura ({dimensionUnit})</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Altura ({effectiveDimensionUnit(productDimensionUnit, dimensionUnit)})</label>
               <input className="input" type="number" min={0} step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso ({weightUnit})</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Peso ({effectiveWeightUnit(productWeightUnit, weightUnit)})</label>
               <input className="input" type="number" min={0} step="0.01" value={weightKg} onChange={e => setWeightKg(e.target.value)} placeholder="0" />
             </div>
           </div>

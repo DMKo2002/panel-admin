@@ -1,4 +1,9 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import {
+  isMassUnit, isVolumeUnit, toGrams, toMilliliters,
+  formatMassTotal, formatVolumeTotal, formatNumber,
+  effectiveWeightUnit, effectiveDimensionUnit,
+} from '@/lib/units'
 
 // Algunos colores se cargaron eligiendo el color con el selector visual de
 // Panel Admin (VariantMatrix), que guarda el código hex como si fuera el
@@ -188,18 +193,17 @@ interface EtiquetaEnvioPDFProps {
   storeName: string
   storeAddress?: string
   storeWhatsapp?: string
-  // variantId -> { width, length, height, weight } del producto de esa
-  // variante. Lo arma el endpoint (products no cuelga del pedido).
-  dimsByVariant?: Record<string, { width?: number | null; length?: number | null; height?: number | null; weight?: number | null }>
+  // variantId -> medidas y peso del producto de esa variante, cada uno con
+  // SU unidad (un pedido puede mezclar productos en g y en kg). Lo arma el
+  // endpoint (products no cuelga del pedido).
+  dimsByVariant?: Record<string, {
+    width?: number | null; length?: number | null; height?: number | null; weight?: number | null
+    weightUnit?: string | null; dimensionUnit?: string | null
+  }>
   // Unidades configuradas por el tenant en Catálogo. Los valores se guardan
   // tal cual en esa unidad, sin conversión.
   weightUnit?: string
   dimensionUnit?: string
-}
-
-// Formatea un número sacando los decimales que no aportan (2.50 -> "2,5").
-function fmtNum(n: number): string {
-  return String(Math.round(n * 1000) / 1000).replace('.', ',')
 }
 
 export function EtiquetaEnvioPDF({
@@ -209,28 +213,36 @@ export function EtiquetaEnvioPDF({
   const customer = order.customers
   const items: any[] = order.order_items ?? []
 
-  // Peso total del envío = peso de cada producto x cantidad pedida. Solo se
-  // muestra si al menos un producto tiene peso cargado.
-  let totalWeight = 0
-  let hasWeight = false
+  // Peso total del envío = peso de cada producto x cantidad pedida.
+  //
+  // Cada producto puede estar cargado en su propia unidad, así que NO se
+  // pueden sumar los números crudos (120 g + 2 kg no es 122). Se convierte
+  // todo a una base común (gramos para peso, mililitros para volumen) y
+  // recién ahí se suma. Peso y volumen van por separado: mezclarlos daría
+  // un total sin sentido.
+  let totalGrams = 0
+  let totalMl = 0
   for (const it of items) {
     const d = dimsByVariant[it.variant_id]
-    if (d?.weight != null && d.weight > 0) {
-      hasWeight = true
-      totalWeight += Number(d.weight) * (it.quantity ?? 1)
-    }
+    if (!d || d.weight == null || d.weight <= 0) continue
+    const unit = effectiveWeightUnit(d.weightUnit, weightUnit)
+    const cantidad = Number(d.weight) * (it.quantity ?? 1)
+    if (isVolumeUnit(unit)) totalMl += toMilliliters(cantidad, unit)
+    else if (isMassUnit(unit)) totalGrams += toGrams(cantidad, unit)
   }
+  const hasWeight = totalGrams > 0 || totalMl > 0
 
   // Medidas por producto — no tiene sentido sumarlas entre productos
-  // distintos, así que se listan una por línea.
+  // distintos, así que se listan una por línea, cada una en SU unidad.
   const itemsWithDims = items
     .map(it => {
       const d = dimsByVariant[it.variant_id]
       if (!d) return null
       const parts = [d.width, d.length, d.height]
       if (parts.every(p => p == null || p === 0)) return null
-      const medida = parts.map(p => (p == null || p === 0 ? '—' : fmtNum(Number(p)))).join(' x ')
-      return { name: it.product_name, medida: `${medida} ${dimensionUnit}` }
+      const unit = effectiveDimensionUnit(d.dimensionUnit, dimensionUnit)
+      const medida = parts.map(p => (p == null || p === 0 ? '—' : formatNumber(Number(p)))).join(' x ')
+      return { name: it.product_name, medida: `${medida} ${unit}` }
     })
     .filter(Boolean) as Array<{ name: string; medida: string }>
 
@@ -303,9 +315,14 @@ export function EtiquetaEnvioPDF({
         {showDims && (
           <View style={styles.dimsBox}>
             <Text style={styles.itemsTitle}>Peso y medidas</Text>
-            {hasWeight && (
+            {totalGrams > 0 && (
               <Text style={styles.dimsTotal}>
-                Peso total: {fmtNum(totalWeight)} {weightUnit}
+                Peso total: {formatMassTotal(totalGrams)}
+              </Text>
+            )}
+            {totalMl > 0 && (
+              <Text style={styles.dimsTotal}>
+                Contenido total: {formatVolumeTotal(totalMl)}
               </Text>
             )}
             {itemsWithDims.map((d, i) => (

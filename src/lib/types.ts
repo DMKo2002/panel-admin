@@ -215,6 +215,11 @@ export interface Product {
   // / variant_column_label). Solo tiene efecto si variant_column_type='text'.
   row_label: string | null
   column_label: string | null
+  // Unidades propias de ESTE producto — null = usa las de store_config.
+  // Permiten que en la misma tienda convivan un producto en gramos y otro en
+  // kilos. Igual que a nivel tienda, el valor numérico NO se convierte.
+  weight_unit: string | null
+  dimension_unit: string | null
   // Orden manual del tenant (menor = aparece primero). Se edita arrastrando
   // en /dashboard/productos ("Editar orden") y se refleja en /tienda y en
   // los destacados de la home de cada template.
