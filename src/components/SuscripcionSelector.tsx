@@ -21,7 +21,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
-import { PLANS, priceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
+import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
 import type { PlatformPaymentSettings } from '@/lib/platformBilling'
 import TransferPaymentBlock from '@/components/TransferPaymentBlock'
@@ -121,6 +121,8 @@ export default function SuscripcionSelector({
   mpPreapprovalId,
   billingPausedByUser,
   legacyManualBilling,
+  manualPaidUntil,
+  manualPaymentTerm,
   paymentHistory,
 }: {
   currentPlan: string
@@ -132,7 +134,13 @@ export default function SuscripcionSelector({
   mpPreapprovalId: string | null
   billingPausedByUser: boolean
   legacyManualBilling: boolean
-  paymentHistory: { id: string; amount: number; status: string; created_at: string; mpPaymentId: string | null; mpPreapprovalId: string | null }[]
+  // Plan pagado a mano por superadmin vía transferencia (2026-08-27, bug
+  // reportado por David en QA -- ver mark-plan-paid/route.ts). No trae
+  // mp_preapproval_id ni next_billing_date, así que sin esto el resumen de
+  // arriba no tenía forma de saber que el tenant tiene un plan pago vigente.
+  manualPaidUntil: string | null
+  manualPaymentTerm: BillingTerm | null
+  paymentHistory: { id: string; amount: number; status: string; created_at: string; mpPaymentId: string | null; mpPreapprovalId: string | null; metodo: string }[]
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -226,7 +234,13 @@ export default function SuscripcionSelector({
   // (activa o recién cancelada) -- si todavía no eligió ningún plan, no hay
   // nada que mostrar ahí y las cards de plan son lo único que tiene sentido.
   const isPaidPlan = isPlanId(currentPlan)
-  const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser)
+  // Pagado a mano por superadmin (transferencia, ver mark-plan-paid/route.ts)
+  // -- manualPaidUntil a futuro es la única señal de que hay un plan pago
+  // vigente que no pasó por Mercado Pago. Si ya venció, cron/enforce ya bajó
+  // plan a 'free' y currentPlan deja de ser un PlanId, así que
+  // isManuallyPaid se apaga solo sin tener que comparar fechas acá.
+  const isManuallyPaid = isPaidPlan && !trialing && !mpPreapprovalId && !billingPausedByUser && !!manualPaidUntil
+  const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser || isManuallyPaid)
   const hasTrialSummary = trialing
   // Sin suscripción activa (2026-08-26, pedido de ARam -- reportado con los
   // tenants Test2 y Beck): ni pago vigente ni en prueba -- plan quedó en
@@ -260,11 +274,26 @@ export default function SuscripcionSelector({
           tenant -- legacyManualBilling ya cortó con un return antes de acá. */}
       {hasPaidSummary && (() => {
         const planActual = PLANES.find(p => p.id === currentPlan)
-        // Mismo precio con descuento que transferencia (unificado 2026-08-26,
-        // pedido de ARam) -- ver comentario en priceForTerm, lib/plans.ts.
+        // 2026-08-26 (bug reportado por David en QA): esto es lo que
+        // Mercado Pago va a volver a cobrar -- el descuento por plazo es
+        // solo para transferencia, ver fullPriceForTerm en lib/plans.ts.
+        // No aplica a un plan pagado a mano (no hay auto-renovación real).
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
-          ? priceForTerm(PLANS[currentPlan], billingTerm ?? 1)
+          ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
           : null
+        // 2026-08-27 (bug reportado por David en QA): unifica el vencimiento
+        // /ciclo/estado entre los dos flujos posibles acá -- Mercado Pago
+        // (mpPreapprovalId + nextBillingDate/billingTerm) y pagado a mano por
+        // superadmin vía transferencia (manualPaidUntil/manualPaymentTerm,
+        // ver mark-plan-paid/route.ts). Antes esta sección solo sabía leer
+        // los campos de MP, así que un tenant marcado como pagado a mano
+        // (aunque superadmin lo mostrara "Premium por 31 días") no aparecía
+        // acá adentro -- hasPaidSummary daba false y quedaba mudo.
+        const vencimiento = manualPaidUntil ?? nextBillingDate
+        const cicloTexto = manualPaymentTerm
+          ? TERM_LABEL[manualPaymentTerm]
+          : (billingTerm ? TERM_LABEL[billingTerm] : '—')
+        const estadoTexto = isManuallyPaid ? 'Plan activo' : (mpPreapprovalId ? 'Plan activo' : 'Cancelada')
         return (
           <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
             <div className="hidden sm:grid grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] gap-3 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -280,22 +309,22 @@ export default function SuscripcionSelector({
               onClick={() => setSubDetailOpen(o => !o)}
               className="grid w-full grid-cols-2 sm:grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] items-center gap-x-3 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
             >
-              <span className="text-sm text-zinc-700">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span>
+              <span className="text-sm text-zinc-700">{estadoTexto}</span>
               <span className="font-semibold text-zinc-900">{planActual?.nombre ?? currentPlan}</span>
-              <span className="text-sm text-zinc-700">{billingTerm ? TERM_LABEL[billingTerm] : '—'}</span>
-              <span className="text-sm text-zinc-700 sm:text-left">{nextBillingDate ? formatFecha(nextBillingDate) : '—'}</span>
-              <span className="text-sm text-zinc-700">{formatARS(precioRenovacion ?? 0)}</span>
+              <span className="text-sm text-zinc-700">{cicloTexto}</span>
+              <span className="text-sm text-zinc-700 sm:text-left">{vencimiento ? formatFecha(vencimiento) : '—'}</span>
+              <span className="text-sm text-zinc-700">{precioRenovacion != null ? formatARS(precioRenovacion) : '—'}</span>
               <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
             </button>
             {subDetailOpen && (
               <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
                 <p className="font-bold text-zinc-900">Detalles de Suscripción</p>
                 <div className="mt-2 space-y-1.5">
-                  <p>Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span></p>
+                  <p>Estado: <span className="font-medium text-zinc-900">{estadoTexto}</span></p>
                   <p>Suscripción: <span className="font-medium text-zinc-900">{planActual?.nombre ?? currentPlan}</span></p>
-                  <p>Ciclo de facturación: {billingTerm ? TERM_LABEL[billingTerm] : '—'}</p>
-                  <p>Vencimiento: {nextBillingDate ? formatFecha(nextBillingDate) : '—'}</p>
-                  <p>Precio de renovación: {formatARS(precioRenovacion ?? 0)}</p>
+                  <p>Ciclo de facturación: {cicloTexto}</p>
+                  <p>Vencimiento: {vencimiento ? formatFecha(vencimiento) : '—'}</p>
+                  <p>Precio de renovación: {precioRenovacion != null ? formatARS(precioRenovacion) : '—'}</p>
                 </div>
                 {mpPreapprovalId && (
                   <p>
@@ -303,12 +332,12 @@ export default function SuscripcionSelector({
                   </p>
                 )}
 
-                {mpPreapprovalId ? (
+                {(isManuallyPaid || mpPreapprovalId) ? (
                   showCancelConfirm ? (
                     <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       <p>
                         Vas a poder seguir usando tu tienda
-                        {nextBillingDate ? <> hasta el <strong>{formatFecha(nextBillingDate)}</strong></> : ''}.
+                        {vencimiento ? <> hasta el <strong>{formatFecha(vencimiento)}</strong></> : ''}.
                         Después de esa fecha no te volvemos a cobrar y tu plan pasa a gratuito.
                       </p>
                       <div className="mt-3">
@@ -365,13 +394,15 @@ export default function SuscripcionSelector({
                   )
                 ) : (
                   <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
-                    Diste de baja tu suscripción{nextBillingDate ? <> — seguís con acceso hasta el <strong>{formatFecha(nextBillingDate)}</strong></> : ''}.
+                    Diste de baja tu suscripción{vencimiento ? <> — seguís con acceso hasta el <strong>{formatFecha(vencimiento)}</strong></> : ''}.
                   </p>
                 )}
 
-                <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
-                  Ver historial de pago
-                </a>
+                {paymentHistory.length > 0 && (
+                  <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
+                    Ver historial de pago
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -425,9 +456,11 @@ export default function SuscripcionSelector({
                 <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
                   Estás probando el plan <strong>{nombrePlan}</strong> sin cargo{trialEndsAt ? <> hasta el <strong>{formatFecha(trialEndsAt)}</strong></> : ''}. Elegí cómo pagar para que tu tienda siga activa cuando termine la prueba.
                 </p>
-                <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
-                  Ver historial de pago
-                </a>
+                {paymentHistory.length > 0 && (
+                  <a href="#historial-de-pago" className="mt-3 inline-block text-xs font-medium text-zinc-500 underline hover:text-zinc-900">
+                    Ver historial de pago
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -566,16 +599,18 @@ export default function SuscripcionSelector({
               <p className="mt-1 min-h-[60px] text-sm text-zinc-600">{card.descripcion}</p>
 
               {term > 1 ? (
-                // Un solo precio para los dos métodos de pago (unificado
-                // 2026-08-26, pedido de ARam) -- MP y transferencia cobran
-                // lo mismo con el descuento de plazo aplicado.
+                // 2026-08-26 (bug reportado por David en QA): precio de
+                // lista siempre acá, sin el descuento por plazo -- ese
+                // descuento es solo para transferencia (ver
+                // fullPriceForTerm en lib/plans.ts y el aviso de ahorro
+                // más abajo, junto al botón de transferencia).
                 <div className="mt-6">
                   <span className="text-3xl font-bold tracking-tight text-zinc-900">
-                    {formatARS(priceForTerm(card, term))}
+                    {formatARS(fullPriceForTerm(card, term))}
                   </span>
                   <span className="ml-1 text-sm text-zinc-500">/ {term} meses</span>
-                  <p className="mt-0.5 text-xs text-emerald-600">
-                    equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes — {Math.round(TERM_DISCOUNTS[term] * 100)}% off
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    equivale a {formatARS(Math.round(fullPriceForTerm(card, term) / term))}/mes
                   </p>
                 </div>
               ) : (
@@ -656,6 +691,11 @@ export default function SuscripcionSelector({
 
                   {paymentSettings.manualTransferEnabled && expandedPlan === card.id && (
                     <div className="mt-3">
+                      {term > 1 && (
+                        <p className="mb-2 text-xs font-medium text-emerald-600">
+                          Pagando por transferencia ahorrás {Math.round(TERM_DISCOUNTS[term] * 100)}% ({formatARS(fullPriceForTerm(card, term) - priceForTerm(card, term))}) sobre el precio de Mercado Pago.
+                        </p>
+                      )}
                       <TransferPaymentBlock
                         paymentSettings={paymentSettings}
                         planId={card.id}
@@ -681,6 +721,7 @@ export default function SuscripcionSelector({
             <table className="w-full text-left text-sm">
               <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
                 <tr>
+                  <th className="px-4 py-2 font-medium">Método</th>
                   <th className="px-4 py-2 font-medium">Identificación de pago</th>
                   <th className="px-4 py-2 font-medium">ID de suscripción</th>
                   <th className="px-4 py-2 font-medium">Servicio</th>
@@ -691,6 +732,7 @@ export default function SuscripcionSelector({
               <tbody>
                 {paymentHistory.map(p => (
                   <tr key={p.id} className="border-t border-zinc-100">
+                    <td className="px-4 py-2 text-zinc-700">{p.metodo}</td>
                     <td className="px-4 py-2 font-mono text-xs text-zinc-700">{p.mpPaymentId ?? '—'}</td>
                     <td className="px-4 py-2 font-mono text-xs text-zinc-500">{p.mpPreapprovalId ?? '—'}</td>
                     <td className="px-4 py-2 text-zinc-700">{PLANES.find(pl => pl.id === currentPlan)?.nombre ?? currentPlan}</td>

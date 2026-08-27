@@ -35,7 +35,15 @@ function addMonths(date: Date, months: number): Date {
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isSuperAdmin(user.email)) {
+  // 401 vs 403 separados (2026-08-27) — con el flujo de QA de David
+  // (probar como superadmin y como dueño de tienda en el mismo navegador)
+  // Supabase pisa la sesión de superadmin al loguearse como tenant en otra
+  // pestaña, y el mensaje genérico "No autorizado" no dejaba claro que
+  // hacía falta volver a iniciar sesión como superadmin.
+  if (!user) {
+    return NextResponse.json({ error: 'Tu sesión expiró o no estás logueado — recargá la página e iniciá sesión de nuevo como superadmin (si probaste una tienda como dueño en otra pestaña, eso pisa la sesión).' }, { status: 401 })
+  }
+  if (!isSuperAdmin(user.email)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -87,6 +95,24 @@ export async function POST(req: NextRequest) {
   const { data: updatedTenant, error } = await serviceClient
     .from('tenants').update(patch).eq('id', tenantId).select('name').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Registrar el cobro en billing_charges. 2026-08-27, bug reportado por
+  // David en QA: "Ver historial de pago" seguía sin aparecer para tenants
+  // pagados a mano -- el fix anterior (63a7056) solo cubrió la rama de MP en
+  // billing/webhook, esta ruta nunca insertaba acá. mp_payment_id/
+  // mp_preapproval_id quedan null (no es un cobro de MP) -- page.tsx los usa
+  // para mostrar "Transferencia" en vez de "Mercado Pago" en la columna
+  // Método del historial. Sin dedup por mp_payment_id (no aplica acá): cada
+  // click de "marcar como pagado" es un cobro real y distinto, a diferencia
+  // de los reintentos de notificación que sí puede mandar MP.
+  await serviceClient.from('billing_charges').insert({
+    tenant_id: tenantId,
+    amount,
+    status: 'approved',
+    status_detail: 'pago_manual',
+    mp_payment_id: null,
+    mp_preapproval_id: null,
+  })
 
   // Si estaba suspendida por trial vencido, exceso de cupo o vencimiento de
   // un plazo pago anterior, reactivarla — las suspensiones manuales
