@@ -72,15 +72,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: tenantError.message }, { status: 500 })
   }
 
+  // Glow y Bazaar son templates de rubros que en general no manejan talle/
+  // color y usan foto de producto cuadrada — arrancan en modo simple con
+  // fotos 1:1 en vez del default de indumentaria (sizes_colors + 2:3). Ver
+  // mismo criterio en gounuri-web/src/app/api/create-tenant/route.ts.
+  const isSimpleTemplate = chosenTemplate === 'glow' || chosenTemplate === 'bazaar'
+
   // Crear store_config con atributos por defecto
   const { error: configError } = await serviceClient
     .from('store_config')
     .insert({
       tenant_id: tenant.id,
-      variant_attributes: [
+      variant_attributes: isSimpleTemplate ? [] : [
         { key: 'talle', label: 'Talle', type: 'select', options: ['XS','S','M','L','XL','XXL'] },
         { key: 'color', label: 'Color', type: 'text' },
       ],
+      variant_mode: isSimpleTemplate ? 'simple' : 'sizes_colors',
+      product_image_ratio: isSimpleTemplate ? '1:1' : '2:3',
       mp_enabled: true,
       transfer_enabled: true,
       pickup_enabled: true,
