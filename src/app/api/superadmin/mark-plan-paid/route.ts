@@ -35,7 +35,15 @@ function addMonths(date: Date, months: number): Date {
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isSuperAdmin(user.email)) {
+  // 401 vs 403 separados (2026-08-27) — con el flujo de QA de David
+  // (probar como superadmin y como dueño de tienda en el mismo navegador)
+  // Supabase pisa la sesión de superadmin al loguearse como tenant en otra
+  // pestaña, y el mensaje genérico "No autorizado" no dejaba claro que
+  // hacía falta volver a iniciar sesión como superadmin.
+  if (!user) {
+    return NextResponse.json({ error: 'Tu sesión expiró o no estás logueado — recargá la página e iniciá sesión de nuevo como superadmin (si probaste una tienda como dueño en otra pestaña, eso pisa la sesión).' }, { status: 401 })
+  }
+  if (!isSuperAdmin(user.email)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

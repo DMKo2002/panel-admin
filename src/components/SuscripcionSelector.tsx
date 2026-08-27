@@ -121,6 +121,8 @@ export default function SuscripcionSelector({
   mpPreapprovalId,
   billingPausedByUser,
   legacyManualBilling,
+  manualPaidUntil,
+  manualPaymentTerm,
   paymentHistory,
 }: {
   currentPlan: string
@@ -132,6 +134,12 @@ export default function SuscripcionSelector({
   mpPreapprovalId: string | null
   billingPausedByUser: boolean
   legacyManualBilling: boolean
+  // Plan pagado a mano por superadmin vía transferencia (2026-08-27, bug
+  // reportado por David en QA -- ver mark-plan-paid/route.ts). No trae
+  // mp_preapproval_id ni next_billing_date, así que sin esto el resumen de
+  // arriba no tenía forma de saber que el tenant tiene un plan pago vigente.
+  manualPaidUntil: string | null
+  manualPaymentTerm: BillingTerm | null
   paymentHistory: { id: string; amount: number; status: string; created_at: string; mpPaymentId: string | null; mpPreapprovalId: string | null }[]
 }) {
   const [loading, setLoading] = useState<string | null>(null)
@@ -226,7 +234,13 @@ export default function SuscripcionSelector({
   // (activa o recién cancelada) -- si todavía no eligió ningún plan, no hay
   // nada que mostrar ahí y las cards de plan son lo único que tiene sentido.
   const isPaidPlan = isPlanId(currentPlan)
-  const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser)
+  // Pagado a mano por superadmin (transferencia, ver mark-plan-paid/route.ts)
+  // -- manualPaidUntil a futuro es la única señal de que hay un plan pago
+  // vigente que no pasó por Mercado Pago. Si ya venció, cron/enforce ya bajó
+  // plan a 'free' y currentPlan deja de ser un PlanId, así que
+  // isManuallyPaid se apaga solo sin tener que comparar fechas acá.
+  const isManuallyPaid = isPaidPlan && !trialing && !mpPreapprovalId && !billingPausedByUser && !!manualPaidUntil
+  const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser || isManuallyPaid)
   const hasTrialSummary = trialing
   // Sin suscripción activa (2026-08-26, pedido de ARam -- reportado con los
   // tenants Test2 y Beck): ni pago vigente ni en prueba -- plan quedó en
@@ -263,9 +277,23 @@ export default function SuscripcionSelector({
         // 2026-08-26 (bug reportado por David en QA): esto es lo que
         // Mercado Pago va a volver a cobrar -- el descuento por plazo es
         // solo para transferencia, ver fullPriceForTerm en lib/plans.ts.
+        // No aplica a un plan pagado a mano (no hay auto-renovación real).
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
           ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
           : null
+        // 2026-08-27 (bug reportado por David en QA): unifica el vencimiento
+        // /ciclo/estado entre los dos flujos posibles acá -- Mercado Pago
+        // (mpPreapprovalId + nextBillingDate/billingTerm) y pagado a mano por
+        // superadmin vía transferencia (manualPaidUntil/manualPaymentTerm,
+        // ver mark-plan-paid/route.ts). Antes esta sección solo sabía leer
+        // los campos de MP, así que un tenant marcado como pagado a mano
+        // (aunque superadmin lo mostrara "Premium por 31 días") no aparecía
+        // acá adentro -- hasPaidSummary daba false y quedaba mudo.
+        const vencimiento = isManuallyPaid ? manualPaidUntil : nextBillingDate
+        const cicloTexto = isManuallyPaid
+          ? (manualPaymentTerm ? TERM_LABEL[manualPaymentTerm] : '—')
+          : (billingTerm ? TERM_LABEL[billingTerm] : '—')
+        const estadoTexto = isManuallyPaid ? 'Plan activo' : (mpPreapprovalId ? 'Plan activo' : 'Cancelada')
         return (
           <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200">
             <div className="hidden sm:grid grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] gap-3 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -281,22 +309,22 @@ export default function SuscripcionSelector({
               onClick={() => setSubDetailOpen(o => !o)}
               className="grid w-full grid-cols-2 sm:grid-cols-[0.8fr_0.9fr_0.8fr_0.9fr_1fr_28px] items-center gap-x-3 gap-y-2 px-5 py-4 text-left transition-colors hover:bg-zinc-50"
             >
-              <span className="text-sm text-zinc-700">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span>
+              <span className="text-sm text-zinc-700">{estadoTexto}</span>
               <span className="font-semibold text-zinc-900">{planActual?.nombre ?? currentPlan}</span>
-              <span className="text-sm text-zinc-700">{billingTerm ? TERM_LABEL[billingTerm] : '—'}</span>
-              <span className="text-sm text-zinc-700 sm:text-left">{nextBillingDate ? formatFecha(nextBillingDate) : '—'}</span>
-              <span className="text-sm text-zinc-700">{formatARS(precioRenovacion ?? 0)}</span>
+              <span className="text-sm text-zinc-700">{cicloTexto}</span>
+              <span className="text-sm text-zinc-700 sm:text-left">{vencimiento ? formatFecha(vencimiento) : '—'}</span>
+              <span className="text-sm text-zinc-700">{precioRenovacion != null ? formatARS(precioRenovacion) : '—'}</span>
               <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${subDetailOpen ? 'rotate-90' : ''}`} />
             </button>
             {subDetailOpen && (
               <div className="border-t border-zinc-200 bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
                 <p className="font-bold text-zinc-900">Detalles de Suscripción</p>
                 <div className="mt-2 space-y-1.5">
-                  <p>Estado: <span className="font-medium text-zinc-900">{mpPreapprovalId ? 'Plan activo' : 'Cancelada'}</span></p>
+                  <p>Estado: <span className="font-medium text-zinc-900">{estadoTexto}</span></p>
                   <p>Suscripción: <span className="font-medium text-zinc-900">{planActual?.nombre ?? currentPlan}</span></p>
-                  <p>Ciclo de facturación: {billingTerm ? TERM_LABEL[billingTerm] : '—'}</p>
-                  <p>Vencimiento: {nextBillingDate ? formatFecha(nextBillingDate) : '—'}</p>
-                  <p>Precio de renovación: {formatARS(precioRenovacion ?? 0)}</p>
+                  <p>Ciclo de facturación: {cicloTexto}</p>
+                  <p>Vencimiento: {vencimiento ? formatFecha(vencimiento) : '—'}</p>
+                  <p>Precio de renovación: {precioRenovacion != null ? formatARS(precioRenovacion) : '—'}</p>
                 </div>
                 {mpPreapprovalId && (
                   <p>
@@ -304,12 +332,16 @@ export default function SuscripcionSelector({
                   </p>
                 )}
 
-                {mpPreapprovalId ? (
+                {isManuallyPaid ? (
+                  <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
+                    Este plan lo activó el equipo de Gounuri (pago por transferencia){vencimiento ? <> — vigente hasta el <strong>{formatFecha(vencimiento)}</strong></> : ''}. Para renovarlo o cambiarlo, escribinos.
+                  </p>
+                ) : mpPreapprovalId ? (
                   showCancelConfirm ? (
                     <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       <p>
                         Vas a poder seguir usando tu tienda
-                        {nextBillingDate ? <> hasta el <strong>{formatFecha(nextBillingDate)}</strong></> : ''}.
+                        {vencimiento ? <> hasta el <strong>{formatFecha(vencimiento)}</strong></> : ''}.
                         Después de esa fecha no te volvemos a cobrar y tu plan pasa a gratuito.
                       </p>
                       <div className="mt-3">
@@ -366,7 +398,7 @@ export default function SuscripcionSelector({
                   )
                 ) : (
                   <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
-                    Diste de baja tu suscripción{nextBillingDate ? <> — seguís con acceso hasta el <strong>{formatFecha(nextBillingDate)}</strong></> : ''}.
+                    Diste de baja tu suscripción{vencimiento ? <> — seguís con acceso hasta el <strong>{formatFecha(vencimiento)}</strong></> : ''}.
                   </p>
                 )}
 

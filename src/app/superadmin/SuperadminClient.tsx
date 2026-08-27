@@ -689,21 +689,21 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-900">
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Tienda</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Template</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Estado</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Plan</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Deuda</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Dominio / URL</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Owner</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Visitas / Pedidos</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Tienda</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Template</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Estado</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Plan</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Deuda</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Dominio / URL</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Owner</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Visitas / Pedidos</th>
               {/* Uso real vs. límite del plan (2026-08-18) — ver comentario en
                   superadmin/page.tsx. Antes esto solo lo veía cada tenant en
                   su propio "Plan y uso"; ahora vive acá para poder calibrar
                   los límites de los planes con datos de todos juntos. */}
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Uso (storage / productos)</th>
-              <th className="text-left px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Google Analytics</th>
-              <th className="text-right px-5 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">Acciones</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Uso (storage / productos)</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Google Analytics</th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
@@ -711,7 +711,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
               <tr key={tenant.id} className="bg-zinc-950 hover:bg-zinc-900 transition-colors">
 
                 {/* Nombre editable */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   {editingId === tenant.id ? (
                     <div className="flex items-center gap-2">
                       <input
@@ -753,14 +753,14 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 </td>
 
                 {/* Template */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TEMPLATE_COLORS[tenant.template] ?? 'bg-zinc-800 text-zinc-300'}`}>
                     {TEMPLATE_LABELS[tenant.template] ?? tenant.template}
                   </span>
                 </td>
 
                 {/* Estado */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[tenant.status] ?? 'bg-zinc-800 text-zinc-400'}`}>
                     {tenant.status}
                   </span>
@@ -769,7 +769,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 {/* Plan + estado (trial/activo/etc.) — el estado es el que
                     define si el cron de enforce puede llegar a suspender la
                     tienda; el badge de Plan solo dice qué plan tiene. */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   <div className="flex flex-col gap-1 items-start">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[tenant.plan] ?? 'bg-zinc-800 text-zinc-400'}`}>
                       {PLAN_LABELS[tenant.plan] ?? tenant.plan}
@@ -836,7 +836,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 </td>
 
                 {/* Deuda */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   {tenant.debe ? (
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-950 text-red-400">
                       Debe
@@ -851,11 +851,11 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                     mismo: antes esto se veía igual que un dominio ya en vivo,
                     y "Ver tienda" (más abajo) llevaba directo a una URL que
                     no resolvía nada (bug real 2026-08-26, HAEJIN_HAEJIN). */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   {tenant.domain ? (
                     <div className="flex items-center gap-1.5">
                       <Globe size={12} className="text-zinc-500 flex-shrink-0" />
-                      <span className="text-zinc-300 text-xs font-mono">{tenant.domain}</span>
+                      <span title={tenant.domain} className="text-zinc-300 text-xs font-mono truncate max-w-[140px]">{tenant.domain}</span>
                       {tenant.domainStatus !== 'verified' && (
                         <span
                           title={tenant.domainStatus === 'error' ? 'Error conectando el dominio' : 'DNS todavía sin configurar — la tienda no responde en este dominio'}
@@ -866,7 +866,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       )}
                     </div>
                   ) : tenant.frontendUrl ? (
-                    <span className="text-zinc-500 text-xs font-mono">{tenant.frontendUrl.replace('https://', '')}</span>
+                    <span title={tenant.frontendUrl.replace('https://', '')} className="text-zinc-500 text-xs font-mono truncate max-w-[140px] block">{tenant.frontendUrl.replace('https://', '')}</span>
                   ) : (
                     <span className="text-zinc-600 text-xs">Sin configurar</span>
                   )}
@@ -878,16 +878,16 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                     comprobante de la transferencia, hacía falta poder
                     ubicar la tienda a partir de ese número). DNI se queda
                     en el tooltip del ícono, se usa mucho menos seguido. */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   {tenant.ownerNombre ? (
                     <div className="flex items-center gap-1.5">
-                      <div>
-                        <p className="text-zinc-200 text-xs font-medium">
+                      <div className="max-w-[150px]">
+                        <p title={`${tenant.ownerNombre} ${tenant.ownerApellido}`} className="text-zinc-200 text-xs font-medium truncate">
                           {tenant.ownerNombre} {tenant.ownerApellido}
                         </p>
-                        <p className="text-zinc-500 text-xs">{tenant.ownerEmail}</p>
+                        <p title={tenant.ownerEmail ?? undefined} className="text-zinc-500 text-xs truncate">{tenant.ownerEmail}</p>
                         {tenant.ownerCelular && (
-                          <p className="text-zinc-500 text-xs font-mono">{tenant.ownerCelular}</p>
+                          <p className="text-zinc-500 text-xs font-mono truncate">{tenant.ownerCelular}</p>
                         )}
                       </div>
                       {tenant.ownerDni && (
@@ -906,7 +906,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
 
                 {/* Visitas / Pedidos — mismos números que "Plan y uso" del tenant,
                     acá visibles sin importar el plan que tenga contratado */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   <div className="flex items-center gap-3 text-xs text-zinc-400">
                     <span className="flex items-center gap-1" title="Visitas este mes">
                       <Eye size={12} className="text-zinc-500" />
@@ -923,7 +923,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                     header. pct >= 100 en rojo, >= 80 en ámbar, igual que
                     src/lib/usage.ts para que el criterio sea el mismo que ya
                     usa cada tenant (cuando lo veía en su propio panel). */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   <div className="flex items-center gap-3 text-xs">
                     <span className="flex items-center gap-1" title={`Almacenamiento: ${formatStorage(tenant.storageMB)} / ${formatStorage(tenant.storageLimitMB)}`}>
                       <HardDrive size={12} className="text-zinc-500" />
@@ -946,7 +946,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
 
                 {/* Google Analytics — vinculado o no, independiente de si el
                     plan del tenant le da acceso a esta sección en su panel */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   {tenant.ga4Linked ? (
                     <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-300">
                       <BarChart3 size={11} /> Vinculado
@@ -957,7 +957,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 </td>
 
                 {/* Acciones */}
-                <td className="px-5 py-4">
+                <td className="px-3 py-2.5">
                   <div className="flex items-center justify-end gap-2">
                     {/* Ver tienda — usa siempre frontendUrl (server-side ya
                         elige domain propio SOLO si domainStatus==='verified',

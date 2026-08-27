@@ -23,7 +23,11 @@ export default async function SuscripcionPage() {
 
   const { data: _tenantRows } = await service
     .from('tenants')
-    .select('name, plan, plan_status, status, billing_term, next_billing_date, trial_ends_at, mp_preapproval_id, billing_paused_by_user, legacy_manual_billing')
+    // manual_paid_until/manual_payment_term (2026-08-27, bug reportado por
+    // David en QA: "marcar como pagado" en superadmin no se veía acá adentro
+    // -- faltaban estas dos columnas, la única fuente de vencimiento/ciclo
+    // para un tenant pagado por transferencia, ver SuscripcionSelector.tsx).
+    .select('name, plan, plan_status, status, billing_term, next_billing_date, trial_ends_at, mp_preapproval_id, billing_paused_by_user, legacy_manual_billing, manual_paid_until, manual_payment_term')
     .eq('id', tenantId)
     .limit(1)
   const tenant = _tenantRows?.[0]
@@ -71,6 +75,8 @@ export default async function SuscripcionPage() {
           mpPreapprovalId={tenant.mp_preapproval_id ?? null}
           billingPausedByUser={tenant.billing_paused_by_user ?? false}
           legacyManualBilling={tenant.legacy_manual_billing ?? false}
+          manualPaidUntil={tenant.manual_paid_until ?? null}
+          manualPaymentTerm={tenant.manual_payment_term ?? null}
           paymentHistory={paymentHistory}
         />
       </div>
