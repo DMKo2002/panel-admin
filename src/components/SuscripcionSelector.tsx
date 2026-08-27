@@ -140,7 +140,7 @@ export default function SuscripcionSelector({
   // arriba no tenía forma de saber que el tenant tiene un plan pago vigente.
   manualPaidUntil: string | null
   manualPaymentTerm: BillingTerm | null
-  paymentHistory: { id: string; amount: number; status: string; created_at: string; mpPaymentId: string | null; mpPreapprovalId: string | null }[]
+  paymentHistory: { id: string; amount: number; status: string; created_at: string; mpPaymentId: string | null; mpPreapprovalId: string | null; metodo: string }[]
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -721,6 +721,7 @@ export default function SuscripcionSelector({
             <table className="w-full text-left text-sm">
               <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
                 <tr>
+                  <th className="px-4 py-2 font-medium">Método</th>
                   <th className="px-4 py-2 font-medium">Identificación de pago</th>
                   <th className="px-4 py-2 font-medium">ID de suscripción</th>
                   <th className="px-4 py-2 font-medium">Servicio</th>
@@ -731,6 +732,7 @@ export default function SuscripcionSelector({
               <tbody>
                 {paymentHistory.map(p => (
                   <tr key={p.id} className="border-t border-zinc-100">
+                    <td className="px-4 py-2 text-zinc-700">{p.metodo}</td>
                     <td className="px-4 py-2 font-mono text-xs text-zinc-700">{p.mpPaymentId ?? '—'}</td>
                     <td className="px-4 py-2 font-mono text-xs text-zinc-500">{p.mpPreapprovalId ?? '—'}</td>
                     <td className="px-4 py-2 text-zinc-700">{PLANES.find(pl => pl.id === currentPlan)?.nombre ?? currentPlan}</td>

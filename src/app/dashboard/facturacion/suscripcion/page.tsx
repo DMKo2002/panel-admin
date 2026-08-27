@@ -55,6 +55,11 @@ export default async function SuscripcionPage() {
     created_at: c.created_at,
     mpPaymentId: c.mp_payment_id ?? null,
     mpPreapprovalId: c.mp_preapproval_id ?? null,
+    // Sin mp_payment_id NI mp_preapproval_id = lo insertó mark-plan-paid
+    // (transferencia) en vez de billing/webhook (MP) -- ver comentario ahí
+    // (2026-08-27, bug: la fila de un pago manual se veía con "—" en las
+    // dos columnas de ID sin ninguna pista de qué método fue).
+    metodo: (c.mp_payment_id || c.mp_preapproval_id) ? 'Mercado Pago' : 'Transferencia',
   }))
 
   return (

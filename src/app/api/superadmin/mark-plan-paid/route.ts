@@ -96,6 +96,24 @@ export async function POST(req: NextRequest) {
     .from('tenants').update(patch).eq('id', tenantId).select('name').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Registrar el cobro en billing_charges. 2026-08-27, bug reportado por
+  // David en QA: "Ver historial de pago" seguía sin aparecer para tenants
+  // pagados a mano -- el fix anterior (63a7056) solo cubrió la rama de MP en
+  // billing/webhook, esta ruta nunca insertaba acá. mp_payment_id/
+  // mp_preapproval_id quedan null (no es un cobro de MP) -- page.tsx los usa
+  // para mostrar "Transferencia" en vez de "Mercado Pago" en la columna
+  // Método del historial. Sin dedup por mp_payment_id (no aplica acá): cada
+  // click de "marcar como pagado" es un cobro real y distinto, a diferencia
+  // de los reintentos de notificación que sí puede mandar MP.
+  await serviceClient.from('billing_charges').insert({
+    tenant_id: tenantId,
+    amount,
+    status: 'approved',
+    status_detail: 'pago_manual',
+    mp_payment_id: null,
+    mp_preapproval_id: null,
+  })
+
   // Si estaba suspendida por trial vencido, exceso de cupo o vencimiento de
   // un plazo pago anterior, reactivarla — las suspensiones manuales
   // (suspended_reason null) no se tocan.
