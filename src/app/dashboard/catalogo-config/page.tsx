@@ -22,7 +22,7 @@ const CATALOGO_STEPS: TutorialStep[] = [
     id: 'catalogo-variants',
     target: '[data-tutorial="catalogo-variants"]',
     title: 'Tabla de variantes',
-    content: 'Definí cómo se cargan las variantes de cada producto. Con la tabla activada armás combinaciones tipo talle × color; si tu catálogo no usa esa lógica (ej. cosmética), elegí "una sola variante" para que cada producto tenga un único stock y precio. También podés cambiar la columna a "Texto libre" si no es color (ej. modelo, ancho) y renombrar filas/columnas.',
+    content: 'Definí cómo se cargan las variantes de cada producto. Con la tabla activada armás combinaciones tipo talle × color; si tu catálogo no usa esa lógica (ej. bazaar, comestibles, cosmética), elegí "No" para cargar las presentaciones en una lista de texto libre (ej. suelto, pack x5, caja x40), cada una con su propio stock y precio. También podés cambiar la columna de la tabla a "Texto libre" si no es color (ej. modelo, ancho) y renombrar filas/columnas.',
   },
   {
     id: 'catalogo-attributes',
@@ -217,9 +217,9 @@ export default function CatalogoConfigPage() {
             <label className="block text-xs font-medium text-zinc-600 mb-1">Usar tabla de variantes</label>
             <select className="input max-w-xs" value={(config as any)?.variant_mode ?? 'sizes_colors'} onChange={e => update('variant_mode' as any, e.target.value)}>
               <option value="sizes_colors">Sí — tabla con filas y columnas (ej: talle × color)</option>
-              <option value="simple">No — una sola variante por producto (ej: cosmética)</option>
+              <option value="simple">No — variantes en texto libre, sin cruce de filas y columnas</option>
             </select>
-            <p className="text-xs text-zinc-400 mt-1">Con "No", cada producto tiene un solo stock y precio, sin filas ni columnas.</p>
+            <p className="text-xs text-zinc-400 mt-1">Con "No", cada producto puede tener varias presentaciones con nombre libre (ej: "Pack x5", "Caja x40"), cada una con su propio stock y precio.</p>
           </div>
           {((config as any)?.variant_mode ?? 'sizes_colors') === 'sizes_colors' && (
             <div>

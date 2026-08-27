@@ -24,7 +24,9 @@ export type PriceType = 'retail' | 'wholesale'
 export type NotifChannel = 'whatsapp' | 'email' | 'sms'
 export type PanelTheme = 'default' | 'dark'
 // 'sizes_colors' = matriz de talle/color (indumentaria, default). 'simple' =
-// una sola variante por producto, sin talle/color (ej: cosmética/skincare).
+// lista de variantes en texto libre, sin cruce de filas/columnas — cada una
+// con su propio stock y precio (ej: bazaar/comestibles: suelto, pack x5,
+// caja x40; o cosmética/skincare con una sola variante sin nombre).
 export type VariantMode = 'sizes_colors' | 'simple'
 
 export interface Tenant {
