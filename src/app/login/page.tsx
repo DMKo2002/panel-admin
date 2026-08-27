@@ -62,7 +62,7 @@ export default function LoginPage() {
           <p className="text-sm text-zinc-500 mt-1">Ingresá con tu cuenta de administrador</p>
         </div>
 
-        {/* OAuth + form — Google/Facebook para entrar directo con esa
+        {/* OAuth + form — Google para entrar directo con esa
             cuenta sin pasar por gounuri.com primero. Nota: hasta que no
             esté resuelto el identity linking (ver tarea pendiente), esto
             es para cuentas que YA se registraron con Google — si alguien

@@ -6,7 +6,7 @@
 // de LA TIENDA (bloqueada a staff sin permiso), esto es de LA PERSONA
 // logueada, así que siempre está disponible para cualquiera con sesión.
 //
-// Vincular/desvincular Google y Facebook usa la API de "identities" de
+// Vincular/desvincular Google usa la API de "identities" de
 // Supabase Auth directamente desde el browser (getUserIdentities /
 // linkIdentity / unlinkIdentity) — corre contra la sesión ya autenticada.
 // Requiere que "Allow manual linking" esté activado en Supabase Dashboard >
@@ -36,20 +36,16 @@ function IconGoogle() {
   )
 }
 
-function IconFacebook() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
-      <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07z"/>
-    </svg>
-  )
-}
-
-type ProviderKey = 'email' | 'google' | 'facebook'
+// Facebook se sacó el 27/8/2026: el login nunca llegó a funcionar y la app de
+// Meta requiere revisión de negocio para salir de modo desarrollo. Al momento
+// de sacarlo no había NINGUNA cuenta con provider facebook (verificado en
+// auth.users), así que nadie quedó sin poder entrar. Para reactivarlo:
+// devolver 'facebook' acá, al array del render y al tipo de handleLink.
+type ProviderKey = 'email' | 'google'
 
 const PROVIDER_META: Record<ProviderKey, { label: string; icon: React.ReactNode }> = {
   email:    { label: 'Email y contraseña', icon: <KeyRound size={20} className="text-zinc-500" /> },
   google:   { label: 'Google',             icon: <IconGoogle /> },
-  facebook: { label: 'Facebook',           icon: <IconFacebook /> },
 }
 
 export default function MiCuentaPage() {
@@ -103,7 +99,7 @@ export default function MiCuentaPage() {
   const linkedCount = (identities?.length ?? 0) + (hasPassword && !identities?.some(i => i.provider === 'email') ? 1 : 0)
   const canUnlink = linkedCount > 1
 
-  async function handleLink(provider: 'google' | 'facebook') {
+  async function handleLink(provider: 'google') {
     setError(null)
     setSuccess(null)
     setBusyProvider(provider)
@@ -120,7 +116,7 @@ export default function MiCuentaPage() {
       setError(
         err.message?.includes('Manual linking')
           ? 'Vincular cuentas todavía no está habilitado — avisale a soporte.'
-          : `No se pudo vincular con ${provider === 'google' ? 'Google' : 'Facebook'}: ${err.message}`
+          : `No se pudo vincular con Google: ${err.message}`
       )
     }
     // Si no hay error, el browser ya está siendo redirigido al provider.
@@ -199,7 +195,7 @@ export default function MiCuentaPage() {
         <p className="text-sm text-zinc-400">Cargando...</p>
       ) : (
         <div className="card divide-y divide-zinc-100">
-          {(['email', 'google', 'facebook'] as ProviderKey[]).map(provider => {
+          {(['email', 'google'] as ProviderKey[]).map(provider => {
             const linked = has(provider)
             const meta = PROVIDER_META[provider]
             return (
@@ -262,7 +258,7 @@ export default function MiCuentaPage() {
         <form onSubmit={handleSetPassword} className="card mt-4 space-y-3">
           <p className="text-sm font-medium text-zinc-900">{hasPassword ? 'Cambiar contraseña' : 'Crear contraseña propia'}</p>
           <p className="text-xs text-zinc-500">
-            Con esto vas a poder entrar con tu mail y esta contraseña, además de con Google/Facebook.
+            Con esto vas a poder entrar con tu mail y esta contraseña, además de con Google.
           </p>
           <div className="relative">
             <input

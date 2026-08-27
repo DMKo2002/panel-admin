@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import Toggle from '@/components/Toggle'
 import { MessageCircle, Mail, CheckCircle, XCircle, Clock } from 'lucide-react'
 import type { StoreConfig, NotificationLog } from '@/lib/types'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
@@ -14,13 +13,7 @@ const NOTIFICACIONES_STEPS: TutorialStep[] = [
     id: 'notif-channels',
     target: '[data-tutorial="notif-channels"]',
     title: 'Canales de notificación',
-    content: 'El WhatsApp se edita en Contacto y Redes — acá solo se muestra de referencia. El email de notificaciones es a donde te llegan los avisos cuando marcás las opciones de abajo.',
-  },
-  {
-    id: 'notif-when',
-    target: '[data-tutorial="notif-when"]',
-    title: '¿Cuándo notificar?',
-    content: 'Elegí qué avisos querés recibir y por qué canal: pedido nuevo (WhatsApp y/o email), stock bajo, y recordatorio de transferencia pendiente después de 24hs sin confirmar el pago.',
+    content: 'El WhatsApp se edita en Contacto y Redes — acá solo se muestra de referencia. El email de notificaciones es a donde te llega el aviso cada vez que entra un pedido nuevo.',
   },
   {
     id: 'notif-email',
@@ -73,7 +66,7 @@ export default function NotificacionesPage() {
       // por tenant, desde /api/config/email-identidad.
       const [{ data: cfg }, { data: notifLogs }, emailRes] = await Promise.all([
         supabase.from('store_config')
-          .select('id, whatsapp_number, notification_email, notify_wa_new_order, notify_email_new_order, notify_wa_low_stock, notify_wa_pending_transfer')
+          .select('id, whatsapp_number, notification_email')
           .eq('tenant_id', userRow.tenant_id)
           .single(),
         supabase.from('notifications_log').select('*').eq('tenant_id', userRow.tenant_id).order('sent_at', { ascending: false }).limit(20),
@@ -98,10 +91,6 @@ export default function NotificacionesPage() {
     setSavingChannels(true)
     await supabase.from('store_config').update({
       notification_email: config.notification_email,
-      notify_wa_new_order: config.notify_wa_new_order,
-      notify_email_new_order: config.notify_email_new_order,
-      notify_wa_low_stock: config.notify_wa_low_stock,
-      notify_wa_pending_transfer: config.notify_wa_pending_transfer,
     }).eq('id', config.id)
     setSavingChannels(false)
     setSavedChannels(true)
@@ -192,42 +181,13 @@ export default function NotificacionesPage() {
             </div>
           </div>
 
-          <div data-tutorial="notif-when" className="bg-white rounded-xl border border-zinc-200 p-5">
-            <div className="flex items-center gap-1.5 mb-4">
-              <h2 className="text-sm font-semibold text-zinc-700">¿Cuándo notificar?</h2>
-              <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[1]} />
-            </div>
-            <div className="space-y-1">
-              {[
-                { field: 'notify_wa_new_order', label: 'WhatsApp al recibir un pedido', desc: 'Mensaje instantáneo con el detalle del pedido', icon: <MessageCircle size={14} className="text-green-500" /> },
-                { field: 'notify_email_new_order', label: 'Email al recibir un pedido', desc: 'Copia completa del pedido al email configurado', icon: <Mail size={14} className="text-blue-500" /> },
-                { field: 'notify_wa_low_stock', label: 'Alerta de stock bajo por WhatsApp', desc: 'Cuando un producto baja del umbral configurado', icon: <MessageCircle size={14} className="text-green-500" /> },
-                { field: 'notify_wa_pending_transfer', label: 'Recordatorio de transferencia pendiente', desc: 'Aviso 24hs después si no se confirmó el pago', icon: <MessageCircle size={14} className="text-green-500" /> },
-              ].map(row => (
-                <div key={row.field} className="flex items-center justify-between py-3 border-b border-zinc-50 last:border-0">
-                  <div className="flex items-start gap-2.5">
-                    <span className="mt-0.5">{row.icon}</span>
-                    <div>
-                      <p className="text-sm text-zinc-800">{row.label}</p>
-                      <p className="text-xs text-zinc-400 mt-0.5">{row.desc}</p>
-                    </div>
-                  </div>
-                  <Toggle
-                    checked={Boolean(config?.[row.field as keyof StoreConfig])}
-                    onChange={val => update(row.field as keyof StoreConfig, val)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Identidad y mensajes de email */}
           <div data-tutorial="notif-email" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-sm font-semibold text-zinc-700">Identidad y mensajes de email</h2>
-                  <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[2]} />
+                  <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[1]} />
                 </div>
                 <p className="text-xs text-zinc-400 mt-0.5">Cómo aparecen y qué dicen los correos de tu tienda</p>
               </div>
@@ -295,7 +255,7 @@ export default function NotificacionesPage() {
         <div data-tutorial="notif-log" className="col-span-2">
           <div className="flex items-center gap-1.5 mb-3">
             <h2 className="text-sm font-semibold text-zinc-700">Últimas notificaciones</h2>
-            <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[3]} />
+            <TutorialHint pageKey="notificaciones" step={NOTIFICACIONES_STEPS[2]} />
           </div>
           <div className="space-y-2">
             {logs.map(log => (

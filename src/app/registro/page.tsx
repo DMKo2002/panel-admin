@@ -3,13 +3,13 @@
 // 2026-08-20: alta self-serve directa en panel.gounuri.com/registro (antes
 // esto redirigía a gounuri.com/registro, y antes de eso — por un ratito, el
 // mismo día — a la home de gounuri.com; ver creart_avellaneda_pilot_plan en
-// la memoria del proyecto). Google/Facebook comparten el mismo componente
+// la memoria del proyecto). El login social comparte el mismo componente
 // que usa /login (OAuthButtons) — para Supabase signInWithOAuth no hay
 // diferencia entre "iniciar sesión" y "registrarse": si el mail no existe
 // todavía, lo crea. Para mail+contraseña sí hace falta este formulario +
 // /api/auth/registro + confirmación por mail (/auth/verificar).
 //
-// Después de confirmar la cuenta (o de loguearse con Google/Facebook por
+// Después de confirmar la cuenta (o de loguearse con Google por
 // primera vez), /auth/callback y /api/auth/confirmar mandan al usuario a
 // /onboarding, que crea el tenant con 7 días de trial (ver TRIAL_DAYS en
 // lib/plans.ts) — no pasa por Mercado Pago ni ningún pago online.

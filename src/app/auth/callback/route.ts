@@ -1,4 +1,4 @@
-// GET /auth/callback?code=...[&next=/ruta] — vuelta de Google/Facebook.
+// GET /auth/callback?code=...[&next=/ruta] — vuelta del login social.
 // Dos casos usan esta misma ruta, distinguidos por el parámetro `next`:
 //
 // 1. Login (sin `next`, ver components/OAuthButtons.tsx en /login): login
@@ -8,7 +8,7 @@
 //      - superadmin sin tenant propio -> /superadmin
 //      - tiene tenant -> /dashboard
 //      - cuenta nueva sin tenant todavía -> /onboarding (acá mismo, en Panel
-//        Admin — ver esa página y /api/create-tenant). Para Google/Facebook,
+//        Admin — ver esa página y /api/create-tenant). Para Google,
 //        signInWithOAuth ya crea la cuenta si el mail no existía, así que
 //        este es el camino normal de alta self-serve por Google, no un caso
 //        raro. Historial: hasta el 19/8 mandaba a gounuri.com/onboarding
@@ -19,7 +19,7 @@
 //        propio de Panel Admin.
 //
 // 2. Link de identidad (con `next=/dashboard/mi-cuenta`, ver esa página):
-//    el usuario YA está logueado y solo está agregando Google/Facebook a
+//    el usuario YA está logueado y solo está agregando Google a
 //    su cuenta existente (linkIdentity() usa el mismo flujo PKCE que un
 //    login, por eso pasa por acá también). Volvemos siempre a `next`, con
 //    ?linked=1 si salió bien o ?linkError=<mensaje> si no.
