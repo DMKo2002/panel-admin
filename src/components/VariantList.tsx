@@ -73,6 +73,14 @@ interface Props {
   // Se llama SOLO al borrar una variante que ya está guardada en la base.
   // Una recién agregada se saca del estado local sin preguntar nada.
   onRemoveVariant?: (variantId: string, label: string) => Promise<boolean>
+  // Título del grupo de presentaciones de ESTE producto (ej: "Cantidad",
+  // "Sabor"), se guarda en products.row_label. Vacío = usa tenantGroupTitle
+  // (store_config.variant_row_label). Se muestra como encabezado arriba de
+  // las presentaciones en la tienda — mismo campo que ya usa VariantMatrix
+  // para nombrar filas/columnas, reutilizado acá para un solo eje.
+  groupTitle?: string
+  onGroupTitleChange?: (v: string) => void
+  tenantGroupTitle?: string
 }
 
 const VariantList = forwardRef<VariantListHandle, Props>(({
@@ -83,6 +91,9 @@ const VariantList = forwardRef<VariantListHandle, Props>(({
   extraAttrs = [],
   hintSlot,
   onRemoveVariant,
+  groupTitle = '',
+  onGroupTitleChange,
+  tenantGroupTitle = '',
 }, ref) => {
   const seed = useRef<Row[] | null>(null)
   if (seed.current === null) {
@@ -159,6 +170,23 @@ const VariantList = forwardRef<VariantListHandle, Props>(({
           {rows.length === 1 ? '1 variante' : `${rows.length} variantes`}
         </span>
       </div>
+
+      {onGroupTitleChange && (
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1">
+            Título de variante (ej: Cantidad, Sabor, Contenido neto)
+          </label>
+          <input
+            className="input text-sm max-w-[280px]"
+            value={groupTitle}
+            onChange={e => onGroupTitleChange(e.target.value)}
+            placeholder={tenantGroupTitle || 'Presentación'}
+          />
+          <p className="text-[10px] text-zinc-400 mt-1">
+            Se muestra como encabezado arriba de las presentaciones en la tienda. Vacío = usa el de la tienda (“{tenantGroupTitle || 'Presentación'}”, configurado en Mi Tienda &gt; Catálogo). Solo aplica a este producto.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-3">
         {rows.map((row, idx) => (

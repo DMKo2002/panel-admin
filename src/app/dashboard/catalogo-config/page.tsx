@@ -131,9 +131,14 @@ export default function CatalogoConfigPage() {
     if (!config) return
     setSavingVariants(true)
     setErrorVariants(null)
+    const mode = (config as any).variant_mode ?? 'sizes_colors'
     const { error } = await supabase.from('store_config').update({
-      variant_mode: (config as any).variant_mode ?? 'sizes_colors',
-      variant_column_type: (config as any).variant_column_type ?? 'color',
+      variant_mode: mode,
+      // En modo 'simple' no hay eje de color — forzamos 'text' para que el
+      // título de variante (variant_row_label) se muestre como encabezado
+      // en la tienda en vez de quedar pisado por el "Talle" hardcodeado que
+      // usa AddToCartButton cuando columnType es 'color'.
+      variant_column_type: mode === 'simple' ? 'text' : ((config as any).variant_column_type ?? 'color'),
       variant_row_label: (config as any).variant_row_label?.trim() || null,
       variant_column_label: (config as any).variant_column_label?.trim() || null,
     }).eq('id', config.id)
@@ -230,6 +235,20 @@ export default function CatalogoConfigPage() {
               </select>
               <p className="text-xs text-zinc-400 mt-1">
                 En modo "Color" las filas y columnas siempre dicen "Talle" y "Color", igual que hoy.
+              </p>
+            </div>
+          )}
+          {((config as any)?.variant_mode ?? 'sizes_colors') === 'simple' && (
+            <div className="pt-3 border-t border-zinc-100">
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Título de variante por defecto</label>
+              <input
+                className="input max-w-xs"
+                value={(config as any)?.variant_row_label ?? ''}
+                onChange={e => update('variant_row_label' as any, e.target.value)}
+                placeholder="Ej: Cantidad, Sabor, Contenido neto..."
+              />
+              <p className="text-xs text-zinc-400 mt-1">
+                Encabezado que se muestra arriba de las presentaciones en la tienda (ej: "Cantidad" con "x1" / "Caja x24" abajo). Se puede pisar por producto al cargarlo.
               </p>
             </div>
           )}

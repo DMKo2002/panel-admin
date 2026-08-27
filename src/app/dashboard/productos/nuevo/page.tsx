@@ -601,6 +601,9 @@ export default function NuevoProductoPage() {
               showDiscount={showDiscount}
               extraAttrs={extraAttrs}
               hintSlot={<TutorialHint pageKey="productos" step={hint('prod-lista')} />}
+              groupTitle={productRowLabel}
+              onGroupTitleChange={setProductRowLabel}
+              tenantGroupTitle={rowLabel}
             />
           ) : initialSizes && (
             <>

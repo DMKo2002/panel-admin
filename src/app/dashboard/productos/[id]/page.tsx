@@ -1037,6 +1037,9 @@ export default function EditarProductoPage() {
               extraAttrs={extraAttrs}
               hintSlot={<TutorialHint pageKey="productos" step={hint('prod-lista')} />}
               onRemoveVariant={(variantId, label) => removeVariantGroup('variant', [variantId], label)}
+              groupTitle={productRowLabel}
+              onGroupTitleChange={setProductRowLabel}
+              tenantGroupTitle={rowLabel}
             />
           ) : (
             <>
