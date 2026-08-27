@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   // Aislamiento (2026-08-25) — ver /api/billing/subscribe y memoria de
   // proyecto "Gounuri billing/subscriptions".
   const { data: _tenantRows } = await service
-    .from('tenants').select('legacy_manual_billing, mp_preapproval_id, next_billing_date').eq('id', tenantId).limit(1)
+    .from('tenants').select('legacy_manual_billing, mp_preapproval_id, next_billing_date, manual_paid_until').eq('id', tenantId).limit(1)
   const tenantRow = _tenantRows?.[0]
   if (tenantRow?.legacy_manual_billing) {
     return NextResponse.json(
@@ -66,19 +66,30 @@ export async function POST(req: Request) {
       { status: 403 }
     )
   }
-  if (!tenantRow?.mp_preapproval_id) {
-    return NextResponse.json({ error: 'No tenés una suscripción de Mercado Pago activa para dar de baja.' }, { status: 400 })
+  const hasMp = !!tenantRow?.mp_preapproval_id
+  // Pago manual (transferencia, confirmado por superadmin en mark-plan-paid)
+  // (2026-08-27, bug reportado por David: el botón "Cancelar suscripción"
+  // estaba oculto para estos tenants porque acá abajo siempre devolvía 400).
+  // No hay nada que cancelar en MP -- el pago manual nunca se auto-renueva
+  // solo, así que "cancelar" acá es solo dejar constancia (feedback/mail) y
+  // no volver a marcarlo como pagado; el acceso sigue igual hasta
+  // manual_paid_until, lo mismo que ya promete el flujo de MP.
+  const hasManual = !!tenantRow?.manual_paid_until
+  if (!hasMp && !hasManual) {
+    return NextResponse.json({ error: 'No tenés una suscripción activa para dar de baja.' }, { status: 400 })
   }
 
-  try {
-    await cancelPreapproval(tenantRow.mp_preapproval_id)
-  } catch (e) {
-    console.error('[billing/cancel]', e)
-    return NextResponse.json({ error: 'No se pudo dar de baja la suscripción. Probá de nuevo.' }, { status: 500 })
+  if (hasMp) {
+    try {
+      await cancelPreapproval(tenantRow.mp_preapproval_id)
+    } catch (e) {
+      console.error('[billing/cancel]', e)
+      return NextResponse.json({ error: 'No se pudo dar de baja la suscripción. Probá de nuevo.' }, { status: 500 })
+    }
   }
 
   await service.from('tenants').update({
-    mp_preapproval_id: null,
+    ...(hasMp ? { mp_preapproval_id: null } : {}),
     billing_paused_by_user: true,
   }).eq('id', tenantId)
 
@@ -88,7 +99,7 @@ export async function POST(req: Request) {
   // Gounuri; el mismo aviso ya existía en gounuri-web/api/billing/cancel
   // pero esa ruta quedó sin uso). Best-effort: la baja ya se procesó bien
   // contra MP y la base, un mail que falla no debe romperla.
-  const activeUntil = tenantRow.next_billing_date ?? null
+  const activeUntil = tenantRow.manual_paid_until ?? tenantRow.next_billing_date ?? null
   const { data: tenantNameRow } = await service.from('tenants').select('name').eq('id', tenantId).limit(1).single()
   const tenantName = tenantNameRow?.name ?? tenantId
 
@@ -113,7 +124,7 @@ export async function POST(req: Request) {
   await sendEmail({
     to: paymentSettings.contactEmail,
     subject: `📉 Baja de suscripción — ${tenantName}`,
-    html: `<p><strong>${tenantName}</strong> dio de baja su suscripción de Mercado Pago.</p><p>Sigue con acceso hasta: ${activeUntil ?? '(sin fecha registrada)'}</p>`,
+    html: `<p><strong>${tenantName}</strong> dio de baja su suscripción${hasMp ? ' de Mercado Pago' : ' (pago manual/transferencia)'}.</p><p>Sigue con acceso hasta: ${activeUntil ?? '(sin fecha registrada)'}</p>`,
   }).catch(e => console.error('[billing/cancel] error notificando a Gounuri:', e))
 
   return NextResponse.json({ ok: true, activeUntil })

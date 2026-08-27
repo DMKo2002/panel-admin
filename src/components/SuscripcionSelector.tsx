@@ -289,9 +289,9 @@ export default function SuscripcionSelector({
         // los campos de MP, así que un tenant marcado como pagado a mano
         // (aunque superadmin lo mostrara "Premium por 31 días") no aparecía
         // acá adentro -- hasPaidSummary daba false y quedaba mudo.
-        const vencimiento = isManuallyPaid ? manualPaidUntil : nextBillingDate
-        const cicloTexto = isManuallyPaid
-          ? (manualPaymentTerm ? TERM_LABEL[manualPaymentTerm] : '—')
+        const vencimiento = manualPaidUntil ?? nextBillingDate
+        const cicloTexto = manualPaymentTerm
+          ? TERM_LABEL[manualPaymentTerm]
           : (billingTerm ? TERM_LABEL[billingTerm] : '—')
         const estadoTexto = isManuallyPaid ? 'Plan activo' : (mpPreapprovalId ? 'Plan activo' : 'Cancelada')
         return (
@@ -332,11 +332,7 @@ export default function SuscripcionSelector({
                   </p>
                 )}
 
-                {isManuallyPaid ? (
-                  <p className="mt-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-600">
-                    Este plan lo activó el equipo de Gounuri (pago por transferencia){vencimiento ? <> — vigente hasta el <strong>{formatFecha(vencimiento)}</strong></> : ''}. Para renovarlo o cambiarlo, escribinos.
-                  </p>
-                ) : mpPreapprovalId ? (
+                {(isManuallyPaid || mpPreapprovalId) ? (
                   showCancelConfirm ? (
                     <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       <p>
