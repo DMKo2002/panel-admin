@@ -68,6 +68,8 @@ interface Props {
   showWholesale?: boolean
   showDiscount?: boolean
   extraAttrs?: AttrConfig[]
+  // Signo de pregunta del tutorial, si la página lo provee.
+  hintSlot?: React.ReactNode
   // Se llama SOLO al borrar una variante que ya está guardada en la base.
   // Una recién agregada se saca del estado local sin preguntar nada.
   onRemoveVariant?: (variantId: string, label: string) => Promise<boolean>
@@ -79,6 +81,7 @@ const VariantList = forwardRef<VariantListHandle, Props>(({
   showWholesale = true,
   showDiscount = true,
   extraAttrs = [],
+  hintSlot,
   onRemoveVariant,
 }, ref) => {
   const seed = useRef<Row[] | null>(null)
@@ -146,9 +149,12 @@ const VariantList = forwardRef<VariantListHandle, Props>(({
   const attrCount = (row: Row) => Object.keys(cleanAttrs(row.attrs)).length
 
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+    <div data-tutorial="prod-lista" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-700">Variantes, stock y precios</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold text-zinc-700">Variantes, stock y precios</h2>
+          {hintSlot}
+        </div>
         <span className="text-[11px] text-zinc-400">
           {rows.length === 1 ? '1 variante' : `${rows.length} variantes`}
         </span>

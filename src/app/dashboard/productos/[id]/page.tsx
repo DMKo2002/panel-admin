@@ -9,6 +9,10 @@ import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, FavoriteColor } 
 import VariantList, { VariantListHandle, ListVariantData } from '@/components/VariantList'
 import { buildDisplayNameByRawColor } from '@/lib/colorNames'
 import { WEIGHT_UNIT_LABELS, LENGTH_UNIT_LABELS, effectiveWeightUnit, effectiveDimensionUnit } from '@/lib/units'
+import { useTutorial } from '@/components/tutorial/TutorialProvider'
+import { buildProductoSteps, hint } from '@/components/tutorial/productoSteps'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -161,6 +165,22 @@ export default function EditarProductoPage() {
   const [matrixReady, setMatrixReady] = useState(false)
   const [variantMode, setVariantMode] = useState<'sizes_colors' | 'simple'>('sizes_colors')
   const [listInitial, setListInitial] = useState<ListVariantData[] | undefined>(undefined)
+
+  // Los pasos se re-registran cuando cambia el modo de variantes o los ejes:
+  // el texto del tutorial nombra las filas y columnas como las llamó el
+  // tenant ("Peso"/"Pack"), y en modo lista los pasos son otros.
+  const { registerSteps } = useTutorial()
+  useEffect(() => {
+    registerSteps('productos', buildProductoSteps({
+      variantMode,
+      columnType,
+      hasExtraAttrs: extraAttrs.length > 0,
+      hasCategories: categories.length > 0,
+      rowWord: effRowLabel,
+      colWord: effColumnLabel,
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variantMode, columnType, extraAttrs.length, categories.length, effRowLabel, effColumnLabel])
   // Se incrementa cada vez que se recargan los datos frescos de la base
   // (después de guardar) — se usa como `key` de VariantMatrix para forzar
   // que reinicie su estado interno con los ids de variante reales, en vez
@@ -690,6 +710,7 @@ export default function EditarProductoPage() {
           </Link>
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Editar producto</h1>
+            <PageTutorialButton pageKey="productos" />
             {productSlug && storeDomain && (
               <a
                 href={`https://${storeDomain}/tienda/${productSlug}`}
@@ -702,7 +723,7 @@ export default function EditarProductoPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div data-tutorial="prod-guardar" className="flex items-center gap-3">
           {saved && <span className="text-xs text-emerald-600 font-medium">✓ Cambios guardados</span>}
           <button type="button" onClick={() => setConfirmDelete(true)} className="btn-secondary text-red-500 hover:text-red-600 hover:border-red-200">
             <Trash2 size={15} /> Eliminar
@@ -732,9 +753,12 @@ export default function EditarProductoPage() {
       <form id="edit-form" onSubmit={handleSave} className="px-8 py-6 max-w-4xl space-y-6">
 
         {/* Datos básicos */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="prod-basica" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-700">Información básica</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Información básica</h2>
+              <TutorialHint pageKey="productos" step={hint('prod-basica')} />
+            </div>
             <label className="flex items-center gap-2 text-sm text-zinc-500 cursor-pointer">
               <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="rounded" />
               Producto activo
@@ -783,8 +807,11 @@ export default function EditarProductoPage() {
             <textarea className="input resize-none" rows={3} value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           {categories.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Categorías</label>
+            <div data-tutorial="prod-categorias">
+              <div className="flex items-center gap-1.5 mb-1">
+                <label className="block text-sm font-medium text-zinc-700">Categorías</label>
+                <TutorialHint pageKey="productos" step={hint('prod-categorias')} />
+              </div>
               <p className="text-xs text-zinc-400 mb-2">Podés tildar más de una — el producto va a aparecer en todas las que elijas</p>
               <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-72 overflow-y-auto">
                 {categories.filter(c => !c.parent_id).map(parent => {
@@ -836,9 +863,12 @@ export default function EditarProductoPage() {
         </div>
 
         {/* Dimensiones y peso */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="prod-dimensiones" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Dimensiones y peso</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Dimensiones y peso</h2>
+              <TutorialHint pageKey="productos" step={hint('prod-dimensiones')} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Opcional — se muestran en la etiqueta de envío. Todavía no se usan para calcular el costo del envío</p>
           </div>
 
@@ -887,9 +917,12 @@ export default function EditarProductoPage() {
         </div>
 
         {/* Imágenes */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="prod-imagenes" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
+              <TutorialHint pageKey="productos" step={hint('prod-imagenes')} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Click en ★ para cambiar la foto de portada. Arrastrá las imágenes o usá las flechas para reordenar — el orden se refleja igual en la tienda.</p>
           </div>
           {images.length > 0 && (
@@ -1002,39 +1035,11 @@ export default function EditarProductoPage() {
               showWholesale={showWholesale}
               showDiscount={showDiscount}
               extraAttrs={extraAttrs}
+              hintSlot={<TutorialHint pageKey="productos" step={hint('prod-lista')} />}
               onRemoveVariant={(variantId, label) => removeVariantGroup('variant', [variantId], label)}
             />
           ) : (
             <>
-              {columnType === 'text' && (
-                <div className="flex flex-wrap gap-3 mb-3">
-                  <div>
-                    <label className="block text-xs text-zinc-500 mb-1">
-                      Nombre de fila (solo este producto)
-                    </label>
-                    <input
-                      className="input text-sm max-w-[220px]"
-                      value={productRowLabel}
-                      onChange={e => setProductRowLabel(e.target.value)}
-                      placeholder={rowLabel || 'Fila'}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-zinc-500 mb-1">
-                      Nombre de columna (solo este producto)
-                    </label>
-                    <input
-                      className="input text-sm max-w-[220px]"
-                      value={productColumnLabel}
-                      onChange={e => setProductColumnLabel(e.target.value)}
-                      placeholder={columnLabel || 'Columna'}
-                    />
-                  </div>
-                  <p className="text-[10px] text-zinc-400 w-full">
-                    Vacío = usa el default de la tienda (“{rowLabel || 'Fila'}” / “{columnLabel || 'Columna'}”, configurado en Mi Tienda &gt; Catálogo). Completar acá solo cambia el nombre para este producto puntual.
-                  </p>
-                </div>
-              )}
               <VariantMatrix
                 key={matrixVersion}
                 ref={matrixRef}
@@ -1054,6 +1059,13 @@ export default function EditarProductoPage() {
                 showWholesale={showWholesale}
                 showDiscount={showDiscount}
                 extraAttrs={extraAttrs}
+                productRowLabel={productRowLabel}
+                productColumnLabel={productColumnLabel}
+                onProductRowLabelChange={setProductRowLabel}
+                onProductColumnLabelChange={setProductColumnLabel}
+                tenantRowLabel={rowLabel}
+                tenantColumnLabel={columnLabel}
+                hintSlot={<TutorialHint pageKey="productos" step={hint('prod-tabla')} />}
               />
             </>
           )

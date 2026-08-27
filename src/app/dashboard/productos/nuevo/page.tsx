@@ -8,6 +8,10 @@ import Link from 'next/link'
 import VariantMatrix, { VariantMatrixHandle, FavoriteColor } from '@/components/VariantMatrix'
 import VariantList, { VariantListHandle } from '@/components/VariantList'
 import { WEIGHT_UNIT_LABELS, LENGTH_UNIT_LABELS, effectiveWeightUnit, effectiveDimensionUnit } from '@/lib/units'
+import { useTutorial } from '@/components/tutorial/TutorialProvider'
+import { buildProductoSteps, hint } from '@/components/tutorial/productoSteps'
+import TutorialHint from '@/components/tutorial/TutorialHint'
+import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -104,6 +108,26 @@ export default function NuevoProductoPage() {
   // tenant de arriba) — ver mismo campo en productos/[id]/page.tsx.
   const [productRowLabel, setProductRowLabel] = useState('')
   const [productColumnLabel, setProductColumnLabel] = useState('')
+
+  // Cómo se llaman los ejes para este producto (override > tienda > genérico)
+  const effRowLabel = columnType === 'text' ? (productRowLabel.trim() || rowLabel.trim() || 'Fila') : 'Talle'
+  const effColumnLabel = columnType === 'text' ? (productColumnLabel.trim() || columnLabel.trim() || 'Columna') : 'Color'
+
+  // Ver nota en productos/[id]/page.tsx: los pasos se re-registran cuando
+  // cambia el modo de variantes o el nombre de los ejes.
+  const { registerSteps } = useTutorial()
+  useEffect(() => {
+    registerSteps('productos', buildProductoSteps({
+      variantMode,
+      columnType,
+      hasExtraAttrs: extraAttrs.length > 0,
+      hasCategories: categories.length > 0,
+      rowWord: effRowLabel,
+      colWord: effColumnLabel,
+      isNuevo: true,
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variantMode, columnType, extraAttrs.length, categories.length, effRowLabel, effColumnLabel])
 
   useEffect(() => {
     // Límites del plan — si el endpoint falla, no bloquear (best effort)
@@ -347,7 +371,10 @@ export default function NuevoProductoPage() {
         <Link href="/dashboard/productos" className="text-zinc-400 hover:text-zinc-600 transition-colors">
           <ArrowLeft size={20} />
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900">Nuevo producto</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900">Nuevo producto</h1>
+          <PageTutorialButton pageKey="productos" />
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="px-8 py-6 max-w-4xl space-y-6">
@@ -367,8 +394,11 @@ export default function NuevoProductoPage() {
         )}
 
         {/* Datos básicos */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Información básica</h2>
+        <div data-tutorial="prod-basica" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-zinc-700">Información básica</h2>
+            <TutorialHint pageKey="productos" step={hint('prod-basica')} />
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre *</label>
@@ -412,8 +442,11 @@ export default function NuevoProductoPage() {
             <p className="text-xs text-zinc-400 mt-1">Tope de cuotas para este producto al pagar con Mercado Pago. Dejar vacío para no limitar.</p>
           </div>
           {categories.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Categorías</label>
+            <div data-tutorial="prod-categorias">
+              <div className="flex items-center gap-1.5 mb-1">
+                <label className="block text-sm font-medium text-zinc-700">Categorías</label>
+                <TutorialHint pageKey="productos" step={hint('prod-categorias')} />
+              </div>
               <p className="text-xs text-zinc-400 mb-2">Podés tildar más de una — el producto va a aparecer en todas las que elijas</p>
               <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-72 overflow-y-auto">
                 {categories.filter(c => !c.parent_id).map(parent => {
@@ -465,9 +498,12 @@ export default function NuevoProductoPage() {
         </div>
 
         {/* Dimensiones y peso */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+        <div data-tutorial="prod-dimensiones" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-700">Dimensiones y peso</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-zinc-700">Dimensiones y peso</h2>
+              <TutorialHint pageKey="productos" step={hint('prod-dimensiones')} />
+            </div>
             <p className="text-xs text-zinc-400 mt-0.5">Opcional — se muestran en la etiqueta de envío. Todavía no se usan para calcular el costo del envío</p>
           </div>
 
@@ -514,8 +550,11 @@ export default function NuevoProductoPage() {
         </div>
 
         {/* Imágenes */}
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
+        <div data-tutorial="prod-imagenes" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-zinc-700">Imágenes</h2>
+            <TutorialHint pageKey="productos" step={hint('prod-imagenes')} />
+          </div>
           <label
             className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-primary-500 bg-primary-50' : 'border-zinc-200 hover:border-primary-300 hover:bg-primary-50'}`}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
@@ -561,38 +600,10 @@ export default function NuevoProductoPage() {
               showWholesale={showWholesale}
               showDiscount={showDiscount}
               extraAttrs={extraAttrs}
+              hintSlot={<TutorialHint pageKey="productos" step={hint('prod-lista')} />}
             />
           ) : initialSizes && (
             <>
-              {columnType === 'text' && (
-                <div className="flex flex-wrap gap-3 mb-3">
-                  <div>
-                    <label className="block text-xs text-zinc-500 mb-1">
-                      Nombre de fila (solo este producto)
-                    </label>
-                    <input
-                      className="input text-sm max-w-[220px]"
-                      value={productRowLabel}
-                      onChange={e => setProductRowLabel(e.target.value)}
-                      placeholder={rowLabel || 'Fila'}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-zinc-500 mb-1">
-                      Nombre de columna (solo este producto)
-                    </label>
-                    <input
-                      className="input text-sm max-w-[220px]"
-                      value={productColumnLabel}
-                      onChange={e => setProductColumnLabel(e.target.value)}
-                      placeholder={columnLabel || 'Columna'}
-                    />
-                  </div>
-                  <p className="text-[10px] text-zinc-400 w-full">
-                    Vacío = usa el default de la tienda (“{rowLabel || 'Fila'}” / “{columnLabel || 'Columna'}”, configurado en Mi Tienda &gt; Catálogo). Completar acá solo cambia el nombre para este producto puntual.
-                  </p>
-                </div>
-              )}
               <VariantMatrix
                 ref={matrixRef}
                 mode="create"
@@ -607,6 +618,13 @@ export default function NuevoProductoPage() {
                 showWholesale={showWholesale}
                 showDiscount={showDiscount}
                 extraAttrs={extraAttrs}
+                productRowLabel={productRowLabel}
+                productColumnLabel={productColumnLabel}
+                onProductRowLabelChange={setProductRowLabel}
+                onProductColumnLabelChange={setProductColumnLabel}
+                tenantRowLabel={rowLabel}
+                tenantColumnLabel={columnLabel}
+                hintSlot={<TutorialHint pageKey="productos" step={hint('prod-tabla')} />}
               />
             </>
           )
@@ -618,7 +636,7 @@ export default function NuevoProductoPage() {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <div className="flex gap-3 pb-8">
+        <div data-tutorial="prod-guardar" className="flex gap-3 pb-8">
           <Link href="/dashboard/productos" className="btn-secondary">Cancelar</Link>
           <button type="submit" disabled={loading} className="btn-primary">
             {loading ? 'Guardando...' : 'Crear producto'}

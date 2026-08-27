@@ -163,6 +163,21 @@ interface Props {
   // Atributos adicionales configurados por el tenant en Catálogo. Los valores
   // se cargan por celda desde el panel de cada variante.
   extraAttrs?: AttrConfig[]
+  // Edición de los nombres de eje PARA ESTE PRODUCTO. Viven acá adentro y no
+  // en la página para quedar pegados a la tabla: son el encabezado de lo que
+  // se está por cargar, y antes quedaban separados de ella por el panel de
+  // edición masiva. Solo se muestran si se pasa el callback y columnType es
+  // 'text' (en modo color los ejes son Talle/Color y no se renombran).
+  productRowLabel?: string
+  productColumnLabel?: string
+  onProductRowLabelChange?: (v: string) => void
+  onProductColumnLabelChange?: (v: string) => void
+  // Defaults del tenant (store_config) — se usan de placeholder y en la ayuda.
+  tenantRowLabel?: string
+  tenantColumnLabel?: string
+  // Signo de pregunta del tutorial, si la página lo provee. Se recibe como
+  // nodo para que este componente no dependa del motor de tutoriales.
+  hintSlot?: React.ReactNode
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -183,6 +198,13 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   showWholesale = true,
   showDiscount = true,
   extraAttrs = [],
+  productRowLabel = '',
+  productColumnLabel = '',
+  onProductRowLabelChange,
+  onProductColumnLabelChange,
+  tenantRowLabel = '',
+  tenantColumnLabel = '',
+  hintSlot,
 }, ref) => {
   const effRowLabel = columnType === 'text' ? (rowLabel.trim() || 'Fila') : 'Talle'
   const effColumnLabel = columnType === 'text' ? (columnLabel.trim() || 'Columna') : 'Color'
@@ -465,8 +487,13 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   return (
     <div className="space-y-4">
 
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-sm font-semibold text-zinc-700">Variantes, stock y precios</h2>
+        {hintSlot}
+      </div>
+
       {/* ── Bulk edit panel ────────────────────────────────────────────────── */}
-      <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
+      <div data-tutorial="prod-bulk" className="bg-primary-50 border border-primary-100 rounded-xl p-4">
         <p className="text-xs font-semibold text-primary-700 mb-3">Editar todas las celdas a la vez</p>
         <div className="flex flex-wrap items-end gap-3">
           {[
@@ -501,8 +528,39 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
         <p className="text-[10px] text-primary-400 mt-2">Solo los campos que completes se van a aplicar. Los demás se dejan como están.</p>
       </div>
 
+      {/* ── Nombres de los ejes de ESTE producto ───────────────────────────── */}
+      {columnType === 'text' && onProductRowLabelChange && onProductColumnLabelChange && (
+        <div data-tutorial="prod-ejes" className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">
+              Nombre de las filas (solo este producto)
+            </label>
+            <input
+              className="input text-sm max-w-[220px]"
+              value={productRowLabel}
+              onChange={e => onProductRowLabelChange(e.target.value)}
+              placeholder={tenantRowLabel || 'Fila'}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">
+              Nombre de las columnas (solo este producto)
+            </label>
+            <input
+              className="input text-sm max-w-[220px]"
+              value={productColumnLabel}
+              onChange={e => onProductColumnLabelChange(e.target.value)}
+              placeholder={tenantColumnLabel || 'Columna'}
+            />
+          </div>
+          <p className="text-[10px] text-zinc-400 w-full">
+            Vacío = usa el de la tienda (“{tenantRowLabel || 'Fila'}” / “{tenantColumnLabel || 'Columna'}”, configurado en Mi Tienda &gt; Catálogo). Lo que pongas acá solo aplica a este producto.
+          </p>
+        </div>
+      )}
+
       {/* ── Matrix table ───────────────────────────────────────────────────── */}
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+      <div data-tutorial="prod-tabla" className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
         <table className="border-collapse w-full">
           <thead>
             <tr className="bg-zinc-50">
