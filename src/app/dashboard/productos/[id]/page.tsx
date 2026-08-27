@@ -495,6 +495,34 @@ export default function EditarProductoPage() {
         }
       }
 
+      // Limpieza de variantes huérfanas: si el producto tenía más variantes
+      // en la base que las guardadas recién (típicamente al pasar de
+      // sizes_colors a simple, o al sacar colores/talles sin pasar por
+      // removeVariantGroup), las que quedan afuera de variantsToSave hay que
+      // sacarlas — si no, siguen mostrando talle/color y precio viejo en la
+      // tienda aunque el producto ya esté configurado como simple. Bug real
+      // visto con HaeJin-HaeJin (2026-08): 2 de 3 productos migrados a
+      // "simple" seguían mostrando talles en el storefront.
+      const keptVariantIds = (variantsToSave as any[]).filter(v => v.id).map(v => v.id)
+      const { data: existingVariantRows } = await supabase.from('variants').select('id').eq('product_id', id)
+      const orphanVariantIds = (existingVariantRows ?? [])
+        .map((v: any) => v.id)
+        .filter((vid: string) => !keptVariantIds.includes(vid))
+
+      if (orphanVariantIds.length > 0) {
+        // Si alguna huérfana ya tiene pedidos asociados no se puede borrar
+        // (rompería el historial) — se le sacan los price_rules para que
+        // desaparezca de la tienda, pero la fila se conserva inactiva.
+        const { data: refRows } = await supabase.from('order_items').select('variant_id').in('variant_id', orphanVariantIds)
+        const referencedIds = new Set((refRows ?? []).map((r: any) => r.variant_id))
+        const deletableIds = orphanVariantIds.filter((vid: string) => !referencedIds.has(vid))
+        const keepInactiveIds = orphanVariantIds.filter((vid: string) => referencedIds.has(vid))
+
+        await supabase.from('price_rules').delete().in('variant_id', orphanVariantIds)
+        if (deletableIds.length > 0) await supabase.from('variants').delete().in('id', deletableIds)
+        if (keepInactiveIds.length > 0) await supabase.from('variants').update({ active: false }).in('id', keepInactiveIds)
+      }
+
       setNewImageFiles([])
       setNewImagePreviews([])
       // Se queda en la misma página en vez de volver al listado, para poder
