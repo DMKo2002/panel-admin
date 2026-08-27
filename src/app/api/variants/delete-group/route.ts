@@ -12,18 +12,33 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { productId, by, value } = await req.json()
-  // OJO: "value" puede ser legítimamente una cadena vacía (variantes viejas
-  // sin talle/color, o una fila/columna de la tabla libre que nunca se
-  // llegó a nombrar) — un chequeo con "!value" las trata como "falta el
-  // dato" y bloquea el borrado con este mismo error 400, aunque productId
-  // y by estén perfectos. Se valida presencia real (undefined/null) en vez
-  // de truthiness.
-  if (!productId || !by || value === undefined || value === null) {
-    return NextResponse.json({ error: 'Faltan datos (productId, by, value)' }, { status: 400 })
+  const body = await req.json()
+  const { productId, by, value } = body
+  // Modo preferido: el editor manda directamente los ids de las variantes a
+  // borrar. Es lo que sabe con certeza (las tiene cargadas en pantalla) y
+  // evita todo el baile de re-encontrarlas por nombre acá — que fallaba
+  // cada vez que el nombre mostrado no era exactamente el guardado (colores
+  // legacy en hex, filas/columnas renombradas y todavía sin guardar, o
+  // valores vacíos). El modo por nombre se mantiene abajo por compatibilidad.
+  const explicitIds: string[] = Array.isArray(body.variantIds)
+    ? body.variantIds.filter((v: unknown) => typeof v === 'string' && v)
+    : []
+
+  if (!productId) {
+    return NextResponse.json({ error: 'Falta productId' }, { status: 400 })
   }
-  if (by !== 'color' && by !== 'size') {
-    return NextResponse.json({ error: 'by debe ser "color" o "size"' }, { status: 400 })
+  if (explicitIds.length === 0) {
+    // OJO: "value" puede ser legítimamente una cadena vacía (variantes viejas
+    // sin talle/color, o una fila/columna de la tabla libre que nunca se
+    // llegó a nombrar) — un chequeo con "!value" las trata como "falta el
+    // dato" y bloquea el borrado con un 400, aunque productId y by estén
+    // perfectos. Se valida presencia real (undefined/null) en vez de truthiness.
+    if (!by || value === undefined || value === null) {
+      return NextResponse.json({ error: 'Faltan datos (productId, by, value)' }, { status: 400 })
+    }
+    if (by !== 'color' && by !== 'size') {
+      return NextResponse.json({ error: 'by debe ser "color" o "size"' }, { status: 400 })
+    }
   }
 
   const service = createServiceClient()
@@ -50,7 +65,13 @@ export async function POST(req: NextRequest) {
     .eq('product_id', productId)
 
   let variantIds: string[] = []
-  if (by === 'size') {
+  if (explicitIds.length > 0) {
+    // Solo se aceptan ids que pertenezcan REALMENTE a este producto (que ya
+    // se verificó que es del tenant) — así un id de otro tenant colado en el
+    // body no borra nada ajeno.
+    const own = new Set((allVariants ?? []).map(v => v.id))
+    variantIds = explicitIds.filter(id => own.has(id))
+  } else if (by === 'size') {
     variantIds = (allVariants ?? [])
       .filter(v => (v.size ?? '') === value)
       .map(v => v.id)

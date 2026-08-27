@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Upload, ArrowLeft, X, Star } from 'lucide-react'
 import Link from 'next/link'
 import VariantMatrix, { VariantMatrixHandle, FavoriteColor } from '@/components/VariantMatrix'
-import SimpleVariantForm, { SimpleVariantHandle } from '@/components/SimpleVariantForm'
+import VariantList, { VariantListHandle } from '@/components/VariantList'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -53,7 +53,7 @@ export default function NuevoProductoPage() {
   const router = useRouter()
   const supabase = createClient()
   const matrixRef = useRef<VariantMatrixHandle>(null)
-  const simpleRef = useRef<SimpleVariantHandle>(null)
+  const listRef = useRef<VariantListHandle>(null)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,7 +81,6 @@ export default function NuevoProductoPage() {
 
   // Custom tenant attributes (non-size, non-color) to show below the matrix
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
-  const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
   const [initialSizes, setInitialSizes] = useState<string[] | null>(null)
   const [initialColors, setInitialColors] = useState<string[] | undefined>(undefined)
   const [variantMode, setVariantMode] = useState<'sizes_colors' | 'simple'>('sizes_colors')
@@ -212,6 +211,12 @@ export default function NuevoProductoPage() {
     e.preventDefault()
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     if (!tenantId) { setError('No se pudo determinar el tenant'); return }
+    // Nombres de fila/columna repetidos — se avisan acá, no bloqueando el
+    // tipeo mientras se edita la tabla.
+    const variantsError = variantMode === 'simple'
+      ? (listRef.current?.validate?.() ?? null)
+      : (matrixRef.current?.validate?.() ?? null)
+    if (variantsError) { setError(variantsError); return }
     if (limits && !limits.canCreateProduct) {
       setError(`Llegaste al límite de ${limits.maxProductos} productos de tu plan${limits.planNombre ? ` ${limits.planNombre}` : ''}. Subí de plan o eliminá productos para seguir cargando.`)
       return
@@ -283,12 +288,28 @@ export default function NuevoProductoPage() {
       // Guardar variantes — modo simple: 1 sola variante sin talle/color.
       // Modo sizes_colors: una por celda de la matriz (extra attrs van al
       // JSONB attributes de cada variante).
-      const variantsToSave = variantMode === 'simple'
-        ? (simpleRef.current ? [{ ...simpleRef.current.getVariant(), size: null, color: null, colorHex: null, attrs: {} }] : [])
+      // El nombre de cada variante (modo lista) va a variants.size, que es de
+      // donde la tienda arma el selector de opciones del producto.
+      const variantsToSave: any[] = variantMode === 'simple'
+        ? (listRef.current?.getVariants() ?? []).map(v => ({
+            size: v.name || null,
+            color: null,
+            colorHex: null,
+            attrs: v.attrs ?? {},
+            stock: v.stock,
+            active: v.active,
+            retailPrice: v.retailPrice,
+            retailCompareAt: v.retailCompareAt,
+            wholesalePrice: v.wholesalePrice,
+            wholesaleCompareAt: v.wholesaleCompareAt,
+            wholesaleMinQty: v.wholesaleMinQty,
+          }))
         : (matrixRef.current?.getVariants() ?? [])
 
       for (const v of variantsToSave) {
-        const attrs = { ...(v as any).attrs, ...extraAttrValues }
+        // Ya viene armado por variante desde la matriz (identidad de celda +
+        // atributos propios), sin un set global que pise a todas por igual.
+        const attrs = (v as any).attrs ?? {}
         const { data: variant, error: varErr } = await supabase
           .from('variants')
           .insert({ product_id: product.id, size: v.size, color: v.color, color_hex: (v as any).colorHex, sku: null, stock: v.stock, active: (v as any).active ?? true, attributes: attrs })
@@ -503,7 +524,13 @@ export default function NuevoProductoPage() {
         {/* Variantes */}
         {configLoaded && (
           variantMode === 'simple' ? (
-            <SimpleVariantForm ref={simpleRef} showRetail={showRetail} showWholesale={showWholesale} showDiscount={showDiscount} />
+            <VariantList
+              ref={listRef}
+              showRetail={showRetail}
+              showWholesale={showWholesale}
+              showDiscount={showDiscount}
+              extraAttrs={extraAttrs}
+            />
           ) : initialSizes && (
             <>
               {columnType === 'text' && (
@@ -548,32 +575,15 @@ export default function NuevoProductoPage() {
                 showRetail={showRetail}
                 showWholesale={showWholesale}
                 showDiscount={showDiscount}
+                extraAttrs={extraAttrs}
               />
             </>
           )
         )}
 
-        {/* Atributos extra del tenant */}
-        {extraAttrs.length > 0 && (
-          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-700">Atributos adicionales</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {extraAttrs.map(attr => (
-                <div key={attr.key}>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">{attr.label}</label>
-                  {attr.type === 'select' && attr.options ? (
-                    <select className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))}>
-                      <option value="">&#8212; Seleccionar &#8212;</option>
-                      {attr.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  ) : (
-                    <input className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Los atributos adicionales se cargan por variante (botón "Atributos"
+            en cada celda de la tabla, o en cada fila de la lista de variantes),
+            no una sola vez para todo el producto. */}
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 

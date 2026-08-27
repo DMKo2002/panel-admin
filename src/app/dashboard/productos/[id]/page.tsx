@@ -6,12 +6,25 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Upload, Star, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import VariantMatrix, { VariantMatrixHandle, CellData, cellKey, FavoriteColor } from '@/components/VariantMatrix'
-import SimpleVariantForm, { SimpleVariantHandle, SimpleVariantData } from '@/components/SimpleVariantForm'
+import VariantList, { VariantListHandle, ListVariantData } from '@/components/VariantList'
 import { buildDisplayNameByRawColor } from '@/lib/colorNames'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
 const SIZE_KEYS = ['talle', 'numero', 'talla', 'size']
+
+// De los `attributes` guardados en una variante, saca solo los atributos
+// ADICIONALES del tenant — 'talle'/'color' y sus sinónimos son la identidad
+// de la celda dentro de la tabla, no atributos editables.
+function buildCellAttrs(attributes: Record<string, any> | null | undefined): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(attributes ?? {})) {
+    if (k === 'color' || SIZE_KEYS.includes(k)) continue
+    if (v == null || String(v).trim() === '') continue
+    out[k] = String(v)
+  }
+  return out
+}
 
 // ── Image resize: center-crop a un ancho×alto dado, compress a ≤150KB ──────────
 // El ratio (2:3 retrato o 1:1 cuadrada) sale de store_config.product_image_ratio,
@@ -67,7 +80,7 @@ export default function EditarProductoPage() {
   const id = params.id as string
   const supabase = createClient()
   const matrixRef = useRef<VariantMatrixHandle>(null)
-  const simpleRef = useRef<SimpleVariantHandle>(null)
+  const listRef = useRef<VariantListHandle>(null)
   const [dragOver, setDragOver] = useState(false)
 
   // Prevent browser from navigating when files are dropped outside the upload zone
@@ -103,6 +116,11 @@ export default function EditarProductoPage() {
   // tenant y aplica a todos los productos.
   const [productRowLabel, setProductRowLabel] = useState('')
   const [productColumnLabel, setProductColumnLabel] = useState('')
+  // Cómo se llaman los ejes para ESTE producto, ya resueltos (override del
+  // producto > default del tenant > genérico). En modo color siempre es
+  // Talle/Color, que no es configurable.
+  const effRowLabel = columnType === 'text' ? (productRowLabel.trim() || rowLabel.trim() || 'Fila') : 'Talle'
+  const effColumnLabel = columnType === 'text' ? (productColumnLabel.trim() || columnLabel.trim() || 'Columna') : 'Color'
 
   // Basic product fields
   const [name, setName] = useState('')
@@ -128,7 +146,6 @@ export default function EditarProductoPage() {
 
   // Extra tenant attrs (non-size, non-color)
   const [extraAttrs, setExtraAttrs] = useState<AttrConfig[]>([])
-  const [extraAttrValues, setExtraAttrValues] = useState<Record<string, string>>({})
 
   // Matrix initial state
   const [matrixInitialSizes, setMatrixInitialSizes] = useState<string[]>([])
@@ -137,7 +154,7 @@ export default function EditarProductoPage() {
   const [matrixInitialCells, setMatrixInitialCells] = useState<Record<string, CellData>>({})
   const [matrixReady, setMatrixReady] = useState(false)
   const [variantMode, setVariantMode] = useState<'sizes_colors' | 'simple'>('sizes_colors')
-  const [simpleInitial, setSimpleInitial] = useState<SimpleVariantData | undefined>(undefined)
+  const [listInitial, setListInitial] = useState<ListVariantData[] | undefined>(undefined)
   // Se incrementa cada vez que se recargan los datos frescos de la base
   // (después de guardar) — se usa como `key` de VariantMatrix para forzar
   // que reinicie su estado interno con los ids de variante reales, en vez
@@ -246,28 +263,23 @@ export default function EditarProductoPage() {
           storeAttrs = configData?.variant_attributes ?? []
           const extra = storeAttrs.filter((a: AttrConfig) => a.key !== 'color' && !SIZE_KEYS.includes(a.key))
           setExtraAttrs(extra)
-
-          // Load existing extra attr values from the first variant's attributes JSONB
-          const firstVariant = (product.variants ?? [])[0]
-          if (firstVariant?.attributes) {
-            const vals: Record<string, string> = {}
-            for (const attr of extra) {
-              if (firstVariant.attributes[attr.key]) vals[attr.key] = firstVariant.attributes[attr.key]
-            }
-            setExtraAttrValues(vals)
-          }
+          // Los VALORES de los atributos ya no se leen de la primera variante
+          // para aplicarlos a todo el producto — ahora cada variante tiene los
+          // suyos y se cargan celda por celda más abajo (ver buildCellAttrs).
         }
       }
 
       if (mode === 'simple') {
-        // Modo simple: 1 sola variante, sin talle/color. Precarga desde la
-        // primera (y única esperada) variante existente, si hay.
-        const v = dbVariants[0]
-        if (v) {
+        // Modo lista (variant_mode='simple'): el producto puede tener 1 o
+        // varias variantes, cada una con su nombre, precio y atributos. Un
+        // producto viejo con una sola variante sin nombre se carga igual y
+        // se sigue comportando como antes.
+        setListInitial(dbVariants.map((v: any) => {
           const retail = v.price_rules?.find((p: any) => p.type === 'retail')
           const wholesale = v.price_rules?.find((p: any) => p.type === 'wholesale')
-          setSimpleInitial({
+          return {
             id: v.id,
+            name: v.size ?? '',
             stock: v.stock ?? 0,
             active: v.active ?? true,
             retailPrice: Math.round(retail?.price ?? 0),
@@ -275,10 +287,9 @@ export default function EditarProductoPage() {
             wholesalePrice: Math.round(wholesale?.price ?? 0),
             wholesaleCompareAt: Math.round(wholesale?.compare_at_price ?? 0),
             wholesaleMinQty: wholesale?.min_qty ?? 1,
-          })
-        } else {
-          setSimpleInitial(undefined)
-        }
+            attrs: buildCellAttrs(v.attributes),
+          }
+        }))
         setMatrixReady(true)
         setMatrixVersion(v2 => v2 + 1)
         setLoading(false)
@@ -310,6 +321,7 @@ export default function EditarProductoPage() {
           wholesalePrice: Math.round(wholesale?.price ?? 0),
           wholesaleCompareAt: Math.round(wholesale?.compare_at_price ?? 0),
           wholesaleMinQty: wholesale?.min_qty ?? 6,
+          attrs: buildCellAttrs(v.attributes),
         }
       }
 
@@ -421,6 +433,13 @@ export default function EditarProductoPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
+    // La tabla deja escribir cualquier nombre mientras se edita (bloquear el
+    // tipeo se sentía como un campo trabado) — los nombres repetidos se
+    // marcan en rojo y se avisan recién acá, antes de guardar.
+    const variantsError = variantMode === 'simple'
+      ? (listRef.current?.validate?.() ?? null)
+      : (matrixRef.current?.validate?.() ?? null)
+    if (variantsError) { setError(variantsError); return }
     setSaving(true); setError(null)
     try {
       const categoryIdsArray = Array.from(selectedCategoryIds)
@@ -475,8 +494,24 @@ export default function EditarProductoPage() {
 
       // Guardar variantes — modo simple: 1 sola (sin talle/color). Modo
       // sizes_colors: una por celda de la matriz.
-      const variantsToSave = variantMode === 'simple'
-        ? (simpleRef.current ? [{ ...simpleRef.current.getVariant(), size: null, color: null, colorHex: null, attrs: {} }] : [])
+      // El nombre de la variante (modo lista) se guarda en variants.size —
+      // es la misma columna que usa la tienda para armar el selector de
+      // opciones, así no hay que tocar nada del storefront para que aparezca.
+      const variantsToSave: any[] = variantMode === 'simple'
+        ? (listRef.current?.getVariants() ?? []).map(v => ({
+            id: v.id,
+            size: v.name || null,
+            color: null,
+            colorHex: null,
+            attrs: v.attrs ?? {},
+            stock: v.stock,
+            active: v.active,
+            retailPrice: v.retailPrice,
+            retailCompareAt: v.retailCompareAt,
+            wholesalePrice: v.wholesalePrice,
+            wholesaleCompareAt: v.wholesaleCompareAt,
+            wholesaleMinQty: v.wholesaleMinQty,
+          }))
         : (matrixRef.current?.getVariants() ?? [])
 
       // IDs de variantes recién insertadas en ESTE guardado (sin v.id todavía
@@ -488,7 +523,11 @@ export default function EditarProductoPage() {
       const newlyCreatedVariantIds: string[] = []
 
       for (const v of variantsToSave as any[]) {
-        const attrs = { ...(v.attrs ?? {}), ...extraAttrValues }
+        // v.attrs ya viene armado por variante desde la matriz (identidad de
+        // celda + atributos propios, sin los vacíos). Antes acá se pisaba con
+        // un set de atributos global del producto, que era justamente lo que
+        // impedía que dos variantes tuvieran atributos distintos.
+        const attrs = v.attrs ?? {}
         const rules: any[] = []
 
         if (v.id) {
@@ -577,19 +616,27 @@ export default function EditarProductoPage() {
     } catch (err: any) { setError(err.message); setDeleting(false) }
   }
 
-  // Borrar una columna de color o una fila de talle entera — a diferencia de
-  // vaciar los precios a mano, esto elimina de verdad las variantes en la
-  // base (vía API, que bloquea el borrado si ya tienen pedidos asociados).
-  async function removeVariantGroup(by: 'color' | 'size', value: string): Promise<boolean> {
-    const label = by === 'color' ? 'el color' : 'el talle'
-    if (!confirm(`¿Eliminar ${label} "${value}" de este producto? Esto borra las variantes correspondientes de la base — no se puede deshacer.`)) {
+  // Borrar una columna o una fila ENTERA que ya está guardada en la base.
+  //
+  // La matriz solo llama a esto cuando la fila/columna tiene variantes
+  // realmente persistidas (manda sus ids). Una fila/columna recién agregada
+  // que todavía no se guardó se saca del estado local sin pasar por acá: es
+  // un cambio visual hasta que el tenant toque "Guardar", así que no tiene
+  // sentido pedirle confirmación ni llamar a la API (que además fallaba,
+  // porque no había nada que borrar).
+  async function removeVariantGroup(by: 'color' | 'size' | 'variant', variantIds: string[], label: string): Promise<boolean> {
+    const what = by === 'color' ? effColumnLabel.toLowerCase()
+      : by === 'size' ? effRowLabel.toLowerCase()
+      : 'la variante'
+    const n = variantIds.length
+    if (!confirm(`¿Eliminar ${what} "${label}" de este producto?\n\nYa está guardada en la tienda: se van a borrar ${n} ${n === 1 ? 'variante' : 'variantes'} de la base y no se puede deshacer.`)) {
       return false
     }
     try {
       const res = await fetch('/api/variants/delete-group', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: id, by, value }),
+        body: JSON.stringify({ productId: id, variantIds }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -911,7 +958,16 @@ export default function EditarProductoPage() {
         {/* Variantes */}
         {matrixReady && (
           variantMode === 'simple' ? (
-            <SimpleVariantForm key={matrixVersion} ref={simpleRef} initial={simpleInitial} showRetail={showRetail} showWholesale={showWholesale} showDiscount={showDiscount} />
+            <VariantList
+              key={matrixVersion}
+              ref={listRef}
+              initial={listInitial}
+              showRetail={showRetail}
+              showWholesale={showWholesale}
+              showDiscount={showDiscount}
+              extraAttrs={extraAttrs}
+              onRemoveVariant={(variantId, label) => removeVariantGroup('variant', [variantId], label)}
+            />
           ) : (
             <>
               {columnType === 'text' && (
@@ -951,8 +1007,8 @@ export default function EditarProductoPage() {
                 initialColors={matrixInitialColors}
                 initialColorHexes={matrixInitialColorHexes}
                 initialCells={matrixInitialCells}
-                onRemoveColor={(color) => removeVariantGroup('color', color)}
-                onRemoveSize={(size) => removeVariantGroup('size', size)}
+                onRemoveColor={(ids, label) => removeVariantGroup('color', ids, label)}
+                onRemoveSize={(ids, label) => removeVariantGroup('size', ids, label)}
                 favoriteColors={favoriteColors}
                 onToggleFavorite={toggleFavorite}
                 columnType={columnType}
@@ -961,32 +1017,16 @@ export default function EditarProductoPage() {
                 showRetail={showRetail}
                 showWholesale={showWholesale}
                 showDiscount={showDiscount}
+                extraAttrs={extraAttrs}
               />
             </>
           )
         )}
 
-        {/* Atributos extra del tenant */}
-        {extraAttrs.length > 0 && (
-          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-700">Atributos adicionales</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {extraAttrs.map(attr => (
-                <div key={attr.key}>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">{attr.label}</label>
-                  {attr.type === 'select' && attr.options ? (
-                    <select className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))}>
-                      <option value="">&#8212; Seleccionar &#8212;</option>
-                      {attr.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  ) : (
-                    <input className="input" value={extraAttrValues[attr.key] ?? ''} onChange={e => setExtraAttrValues(prev => ({ ...prev, [attr.key]: e.target.value }))} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Los atributos adicionales ya no se cargan una sola vez para todo el
+            producto: cada variante tiene los suyos. En modo tabla se editan
+            desde el botón "Atributos" de cada celda (o "Atributos para todas"
+            en el panel de arriba); en modo lista, en cada variante. */}
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
