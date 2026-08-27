@@ -33,11 +33,39 @@ export async function GET(req: NextRequest) {
 
     const { data: config } = await supabase
       .from('store_config')
-      .select('store_address, whatsapp_number')
+      .select('store_address, whatsapp_number, weight_unit, dimension_unit')
       .eq('tenant_id', order.tenant_id)
       .single()
 
     const cfg = config as any
+
+    // Peso y medidas de cada producto del pedido. Viven en `products`, y
+    // desde el pedido solo se llega por order_items.variant_id -> variants
+    // .product_id -> products. Hasta ahora esta consulta no existía: el
+    // tenant podía cargar dimensiones y peso en Catálogo pero la etiqueta de
+    // envío nunca los leía, así que no aparecían por ningún lado.
+    const variantIds = (order.order_items ?? [])
+      .map((it: any) => it.variant_id)
+      .filter(Boolean)
+
+    // variantId -> { width, length, height, weight }
+    const dimsByVariant: Record<string, any> = {}
+    if (variantIds.length > 0) {
+      const { data: variantRows } = await supabase
+        .from('variants')
+        .select('id, products (width_cm, length_cm, height_cm, weight_kg)')
+        .in('id', variantIds)
+      for (const v of variantRows ?? []) {
+        const p: any = Array.isArray((v as any).products) ? (v as any).products[0] : (v as any).products
+        if (!p) continue
+        dimsByVariant[(v as any).id] = {
+          width:  p.width_cm,
+          length: p.length_cm,
+          height: p.height_cm,
+          weight: p.weight_kg,
+        }
+      }
+    }
 
     const pdfBuffer = await renderToBuffer(
       React.createElement(EtiquetaEnvioPDF, {
@@ -45,6 +73,9 @@ export async function GET(req: NextRequest) {
         storeName:      tenant?.name ?? 'Tienda',
         storeAddress:   cfg?.store_address   ?? '',
         storeWhatsapp:  cfg?.whatsapp_number ?? '',
+        dimsByVariant,
+        weightUnit:     cfg?.weight_unit    ?? 'kg',
+        dimensionUnit:  cfg?.dimension_unit ?? 'cm',
       }) as any
     )
 

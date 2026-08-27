@@ -151,6 +151,23 @@ const styles = StyleSheet.create({
   itemVariant: { fontSize: 8, color: '#888', flex: 1, marginTop: 3 },
   itemQty: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#1C1C1C', textAlign: 'right' },
 
+  // Peso y medidas del paquete
+  dimsBox: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 4,
+    padding: 10,
+  },
+  dimsTotal: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#1C1C1C' },
+  dimsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  dimsItemName: { fontSize: 8, color: '#666', flex: 1 },
+  dimsItemValue: { fontSize: 8, color: '#333', textAlign: 'right' },
+
   // Footer
   footer: {
     position: 'absolute',
@@ -171,13 +188,53 @@ interface EtiquetaEnvioPDFProps {
   storeName: string
   storeAddress?: string
   storeWhatsapp?: string
+  // variantId -> { width, length, height, weight } del producto de esa
+  // variante. Lo arma el endpoint (products no cuelga del pedido).
+  dimsByVariant?: Record<string, { width?: number | null; length?: number | null; height?: number | null; weight?: number | null }>
+  // Unidades configuradas por el tenant en Catálogo. Los valores se guardan
+  // tal cual en esa unidad, sin conversión.
+  weightUnit?: string
+  dimensionUnit?: string
+}
+
+// Formatea un número sacando los decimales que no aportan (2.50 -> "2,5").
+function fmtNum(n: number): string {
+  return String(Math.round(n * 1000) / 1000).replace('.', ',')
 }
 
 export function EtiquetaEnvioPDF({
   order, storeName, storeAddress, storeWhatsapp,
+  dimsByVariant = {}, weightUnit = 'kg', dimensionUnit = 'cm',
 }: EtiquetaEnvioPDFProps) {
   const customer = order.customers
   const items: any[] = order.order_items ?? []
+
+  // Peso total del envío = peso de cada producto x cantidad pedida. Solo se
+  // muestra si al menos un producto tiene peso cargado.
+  let totalWeight = 0
+  let hasWeight = false
+  for (const it of items) {
+    const d = dimsByVariant[it.variant_id]
+    if (d?.weight != null && d.weight > 0) {
+      hasWeight = true
+      totalWeight += Number(d.weight) * (it.quantity ?? 1)
+    }
+  }
+
+  // Medidas por producto — no tiene sentido sumarlas entre productos
+  // distintos, así que se listan una por línea.
+  const itemsWithDims = items
+    .map(it => {
+      const d = dimsByVariant[it.variant_id]
+      if (!d) return null
+      const parts = [d.width, d.length, d.height]
+      if (parts.every(p => p == null || p === 0)) return null
+      const medida = parts.map(p => (p == null || p === 0 ? '—' : fmtNum(Number(p)))).join(' x ')
+      return { name: it.product_name, medida: `${medida} ${dimensionUnit}` }
+    })
+    .filter(Boolean) as Array<{ name: string; medida: string }>
+
+  const showDims = hasWeight || itemsWithDims.length > 0
 
   const shipStreet   = order.shipping_address?.street   ?? customer?.address_street   ?? ''
   const shipCity     = order.shipping_address?.city     ?? customer?.address_city     ?? ''
@@ -238,6 +295,30 @@ export function EtiquetaEnvioPDF({
                 <Text style={styles.itemQty}>x{item.quantity}</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Peso y medidas — para completar la guía del correo sin tener que
+            ir a buscar los datos producto por producto en el Panel. */}
+        {showDims && (
+          <View style={styles.dimsBox}>
+            <Text style={styles.itemsTitle}>Peso y medidas</Text>
+            {hasWeight && (
+              <Text style={styles.dimsTotal}>
+                Peso total: {fmtNum(totalWeight)} {weightUnit}
+              </Text>
+            )}
+            {itemsWithDims.map((d, i) => (
+              <View key={i} style={styles.dimsRow}>
+                <Text style={styles.dimsItemName}>{d.name}</Text>
+                <Text style={styles.dimsItemValue}>{d.medida}</Text>
+              </View>
+            ))}
+            {itemsWithDims.length > 0 && (
+              <Text style={{ fontSize: 7, color: '#AAA', marginTop: 5 }}>
+                Medidas por unidad (ancho x largo x alto)
+              </Text>
+            )}
           </View>
         )}
 

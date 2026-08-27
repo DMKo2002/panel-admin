@@ -506,10 +506,9 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
         <table className="border-collapse w-full">
           <thead>
             <tr className="bg-zinc-50">
-              {/* Esquina — nombra el eje de las filas */}
-              <th className="px-3 py-3 text-left border-b border-r border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[90px]">
-                <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">{effRowLabel}</span>
-              </th>
+              {/* Esquina — vacía a propósito: el nombre del eje ya se entiende
+                  por los valores de cada fila y por el botón de agregar. */}
+              <th className="px-3 py-3 text-left border-b border-r border-zinc-200 sticky left-0 bg-zinc-50 z-10 min-w-[90px]" />
 
               {/* Column headers — swatch+picker en modo 'color', texto libre en modo 'text' */}
               {cols.map(col => (

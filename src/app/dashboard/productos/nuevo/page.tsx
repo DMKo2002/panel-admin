@@ -88,7 +88,8 @@ export default function NuevoProductoPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
   const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
-  const [weightUnit, setWeightUnit] = useState<'kg' | 'ml' | 'g'>('kg')
+  const [weightUnit, setWeightUnit] = useState<string>('kg')
+  const [dimensionUnit, setDimensionUnit] = useState<string>('cm')
   const [showRetail, setShowRetail] = useState(true)
   const [showWholesale, setShowWholesale] = useState(true)
   const [showDiscount, setShowDiscount] = useState(true)
@@ -116,12 +117,13 @@ export default function NuevoProductoPage() {
       setTenantId(userRow?.tenant_id)
       const [{ data: cats }, { data: configData }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
+        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit, dimension_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
       setImageRatio((configData as any)?.product_image_ratio === '1:1' ? '1:1' : '2:3')
       setWeightUnit((configData as any)?.weight_unit ?? 'kg')
+      setDimensionUnit((configData as any)?.dimension_unit ?? 'cm')
       setShowRetail((configData as any)?.enable_retail_pricing ?? true)
       setShowWholesale((configData as any)?.enable_wholesale_pricing ?? true)
       setShowDiscount((configData as any)?.enable_discount_pricing ?? true)
@@ -464,15 +466,15 @@ export default function NuevoProductoPage() {
           </div>
           <div className="grid grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Ancho (cm)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Ancho ({dimensionUnit})</label>
               <input className="input" type="number" min={0} step="0.1" value={widthCm} onChange={e => setWidthCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Largo (cm)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Largo ({dimensionUnit})</label>
               <input className="input" type="number" min={0} step="0.1" value={lengthCm} onChange={e => setLengthCm(e.target.value)} placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Altura (cm)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Altura ({dimensionUnit})</label>
               <input className="input" type="number" min={0} step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} placeholder="0" />
             </div>
             <div>

@@ -127,8 +127,14 @@ export interface StoreConfig {
   // Ratio con el que se procesan y muestran las imágenes de producto.
   // '2:3' retrato (default) | '1:1' cuadrada (ej. cosmética con grid cuadrado)
   product_image_ratio: '2:3' | '1:1'
-  // Unidad del campo "peso" del producto (ficha de producto / dimensiones).
-  weight_unit: 'kg' | 'ml' | 'g'
+  // Unidad del campo "peso"/contenido del producto. El valor numérico se
+  // guarda tal cual en esta unidad — el sufijo "_kg" de products.weight_kg es
+  // histórico y NO implica que el dato esté en kilos ni que se convierta al
+  // cambiar esta config.
+  weight_unit: 'kg' | 'g' | 'mg' | 'l' | 'ml'
+  // Ídem para ancho/largo/alto (products.width_cm, length_cm, height_cm).
+  // null = 'cm', que es como se comportaba antes de que esto fuera elegible.
+  dimension_unit: 'cm' | 'mm' | 'm' | 'in' | null
   // Qué tipos de precio se piden/muestran al cargar productos. Al menos uno
   // de los dos (retail/wholesale) debe quedar true — lo valida el Panel
   // Admin. enable_discount_pricing controla los campos "rebajado" (compare_at)

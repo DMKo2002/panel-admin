@@ -74,7 +74,7 @@ export default function CatalogoConfigPage() {
       // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
       const { data, error } = await supabase
         .from('store_config')
-        .select('id, variant_attributes, product_image_ratio, weight_unit, variant_mode, variant_column_type, variant_row_label, variant_column_label')
+        .select('id, variant_attributes, product_image_ratio, weight_unit, dimension_unit, variant_mode, variant_column_type, variant_row_label, variant_column_label')
         .eq('tenant_id', userRow.tenant_id)
         .single()
       if (error) {
@@ -116,6 +116,7 @@ export default function CatalogoConfigPage() {
     const { error } = await supabase.from('store_config').update({
       product_image_ratio: (config as any).product_image_ratio ?? '2:3',
       weight_unit:      (config as any).weight_unit ?? 'kg',
+      dimension_unit:   (config as any).dimension_unit ?? 'cm',
     }).eq('id', config.id)
     setSavingFormat(false)
     if (error) {
@@ -343,15 +344,30 @@ export default function CatalogoConfigPage() {
               <p className="text-xs text-zinc-400 mt-1">Define cómo se recortan las fotos al subirlas y cómo se ven en el grid de la tienda.</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso</label>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso / contenido</label>
               <select className="input" value={(config as any)?.weight_unit ?? 'kg'} onChange={e => update('weight_unit' as any, e.target.value)}>
                 <option value="kg">Kilogramos (kg)</option>
                 <option value="g">Gramos (g)</option>
+                <option value="mg">Miligramos (mg)</option>
+                <option value="l">Litros (l)</option>
                 <option value="ml">Mililitros (ml)</option>
               </select>
-              <p className="text-xs text-zinc-400 mt-1">Solo cambia la etiqueta del campo "Peso" en la ficha de producto.</p>
+              <p className="text-xs text-zinc-400 mt-1">Se usa en el campo "Peso" de cada producto y en la etiqueta de envío.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de medidas</label>
+              <select className="input" value={(config as any)?.dimension_unit ?? 'cm'} onChange={e => update('dimension_unit' as any, e.target.value)}>
+                <option value="cm">Centímetros (cm)</option>
+                <option value="mm">Milímetros (mm)</option>
+                <option value="m">Metros (m)</option>
+                <option value="in">Pulgadas (in)</option>
+              </select>
+              <p className="text-xs text-zinc-400 mt-1">Se usa en ancho, largo y altura de cada producto, y en la etiqueta de envío.</p>
             </div>
           </div>
+          <p className="text-xs text-amber-600">
+            Ojo: cambiar una unidad NO convierte los valores ya cargados en tus productos — solo cambia cómo se muestran. Si ya cargaste medidas, revisalas después de cambiar acá.
+          </p>
         </div>
 
       </div>
