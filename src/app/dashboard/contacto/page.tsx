@@ -115,6 +115,12 @@ export default function ContactoPage() {
     }
     setSaving(true)
     setErrorGeneral(null)
+    // Descartar filas de sucursal vacias (nombre/direccion/telefono en blanco,
+    // sin borrarlas con el tacho) para que el footer de la tienda no muestre un
+    // titulo "Sucursales" vacio.
+    const cleanBranches = branches
+      .map((b) => ({ name: b.name.trim(), address: b.address.trim(), phone: (b.phone ?? '').trim() }))
+      .filter((b) => b.name || b.address || b.phone)
     const { error } = await supabase.from('store_config').update({
       whatsapp_number: whatsapp.trim()     || null,
       instagram_url:   instagram.trim()    || null,
@@ -122,7 +128,7 @@ export default function ContactoPage() {
       tiktok_url:      tiktok.trim()       || null,
       store_address:   storeAddress.trim()  || null,
       pickup_address:  pickupAddress.trim() || null,
-      branches,
+      branches: cleanBranches,
       meta_pixel_id:   metaTrim   || null,
       google_ads_id:   adsTrim    || null,
       tiktok_pixel_id: tiktokTrim || null,
