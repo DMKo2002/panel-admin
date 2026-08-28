@@ -43,6 +43,7 @@ export default function ContactoPage() {
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
 
   const [whatsapp, setWhatsapp] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
   const [instagram, setInstagram] = useState('')
   const [facebook, setFacebook] = useState('')
   const [tiktok, setTiktok] = useState('')
@@ -70,7 +71,7 @@ export default function ContactoPage() {
       // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
       const { data, error } = await supabase
         .from('store_config')
-        .select('id, whatsapp_number, instagram_url, facebook_url, tiktok_url, store_address, pickup_address, branches, meta_pixel_id, google_ads_id, tiktok_pixel_id')
+        .select('id, whatsapp_number, contact_email, instagram_url, facebook_url, tiktok_url, store_address, pickup_address, branches, meta_pixel_id, google_ads_id, tiktok_pixel_id')
         .eq('tenant_id', userRow.tenant_id)
         .single()
       if (error) {
@@ -81,6 +82,7 @@ export default function ContactoPage() {
       if (data) {
         setConfigId(data.id)
         setWhatsapp((data as any).whatsapp_number ?? '')
+        setContactEmail((data as any).contact_email ?? '')
         setInstagram((data as any).instagram_url ?? '')
         setFacebook((data as any).facebook_url ?? '')
         setTiktok((data as any).tiktok_url ?? '')
@@ -123,6 +125,7 @@ export default function ContactoPage() {
       .filter((b) => b.name || b.address || b.phone)
     const { error } = await supabase.from('store_config').update({
       whatsapp_number: whatsapp.trim()     || null,
+      contact_email:   contactEmail.trim() || null,
       instagram_url:   instagram.trim()    || null,
       facebook_url:    facebook.trim()     || null,
       tiktok_url:      tiktok.trim()       || null,
@@ -169,6 +172,11 @@ export default function ContactoPage() {
               <label className="block text-xs font-medium text-zinc-600 mb-1">WhatsApp</label>
               <input className="input text-sm" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="5491112345678 (sin + ni espacios)" />
               <p className="text-xs text-zinc-400 mt-1">También es el número al que llegan los avisos de WhatsApp — configurables en Notificaciones.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Email</label>
+              <input type="email" className="input text-sm" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="contacto@tutienda.com" />
+              <p className="text-xs text-zinc-400 mt-1">Aparece en el pie de tu tienda y en la página de contacto — puede ser distinto del email de notificaciones.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Instagram</label>
