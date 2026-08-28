@@ -35,9 +35,10 @@ export async function sendEmail({
 // Layout unificado (2026-08-28): antes esta cabecera era violeta con un
 // gradiente y un emoji 🏪 — quedaba totalmente distinto del resto de los
 // mails de la plataforma (ver gounuri-web/src/lib/email.ts). Se copia acá
-// tal cual el layout()/ctaButton() de gounuri-web (cabecera negra de texto
-// "gounuri.com", sin violeta) para que todos los mails automáticos, vengan
-// de panel-admin o de gounuri-web, se vean iguales.
+// tal cual el layout()/ctaButton() de gounuri-web (cabecera negra con el
+// isotipo real, hosteado en gounuri.com/img/email/, sin violeta) para que
+// todos los mails automáticos, vengan de panel-admin o de gounuri-web, se
+// vean iguales.
 function layout(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html lang="es">
@@ -47,10 +48,8 @@ function layout(bodyHtml: string): string {
 <table width="100%" style="max-width:520px;background:#fff;border-radius:8px;overflow:hidden;">
 
   <!-- Header -->
-  <tr><td style="background:#101010;padding:32px 40px;text-align:center;">
-    <p style="margin:0;font-size:20px;font-weight:700;letter-spacing:-0.01em;">
-      <span style="color:#fff;">gounuri</span><span style="color:#767676;">.com</span>
-    </p>
+  <tr><td style="background:#101010;padding:30px 40px;text-align:center;">
+    <img src="https://www.gounuri.com/img/email/gounuri-logo.png" width="160" height="31" alt="gounuri.com" style="display:block;margin:0 auto;border:0;outline:none;max-width:160px;height:auto;">
   </td></tr>
 
   ${bodyHtml}
