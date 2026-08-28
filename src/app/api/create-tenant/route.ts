@@ -154,14 +154,17 @@ export async function POST(req: Request) {
     console.warn('notify failed:', e)
   }
 
-  // Email de bienvenida al tenant (no bloqueante)
+  // Email de bienvenida al tenant. 2026-08-28: estaba fire-and-forget (sin
+  // await) -- mismo bug que en gounuri-web/src/app/api/create-tenant (ver
+  // comentario ahi y creart_silent_failure_pattern): la funcion serverless
+  // puede cortarse antes de que el fetch a Resend termine.
   if (user.email) {
     const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
-    sendEmail({
+    await sendEmail({
       to: user.email,
       subject: `¡Tu tienda ${name.trim()} está lista! — gounuri`,
       html: emailBienvenidaTenant({ tenantName: name.trim(), email: user.email, panelUrl }),
-    }).catch(() => {})
+    }).catch(e => console.error('[create-tenant] email bienvenida error:', e))
   }
 
   return NextResponse.json({ ok: true, tenantId: tenant.id })
