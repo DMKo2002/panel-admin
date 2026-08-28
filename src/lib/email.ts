@@ -32,28 +32,32 @@ export async function sendEmail({
 // generateLink(type:'signup') + este mail propio en vez del genérico de
 // Supabase, para controlar contenido y no depender de su mailer por defecto.
 
+// Layout unificado (2026-08-28): antes esta cabecera era violeta con un
+// gradiente y un emoji 🏪 — quedaba totalmente distinto del resto de los
+// mails de la plataforma (ver gounuri-web/src/lib/email.ts). Se copia acá
+// tal cual el layout()/ctaButton() de gounuri-web (cabecera negra con el
+// isotipo real, hosteado en gounuri.com/img/email/, sin violeta) para que
+// todos los mails automáticos, vengan de panel-admin o de gounuri-web, se
+// vean iguales.
 function layout(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 16px;">
-<table width="100%" style="max-width:520px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+<table width="100%" style="max-width:520px;background:#fff;border-radius:8px;overflow:hidden;">
 
   <!-- Header -->
-  <tr><td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:36px 40px;text-align:center;">
-    <div style="width:48px;height:48px;background:rgba(255,255,255,0.15);border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:24px;">🏪</span>
-    </div>
-    <p style="margin:0;color:#fff;font-size:20px;font-weight:600;">gounuri</p>
+  <tr><td style="background:#101010;padding:30px 40px;text-align:center;">
+    <img src="https://www.gounuri.com/img/email/gounuri-logo.png" width="160" height="31" alt="gounuri.com" style="display:block;margin:0 auto;border:0;outline:none;max-width:160px;height:auto;">
   </td></tr>
 
   ${bodyHtml}
 
   <!-- Footer -->
-  <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
-    <p style="margin:0;font-size:12px;color:#9ca3af;">
-      Enviado por <strong>gounuri</strong> · <a href="https://www.gounuri.com" style="color:#7c3aed;text-decoration:none;">gounuri.com</a>
+  <tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #f0f0f0;">
+    <p style="margin:0;font-size:12px;color:#bbb;">
+      © gounuri · <a href="https://www.gounuri.com" style="color:#bbb;text-decoration:underline;">gounuri.com</a>
     </p>
   </td></tr>
 
@@ -65,8 +69,8 @@ function layout(bodyHtml: string): string {
 
 function ctaButton(href: string, label: string): string {
   return `<table cellpadding="0" cellspacing="0"><tr>
-    <td style="background:#7c3aed;border-radius:8px;">
-      <a href="${href}" style="display:block;padding:14px 28px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;">
+    <td style="background:#101010;border-radius:8px;">
+      <a href="${href}" style="display:block;padding:14px 32px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.02em;">
         ${label}
       </a>
     </td>
@@ -75,13 +79,14 @@ function ctaButton(href: string, label: string): string {
 
 export function emailConfirmacionRegistro({ confirmationUrl }: { confirmationUrl: string }): string {
   return layout(`
-  <tr><td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">¡Hola!</p>
-    <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.6;">
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Confirmá tu cuenta</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">¡Hola!</h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.7;">
       Gracias por registrarte en <strong>gounuri</strong>. Para activar tu cuenta y arrancar tus <strong>7 días de prueba gratis</strong>, confirmá tu dirección de email:
     </p>
     ${ctaButton(confirmationUrl, 'Confirmar mi cuenta')}
-    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+    <p style="margin:28px 0 0;font-size:12px;color:#bbb;line-height:1.6;">
       Si no creaste esta cuenta, podés ignorar este email. El link es válido por 24 horas.
     </p>
   </td></tr>`)
@@ -91,9 +96,8 @@ export function emailConfirmacionRegistro({ confirmationUrl }: { confirmationUrl
 // Se dispara desde /api/superadmin/mark-plan-paid cada vez que se marca un
 // pago manual (transferencia) — antes solo quedaba registrado en la base
 // (manual_payment_*) y en el badge de /superadmin, el tenant no se enteraba
-// por ningún lado de que su pago quedó confirmado. Mismo espíritu que
-// emailBienvenidaTenant de acá abajo, con layout() (el de la cabecera
-// violeta) en vez del layout propio de esa función.
+// por ningún lado de que su pago quedó confirmado. Usa el layout()/
+// ctaButton() de acá arriba (cabecera negra, sin violeta desde 2026-08-28).
 
 export function emailPagoConfirmado({
   tenantName,
@@ -113,21 +117,34 @@ export function emailPagoConfirmado({
   const fechaVence = new Date(paidUntil).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const montoFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(amount)
   return layout(`
-  <tr><td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">¡Hola!</p>
-    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+  <tr><td style="padding:40px 40px 8px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Pago confirmado</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">¡Hola!</h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.7;">
       Confirmamos tu pago — tu tienda <strong>${tenantName}</strong> ya está activa con el plan <strong>${planNombre}</strong>${months > 1 ? ` (${months} meses)` : ''}.
     </p>
+  </td></tr>
 
-    <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;border-left:3px solid #7c3aed;margin-bottom:28px;">
-      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Monto</p>
-      <p style="margin:0 0 12px;font-size:14px;color:#111827;font-weight:500;">${montoFmt}</p>
-      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Próximo vencimiento</p>
-      <p style="margin:0;font-size:14px;color:#111827;font-weight:500;">${fechaVence}</p>
-    </div>
+  <tr><td style="padding:0 40px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7f7;border-radius:8px;padding:4px 0;">
+      <tr>
+        <td style="padding:16px 20px;">
+          <p style="margin:0 0 4px;font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase;">Monto</p>
+          <p style="margin:0;font-size:14px;color:#101010;font-weight:600;">${montoFmt}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 20px 16px;">
+          <p style="margin:0 0 4px;font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase;">Próximo vencimiento</p>
+          <p style="margin:0;font-size:14px;color:#333;">${fechaVence}</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
 
+  <tr><td style="padding:0 40px 40px;">
     ${ctaButton(`${panelUrl}/dashboard`, 'Ir a mi panel')}
-    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+    <p style="margin:20px 0 0;font-size:13px;color:#888;line-height:1.6;">
       Cualquier duda con tu plan o el próximo pago, escribinos y te ayudamos.
     </p>
   </td></tr>`)
@@ -141,6 +158,12 @@ export function emailPagoConfirmado({
 // vacía no sea la única guía que tiene un tenant recién creado.
 // gounuriUrl/faqUrl tienen default para no romper si algún call site viejo
 // no los pasa, pero create-tenant/route.ts ya los pasa explícitos.
+//
+// 2026-08-28: antes este mail tenía su propio HTML completo (cabecera
+// violeta con emoji 🏪 y título "¡Tu tienda está lista!", sin pasar por
+// layout()) — ahora usa el layout()/ctaButton() compartido de este archivo,
+// igual que el resto, para que quede igual al mail de bienvenida de
+// gounuri-web (emailBienvenidaTienda) en vez de un tercer estilo distinto.
 
 export function emailBienvenidaTenant({
   tenantName,
@@ -154,64 +177,37 @@ export function emailBienvenidaTenant({
   panelUrl: string
   gounuriUrl?: string
   faqUrl?: string
-}) {
-  return `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 16px;">
-<table width="100%" style="max-width:520px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-
-  <!-- Header -->
-  <tr><td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:36px 40px;text-align:center;">
-    <div style="width:48px;height:48px;background:rgba(255,255,255,0.15);border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:24px;">🏪</span>
-    </div>
-    <p style="margin:0;color:#fff;font-size:20px;font-weight:600;">¡Tu tienda está lista!</p>
+}): string {
+  return layout(`
+  <tr><td style="padding:40px 40px 8px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">¡Ya está lista!</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">Tu tienda está lista</h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.7;">
+      Hola, tu tienda <strong>${tenantName}</strong> fue creada exitosamente en la plataforma gounuri. Ya podés ingresar al panel de administración para configurar tus productos, medios de pago, envíos y personalización.
+    </p>
   </td></tr>
 
-  <!-- Body -->
-  <tr><td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      Hola, tu tienda <strong>${tenantName}</strong> fue creada exitosamente en la plataforma gounuri.
-    </p>
-    <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.6;">
-      Ya podés ingresar al panel de administración para configurar tus productos, medios de pago, envíos y personalización.
-    </p>
+  <tr><td style="padding:0 40px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7f7;border-radius:8px;padding:4px 0;">
+      <tr>
+        <td style="padding:16px 20px;">
+          <p style="margin:0 0 4px;font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase;">Tu email de acceso</p>
+          <p style="margin:0;font-size:14px;color:#333;">${email}</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
 
-    <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
-      <td style="background:#7c3aed;border-radius:8px;">
-        <a href="${panelUrl}/dashboard" style="display:block;padding:14px 28px;color:#fff;text-decoration:none;font-size:14px;font-weight:600;">
-          Ir al panel de administración →
-        </a>
-      </td>
-    </tr></table>
-
-    <p style="margin:0 0 28px;font-size:13px;color:#6b7280;line-height:1.6;">
-      <a href="${gounuriUrl}" style="color:#7c3aed;text-decoration:none;font-weight:600;">Conocé gounuri.com</a>
+  <tr><td style="padding:0 40px 40px;">
+    ${ctaButton(`${panelUrl}/dashboard`, 'Ir al panel de administración')}
+    <p style="margin:20px 0 0;font-size:13px;color:#888;line-height:1.6;">
+      <a href="${gounuriUrl}" style="color:#101010;text-decoration:underline;font-weight:600;">Conocé gounuri.com</a>
       &nbsp;·&nbsp;
-      <a href="${faqUrl}" style="color:#7c3aed;text-decoration:none;font-weight:600;">Preguntas frecuentes</a>
+      <a href="${faqUrl}" style="color:#101010;text-decoration:underline;font-weight:600;">Preguntas frecuentes</a>
       <br/>
-      <span style="color:#9ca3af;">¿Por qué mi tienda está vacía? ¿Por qué no funciona mi dominio? Está todo ahí.</span>
+      <span style="color:#bbb;">¿Por qué mi tienda está vacía? ¿Por qué no funciona mi dominio? Está todo ahí.</span>
     </p>
-
-    <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;border-left:3px solid #7c3aed;">
-      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Tu email de acceso</p>
-      <p style="margin:0;font-size:14px;color:#111827;font-weight:500;">${email}</p>
-    </div>
-  </td></tr>
-
-  <!-- Footer -->
-  <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
-    <p style="margin:0;font-size:12px;color:#9ca3af;">
-      Enviado por <strong>gounuri</strong> · <a href="${gounuriUrl}" style="color:#7c3aed;text-decoration:none;">gounuri.com</a>
-    </p>
-  </td></tr>
-
-</table>
-</td></tr></table>
-</body>
-</html>`
+  </td></tr>`)
 }
 
 // ── Baja de suscripción confirmada (2026-08-26) ─────────────────────────────
@@ -221,9 +217,10 @@ export function emailBienvenidaTenant({
 // (SuscripcionSelector.tsx / /dashboard/facturacion/suscripcion), la ruta
 // que realmente procesa la baja es Panel Admin/api/billing/cancel, no la de
 // gounuri-web (bug detectado por David en QA: ni el tenant ni Gounuri se
-// enteraban de una baja). Mismo contenido que el de gounuri-web, con el
-// layout()/ctaButton() de este archivo (cabecera violeta) en vez del layout
-// propio de gounuri-web.
+// enteraban de una baja). Mismo contenido que el de gounuri-web, y desde
+// 2026-08-28 también el mismo layout()/ctaButton() (cabecera negra) — antes
+// esta función ya usaba el layout() de este archivo, pero ese layout() era
+// el violeta.
 
 export function emailBajaConfirmada({
   tenantName,
@@ -238,17 +235,18 @@ export function emailBajaConfirmada({
     ? new Date(activeUntil).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : null
   return layout(`
-  <tr><td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">¡Hola!</p>
-    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Baja confirmada</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">¡Hola!</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.7;">
       Confirmamos que diste de baja la suscripción de tu tienda <strong>${tenantName}</strong>. No te vamos a volver a cobrar.
     </p>
     ${fechaTxt ? `
-    <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;border-left:3px solid #7c3aed;margin-bottom:24px;">
-      <p style="margin:0 0 4px;font-size:12px;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">Seguís con acceso hasta</p>
-      <p style="margin:0;font-size:14px;color:#111827;font-weight:500;">${fechaTxt}</p>
+    <div style="background:#f7f7f7;border-radius:8px;padding:16px 20px;border-left:3px solid #101010;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:12px;color:#999;letter-spacing:0.05em;text-transform:uppercase;">Seguís con acceso hasta</p>
+      <p style="margin:0;font-size:14px;color:#101010;font-weight:600;">${fechaTxt}</p>
     </div>` : ''}
-    <p style="margin:0 0 28px;font-size:14px;color:#6b7280;line-height:1.6;">
+    <p style="margin:0 0 28px;font-size:14px;color:#767676;line-height:1.7;">
       Después de esa fecha tu tienda pasa al plan gratuito — tus datos y tu catálogo quedan intactos. Si te arrepentís, podés volver a suscribirte cuando quieras.
     </p>
     ${ctaButton(`${panelUrl}/dashboard`, 'Ir a mi panel')}
