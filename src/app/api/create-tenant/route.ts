@@ -11,7 +11,16 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { name, domain, template, plan } = await req.json()
+  // 2026-08-28: se agregan los mismos campos de contacto/pagos que ya
+  // manda gounuri-web/src/app/api/create-tenant -- antes este endpoint
+  // los ignoraba (ni siquiera los desestructuraba) y siempre guardaba
+  // mp_enabled/transfer_enabled en true a ciegas, sin datos de contacto.
+  // Ver creart_checklist_bugs_20260828 en memoria.
+  const {
+    name, domain, template, plan,
+    whatsapp, instagram, facebook, tiktok, direccion, direccionDespacho,
+    mpEnabled, transferEnabled, cashEnabled,
+  } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
 
   // Usar service role para bypass de RLS
@@ -96,9 +105,16 @@ export async function POST(req: Request) {
       ],
       variant_mode: isSimpleTemplate ? 'simple' : 'sizes_colors',
       product_image_ratio: isSimpleTemplate ? '1:1' : '2:3',
-      mp_enabled: true,
-      transfer_enabled: true,
+      mp_enabled: Boolean(mpEnabled),
+      transfer_enabled: Boolean(transferEnabled),
+      cash_enabled: Boolean(cashEnabled),
       pickup_enabled: true,
+      whatsapp_number: whatsapp?.trim?.() || null,
+      instagram_url: instagram?.trim?.() || null,
+      facebook_url: facebook?.trim?.() || null,
+      tiktok_url: tiktok?.trim?.() || null,
+      pickup_address: direccion?.trim?.() || null,
+      store_address: direccionDespacho?.trim?.() || null,
     })
 
   if (configError) return NextResponse.json({ error: configError.message }, { status: 500 })

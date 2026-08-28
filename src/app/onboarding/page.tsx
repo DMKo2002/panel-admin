@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Store, Check, ExternalLink, Loader2 } from 'lucide-react'
+import Toggle from '@/components/Toggle'
+import { PLANS, PlanId, formatStorage } from '@/lib/plans'
 
 // ── Templates — los 6 disponibles; la demo de cada uno vive en {slug}.gounuri.com
 const TEMPLATES = [
@@ -150,7 +152,16 @@ function TemplatePreview({
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-type Step = 'nombre' | 'template'
+type Step = 'nombre' | 'template' | 'contacto' | 'pagos' | 'plan'
+
+const STEP_ORDER: Step[] = ['nombre', 'template', 'contacto', 'pagos', 'plan']
+const STEP_LABELS: Record<Step, string> = {
+  nombre: '1. Tu tienda',
+  template: '2. Diseño',
+  contacto: '3. Contacto',
+  pagos: '4. Pagos',
+  plan: '5. Plan',
+}
 
 export default function OnboardingPage() {
   const supabase = createClient()
@@ -158,6 +169,21 @@ export default function OnboardingPage() {
   const [name, setName]         = useState('')
   const [domain, setDomain]     = useState('')
   const [template, setTemplate] = useState('minimalista')
+  // 2026-08-28: pasos que faltaban acá respecto al onboarding de
+  // gounuri.com (contacto, pagos, plan) -- hasta ahora el registro por
+  // Google directo desde el Panel creaba el tenant sin pedir nada de
+  // esto, con plan Standard y MP/transferencia/retiro habilitados a
+  // ciegas. Ver creart_checklist_bugs_20260828 en memoria.
+  const [whatsapp, setWhatsapp] = useState('')
+  const [instagram, setInstagram] = useState('')
+  const [facebook, setFacebook] = useState('')
+  const [tiktok, setTiktok] = useState('')
+  const [direccion, setDireccion] = useState('')
+  const [direccionDespacho, setDireccionDespacho] = useState('')
+  const [mpEnabled, setMpEnabled] = useState(false)
+  const [transferEnabled, setTransferEnabled] = useState(false)
+  const [cashEnabled, setCashEnabled] = useState(false)
+  const [plan, setPlan] = useState<PlanId>('standard')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState<string | null>(null)
 
@@ -178,7 +204,21 @@ export default function OnboardingPage() {
     const res = await fetch('/api/create-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), domain: domain.trim() || null, template }),
+      body: JSON.stringify({
+        name: name.trim(),
+        domain: domain.trim() || null,
+        template,
+        plan,
+        whatsapp: whatsapp.trim() || null,
+        instagram: instagram.trim() || null,
+        facebook: facebook.trim() || null,
+        tiktok: tiktok.trim() || null,
+        direccion: direccion.trim() || null,
+        direccionDespacho: direccionDespacho.trim() || null,
+        mpEnabled,
+        transferEnabled,
+        cashEnabled,
+      }),
     })
     const json = await res.json()
     if (!res.ok || json.error) {
@@ -206,10 +246,13 @@ export default function OnboardingPage() {
             <span className="font-semibold text-zinc-900">gounuri</span>
           </div>
           <div className="flex items-center gap-6">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
-              <span className={step === 'nombre' ? 'text-primary-600 font-medium' : 'text-zinc-300'}>1. Tu tienda</span>
-              <span className="text-zinc-200">→</span>
-              <span className={step === 'template' ? 'text-primary-600 font-medium' : 'text-zinc-400'}>2. Diseño</span>
+            <div className="hidden lg:flex items-center gap-2 text-xs text-zinc-400">
+              {STEP_ORDER.map((s, i) => (
+                <span key={s} className="flex items-center gap-2">
+                  <span className={step === s ? 'text-primary-600 font-medium' : 'text-zinc-300'}>{STEP_LABELS[s]}</span>
+                  {i < STEP_ORDER.length - 1 && <span className="text-zinc-200">→</span>}
+                </span>
+              ))}
             </div>
             <button onClick={handleLogout} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
               Cerrar sesión
@@ -299,13 +342,147 @@ export default function OnboardingPage() {
               ← Volver
             </button>
             <button
+              onClick={() => setStep('contacto')}
+              className="flex-1 btn-primary justify-center py-3"
+            >
+              Continuar con "{selectedTemplate.name}" →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PASO 3: Contacto y redes (2026-08-28) ── */}
+      {step === 'contacto' && (
+        <div className="max-w-lg mx-auto px-6 py-12">
+          <div className="mb-8">
+            <p className="text-xs font-medium text-primary-600 uppercase tracking-wider mb-2">Paso 3 de 5</p>
+            <h1 className="text-2xl font-semibold text-zinc-900">Contacto y redes</h1>
+            <p className="text-sm text-zinc-500 mt-1">Todo opcional — lo podés completar después desde Contacto en el panel</p>
+          </div>
+
+          <div className="card space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">WhatsApp</label>
+              <input className="input" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="Ej: 11 1234 5678" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Instagram</label>
+              <input className="input" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://instagram.com/tutienda" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Facebook</label>
+              <input className="input" value={facebook} onChange={e => setFacebook(e.target.value)} placeholder="https://facebook.com/tutienda" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">TikTok</label>
+              <input className="input" value={tiktok} onChange={e => setTiktok(e.target.value)} placeholder="https://tiktok.com/@tutienda" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Dirección de retiro</label>
+              <input className="input" value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="La que ve el cliente en la tienda" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Dirección de despacho</label>
+              <input className="input" value={direccionDespacho} onChange={e => setDireccionDespacho(e.target.value)} placeholder="La que aparece en los PDFs de envío" />
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep('template')} className="btn-secondary py-3 px-6">← Volver</button>
+            <button onClick={() => setStep('pagos')} className="flex-1 btn-primary justify-center py-3">Continuar →</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PASO 4: Métodos de pago (2026-08-28) ── */}
+      {step === 'pagos' && (
+        <div className="max-w-lg mx-auto px-6 py-12">
+          <div className="mb-8">
+            <p className="text-xs font-medium text-primary-600 uppercase tracking-wider mb-2">Paso 4 de 5</p>
+            <h1 className="text-2xl font-semibold text-zinc-900">Métodos de pago</h1>
+            <p className="text-sm text-zinc-500 mt-1">Elegí con qué le vas a cobrar a tus clientes — lo podés cambiar después desde Pagos y Finanzas</p>
+          </div>
+
+          <div className="card divide-y divide-zinc-100">
+            <div className="flex items-center justify-between py-4 first:pt-0">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">MercadoPago</p>
+                <p className="text-xs text-zinc-500">Tarjeta, débito y QR — configurás tu cuenta después</p>
+              </div>
+              <Toggle checked={mpEnabled} onChange={setMpEnabled} />
+            </div>
+            <div className="flex items-center justify-between py-4">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Transferencia</p>
+                <p className="text-xs text-zinc-500">El cliente transfiere, vos confirmás el pago a mano</p>
+              </div>
+              <Toggle checked={transferEnabled} onChange={setTransferEnabled} />
+            </div>
+            <div className="flex items-center justify-between py-4 last:pb-0">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Efectivo</p>
+                <p className="text-xs text-zinc-500">El cliente paga al retirar o recibir el pedido</p>
+              </div>
+              <Toggle checked={cashEnabled} onChange={setCashEnabled} />
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep('contacto')} className="btn-secondary py-3 px-6">← Volver</button>
+            <button onClick={() => setStep('plan')} className="flex-1 btn-primary justify-center py-3">Continuar →</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PASO 5: Plan (2026-08-28) ── */}
+      {step === 'plan' && (
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          <div className="mb-8">
+            <p className="text-xs font-medium text-primary-600 uppercase tracking-wider mb-2">Paso 5 de 5</p>
+            <h1 className="text-2xl font-semibold text-zinc-900">Elegí tu plan</h1>
+            <p className="text-sm text-zinc-500 mt-1">7 días gratis para probarlo, sin tarjeta. Lo podés cambiar cuando quieras.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+            {(['mini', 'standard', 'premium'] as const).map(id => {
+              const p = PLANS[id]
+              const selected = plan === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => setPlan(id)}
+                  className={`text-left rounded-xl border-2 p-5 transition-all ${
+                    selected ? 'border-primary-500 ring-2 ring-primary-200' : 'border-zinc-200 hover:border-zinc-300'
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-zinc-900">{p.nombre}</p>
+                  <p className="text-xl font-bold text-zinc-900 mt-1">
+                    ${p.precioARS.toLocaleString('es-AR')}<span className="text-xs font-normal text-zinc-400">/mes</span>
+                  </p>
+                  <ul className="mt-3 space-y-1 text-xs text-zinc-500">
+                    <li>Hasta {p.maxProductos} productos</li>
+                    <li>{formatStorage(p.storageMB)} de almacenamiento</li>
+                    <li>{p.visitasMes.toLocaleString('es-AR')} visitas/mes</li>
+                  </ul>
+                </button>
+              )
+            })}
+          </div>
+
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep('pagos')} className="btn-secondary py-3 px-6">← Volver</button>
+            <button
               onClick={handleFinalSubmit}
               disabled={saving}
               className="flex-1 btn-primary justify-center py-3 disabled:opacity-60"
             >
-              {saving
-                ? 'Creando tu tienda...'
-                : `Crear mi tienda con "${selectedTemplate.name}" →`}
+              {saving ? 'Creando tu tienda...' : `Empezar 7 días gratis con ${PLANS[plan].nombre} →`}
             </button>
           </div>
         </div>
