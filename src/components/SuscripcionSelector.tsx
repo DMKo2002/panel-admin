@@ -18,7 +18,7 @@
 // TAMPOCO se tocó todavía -- sigue apuntando a gounuri.com a propósito, para
 // no afectar a los 4 tenants activos hasta que esta pantalla esté validada.
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
 import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
@@ -64,7 +64,12 @@ interface PlanCard extends PlanDef {
   destacado: boolean
 }
 
-const PLANES: PlanCard[] = [
+// 2026-08-29, pedido de ARam: precio editable desde /superadmin/planes --
+// esta constante ya no tiene el precio "de verdad", es solo la base
+// (nombre/descripcion/features/limites). El componente arma PLANES de
+// verdad más abajo con useMemo, pisando precioARS con el prop planPrices
+// (que viene de platform_plan_prices vía el server component padre).
+const PLANES_BASE: PlanCard[] = [
   {
     ...PLANS.mini,
     id: 'mini',
@@ -115,6 +120,7 @@ export default function SuscripcionSelector({
   currentPlan,
   trialing,
   paymentSettings,
+  planPrices,
   billingTerm,
   nextBillingDate,
   trialEndsAt,
@@ -128,6 +134,9 @@ export default function SuscripcionSelector({
   currentPlan: string
   trialing: boolean
   paymentSettings: PlatformPaymentSettings
+  // 2026-08-29, pedido de ARam: precios vigentes de platform_plan_prices,
+  // resueltos server-side por el page.tsx padre -- ver PLANES más abajo.
+  planPrices: Record<PlanId, number>
   billingTerm: BillingTerm | null
   nextBillingDate: string | null
   trialEndsAt: string | null
@@ -158,6 +167,13 @@ export default function SuscripcionSelector({
   const [cancelCategory, setCancelCategory] = useState<string | null>(null)
   const [subDetailOpen, setSubDetailOpen] = useState(false)
   const [showPlanCards, setShowPlanCards] = useState(false)
+
+  // Precio vigente (platform_plan_prices) pisando el de PLANES_BASE -- ver
+  // comentario arriba de PLANES_BASE.
+  const PLANES = useMemo(
+    () => PLANES_BASE.map(card => ({ ...card, precioARS: planPrices[card.id] ?? card.precioARS })),
+    [planPrices],
+  )
 
   useEffect(() => {
     const supabase = createClient()
@@ -279,7 +295,7 @@ export default function SuscripcionSelector({
         // solo para transferencia, ver fullPriceForTerm en lib/plans.ts.
         // No aplica a un plan pagado a mano (no hay auto-renovación real).
         const precioRenovacion = mpPreapprovalId && isPlanId(currentPlan)
-          ? fullPriceForTerm(PLANS[currentPlan], billingTerm ?? 1)
+          ? fullPriceForTerm({ ...PLANS[currentPlan], precioARS: planPrices[currentPlan] ?? PLANS[currentPlan].precioARS }, billingTerm ?? 1)
           : null
         // 2026-08-27 (bug reportado por David en QA): unifica el vencimiento
         // /ciclo/estado entre los dos flujos posibles acá -- Mercado Pago

@@ -19,6 +19,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 import { sendEmail } from '@/lib/email'
 import { PLANS, priceForTerm, isPlanId, isBillingTerm } from '@/lib/plans'
+import { getPlatformPlanPrices, applyPlanPrice } from '@/lib/platformPlanPrices'
 
 const TERM_LABEL: Record<number, string> = { 1: 'mensual', 6: 'semestral', 12: 'anual' }
 
@@ -39,7 +40,12 @@ export async function POST(req: Request) {
   const { data: _tenants } = await service.from('tenants').select('name').eq('id', tenantId).limit(1)
   const tenantName = _tenants?.[0]?.name ?? tenantId
 
-  const planDef = PLANS[plan]
+  // 2026-08-29, pedido de ARam: precio real desde platform_plan_prices en
+  // vez del hardcodeado de PLANS -- el mail que le llega a Gounuri con el
+  // monto a esperar por transferencia tiene que coincidir con lo que el
+  // tenant vio en pantalla.
+  const prices = await getPlatformPlanPrices(service)
+  const planDef = applyPlanPrice(plan, prices)
   const nombrePlan = planDef.nombre
   const monto = priceForTerm(planDef, term)
 

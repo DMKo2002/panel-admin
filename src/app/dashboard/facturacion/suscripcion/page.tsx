@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
+import { getPlatformPlanPrices } from '@/lib/platformPlanPrices'
 import SuscripcionSelector from '@/components/SuscripcionSelector'
 
 export default async function SuscripcionPage() {
@@ -41,6 +42,10 @@ export default async function SuscripcionPage() {
   const currentPlan = tenant.plan ?? 'standard'
 
   const paymentSettings = await getPlatformPaymentSettings(service)
+  // 2026-08-29: precios editables desde /superadmin/planes -- se resuelven
+  // acá (server) y se pasan como prop para que la tarjeta muestre siempre
+  // el precio vigente, no el hardcodeado en PLANS.
+  const planPrices = await getPlatformPlanPrices(service)
 
   const { data: _charges } = await service
     .from('billing_charges')
@@ -74,6 +79,7 @@ export default async function SuscripcionPage() {
           currentPlan={currentPlan}
           trialing={trialing}
           paymentSettings={paymentSettings}
+          planPrices={planPrices}
           billingTerm={tenant.billing_term ?? null}
           nextBillingDate={tenant.next_billing_date ?? null}
           trialEndsAt={tenant.trial_ends_at ?? null}

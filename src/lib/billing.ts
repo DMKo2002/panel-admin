@@ -9,6 +9,8 @@
 // autoriza su tarjeta en MP → MP pega al webhook → se actualiza tenants.plan.
 
 import { PLANS, fullPriceForTerm, type PlanDef, type BillingTerm } from '@/lib/plans'
+import { createServiceClient } from '@/lib/supabase/service'
+import { getPlatformPlanPrices, applyPlanPrice } from '@/lib/platformPlanPrices'
 
 const MP_API = 'https://api.mercadopago.com'
 
@@ -82,8 +84,19 @@ export async function createPreapproval(opts: {
   // pagando 12 meses de una. Default 1 para no romper llamadas viejas.
   months?: BillingTerm
 }): Promise<Preapproval> {
-  const plan = PLANS[opts.planId]
   const months = opts.months ?? 1
+  // 2026-08-29, pedido de ARam: el precio real de cada plan ahora se lee de
+  // platform_plan_prices (editable desde /superadmin/planes) en vez de solo
+  // el hardcodeado de PLANS -- así un ajuste por inflación no necesita
+  // redeploy. Esto SOLO afecta altas nuevas (este preapproval que se está
+  // creando ahora); una suscripción de MP ya activa queda con el monto que
+  // tenía al autorizarse -- MP no la actualiza sola, y a propósito este
+  // código no la toca (decisión de ARam 2026-08-29: el ajuste de
+  // suscripciones ya activas se hace a mano, directo en Mercado Pago, nunca
+  // empujado desde acá).
+  const service = createServiceClient()
+  const prices = await getPlatformPlanPrices(service)
+  const plan = applyPlanPrice(opts.planId, prices)
   // 2026-08-26 (bug reportado por David en QA): el descuento por plazo
   // (6/12 meses) es SOLO para transferencia -- el "unificar precio" de
   // hoy mismo (ver git blame) hizo que Mercado Pago también lo aplicara,
