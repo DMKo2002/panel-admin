@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Toggle from '@/components/Toggle'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
@@ -24,6 +25,12 @@ const LEGAL_STEPS: TutorialStep[] = [
     target: '[data-tutorial="legal-cookies"]',
     title: 'Política de cookies',
     content: 'Describe el uso de cookies en tu tienda (sesión, carrito, análisis). Igual que las otras dos, podés partir del texto predeterminado.',
+  },
+  {
+    id: 'legal-consumer-defense',
+    target: '[data-tutorial="legal-consumer-defense"]',
+    title: 'Defensa del Consumidor',
+    content: 'Agrega un link a Defensa del Consumidor en el pie de tu tienda. Apagado por defecto — vos decidís si lo mostrás.',
   },
 ]
 
@@ -96,6 +103,7 @@ export default function LegalPage() {
   const [terms, setTerms] = useState('')
   const [privacy, setPrivacy] = useState('')
   const [cookies, setCookies] = useState('')
+  const [consumerDefenseEnabled, setConsumerDefenseEnabled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
@@ -117,7 +125,7 @@ export default function LegalPage() {
       // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
       const { data, error } = await supabase
         .from('store_config')
-        .select('id, terms_and_conditions, privacy_policy, cookies_policy')
+        .select('id, terms_and_conditions, privacy_policy, cookies_policy, consumer_defense_enabled')
         .eq('tenant_id', userRow.tenant_id)
         .single()
       if (error) {
@@ -130,6 +138,7 @@ export default function LegalPage() {
         setTerms((data as any).terms_and_conditions ?? '')
         setPrivacy((data as any).privacy_policy ?? '')
         setCookies((data as any).cookies_policy ?? '')
+        setConsumerDefenseEnabled(Boolean((data as any).consumer_defense_enabled))
       }
     }
     load()
@@ -143,6 +152,7 @@ export default function LegalPage() {
       terms_and_conditions: terms   || null,
       privacy_policy:       privacy || null,
       cookies_policy:       cookies || null,
+      consumer_defense_enabled: consumerDefenseEnabled,
     }).eq('id', configId)
     setSaving(false)
     if (error) {
@@ -226,6 +236,19 @@ export default function LegalPage() {
               onChange={e => setCookies(e.target.value)}
               placeholder="Política de cookies de tu tienda..."
             />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-zinc-200 p-5" data-tutorial="legal-consumer-defense">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div>
+                <p className="text-sm text-zinc-800">Defensa del Consumidor</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Agrega un link a Defensa del Consumidor en el pie de tu tienda (URL nacional fija, no editable)</p>
+              </div>
+              <TutorialHint pageKey="legal" step={LEGAL_STEPS[3]} />
+            </div>
+            <Toggle checked={consumerDefenseEnabled} onChange={setConsumerDefenseEnabled} />
           </div>
         </div>
       </div>
