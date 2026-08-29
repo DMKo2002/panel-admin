@@ -641,16 +641,18 @@ export default function SuscripcionSelector({
                       monto YA con descuento, no sobre el de lista. Antes
                       esto vivía escondido adentro del acordeón de
                       transferencia -- ahora se ve de una, arriba de todo.
-                      Color cambiado de verde a gris oscuro (2026-08-29,
-                      pedido de ARam) -- consistente con la paleta
-                      negro/blanco del resto de la card, en vez de un color
-                      distinto que no se usa en ningún otro lado acá. */}
+                      Color del precio cambiado de verde a gris oscuro
+                      (2026-08-29, pedido de ARam) -- consistente con la
+                      paleta negro/blanco del resto de la card. La leyenda
+                      de abajo ("equivale a... Transferencia") volvió a
+                      verde (mismo pedido, aclarado después): el gris era
+                      solo para el precio grande, no para la leyenda. */}
                   <div className="mt-3">
                     <span className="text-3xl font-bold tracking-tight text-zinc-800">
                       {formatARS(priceForTerm(card, term))}
                     </span>
                     <span className="ml-1 text-sm text-zinc-500">/ {term} meses</span>
-                    <p className="mt-0.5 text-xs font-medium text-zinc-800">
+                    <p className="mt-0.5 text-xs font-medium text-emerald-600">
                       equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes · Transferencia (-{Math.round(TERM_DISCOUNTS[term] * 100)}%)
                     </p>
                   </div>
