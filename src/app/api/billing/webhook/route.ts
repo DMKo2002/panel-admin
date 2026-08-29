@@ -15,7 +15,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getPreapproval, getPayment, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
 import { getPlanForTenant, isBillingTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
-import { sendEmail, emailPagoConfirmado } from '@/lib/email'
+import { sendEmail, emailPagoConfirmado, emailBienvenidaTenant } from '@/lib/email'
+import { addDomainToProject } from '@/lib/vercel'
 
 // now + N meses de calendario — mismo criterio que mark-plan-paid/route.ts.
 function addMonths(date: Date, months: number): Date {
@@ -122,12 +123,10 @@ export async function POST(req: Request) {
     if (!ref) return NextResponse.json({ ok: true, ignored: 'sin external_reference válido' })
 
     if (ref.kind === 'signup') {
-      // Alguien eligió un plan pago desde la landing de gounuri.com SIN tener
-      // tienda todavía (ver gounuri-web/src/app/api/ir-a-plan) — pedido
-      // 2026-08-18: "selecciona el plan - paga - recién con el pago queda
-      // generado la tienda - onboarding". Acá recién se crea el tenant, y
-      // solo si el pago quedó 'authorized'; si queda pending/paused/cancelled
-      // no hay tenant que tocar, no hacemos nada.
+      // Alguien eligió un plan pago desde "Crear mi tienda" en gounuri.com
+      // SIN tener tienda todavía. Acá recién se crea el tenant, y solo si
+      // el pago quedó 'authorized'; si queda pending/paused/cancelled no
+      // hay tenant que tocar, no hacemos nada.
       if (pre.status !== 'authorized') {
         return NextResponse.json({ ok: true, ignored: 'signup sin autorizar todavía' })
       }
@@ -140,42 +139,155 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true, ignored: 'el usuario ya tiene tenant' })
       }
 
-      // Placeholder mínimo — el nombre/slug/template reales se completan
-      // después en /onboarding vía gounuri-web/src/app/api/finalizar-tienda
-      // (ese endpoint solo puede tocar un tenant que siga siendo este
-      // placeholder, nunca uno ya en uso).
-      let slug = `pendiente-${Math.random().toString(36).slice(2, 10)}`
-      let tenant: { id: string } | null = null
-      let lastError: { code?: string; message: string } | null = null
       const months: BillingTerm = isBillingTerm(ref.months) ? ref.months : 1
-      for (let attempt = 0; attempt < 3 && !tenant; attempt++) {
-        const { data, error } = await service
-          .from('tenants')
-          .insert({
-            slug,
-            name: PLACEHOLDER_TENANT_NAME,
-            template: 'minimalista',
-            plan: ref.planId,
-            plan_status: 'active',
-            trial_ends_at: null,
-            status: 'active',
-            mp_preapproval_id: pre.id,
-            billing_term: months,
-            next_billing_date: addMonths(new Date(), months).toISOString(),
-          })
-          .select('id')
-          .single()
-        if (data) { tenant = data; break }
-        lastError = error
-        if (error?.code === '23505') {
-          // slug colisionó (muy improbable) — reintentar con otro random
-          slug = `pendiente-${Math.random().toString(36).slice(2, 10)}`
-          continue
-        }
-        break
+
+      // 2026-08-29 (pedido de ARam: invertir el orden a login -> onboarding
+      // -> pago) — el wizard de gounuri-web/src/app/onboarding ya juntó
+      // nombre/template/contacto/redes/métodos de cobro ANTES de mandar a
+      // pagar, y los dejó en gounuri_accounts.pending_signup (ver
+      // gounuri-web/src/app/api/onboarding/pagar). Acá se crea el tenant ya
+      // completo con esos datos reales — nunca como placeholder
+      // "(pendiente)". Sin borrador (por ejemplo, un pago iniciado por un
+      // link viejo que no pasó por el wizard nuevo) cae al placeholder de
+      // siempre como red de seguridad, que se completa después en
+      // /onboarding vía /api/finalizar-tienda.
+      const { data: accountRows } = await service
+        .from('gounuri_accounts')
+        .select('nombre, pending_signup')
+        .eq('auth_user_id', ref.userId)
+        .limit(1)
+      const draft = accountRows?.[0]?.pending_signup as null | {
+        name?: string
+        domain?: string | null
+        template?: string
+        whatsapp?: string | null
+        instagram?: string | null
+        facebook?: string | null
+        tiktok?: string | null
+        direccion?: string | null
+        direccionDespacho?: string | null
+        mpEnabled?: boolean
+        transferEnabled?: boolean
+        cashEnabled?: boolean
       }
+
+      let tenant: { id: string; name: string; slug: string } | null = null
+      let lastError: { code?: string; message: string } | null = null
+      let createdFromDraft = false
+
+      if (draft?.name?.trim()) {
+        const baseSlug = draft.name.trim()
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') || 'tienda'
+        const validTemplates = ['minimalista', 'mono', 'atelier', 'axis', 'glow', 'bazaar']
+        const chosenTemplate = validTemplates.includes(draft.template ?? '') ? (draft.template as string) : 'minimalista'
+        // Mismo criterio que gounuri-web/panel-admin api/create-tenant:
+        // Glow y Bazaar arrancan en modo simple (sin talle/color, foto 1:1).
+        const isSimpleTemplate = chosenTemplate === 'glow' || chosenTemplate === 'bazaar'
+
+        let slug = baseSlug
+        for (let attempt = 0; attempt < 5 && !tenant; attempt++) {
+          const { data, error } = await service
+            .from('tenants')
+            .insert({
+              slug,
+              name: draft.name.trim(),
+              domain: draft.domain?.trim() || null,
+              template: chosenTemplate,
+              plan: ref.planId,
+              plan_status: 'active',
+              trial_ends_at: null,
+              status: 'active',
+              mp_preapproval_id: pre.id,
+              billing_term: months,
+              next_billing_date: addMonths(new Date(), months).toISOString(),
+            })
+            .select('id, name, slug')
+            .single()
+          if (data) { tenant = data; createdFromDraft = true; break }
+          lastError = error
+          if (error?.code === '23505') {
+            // El nombre se ocupó mientras el usuario estaba pagando en MP
+            // (muy improbable, pero el pago ya está cobrado — no podemos
+            // simplemente fallar) — se arma un slug alternativo.
+            slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
+            continue
+          }
+          break
+        }
+
+        if (tenant) {
+          const { error: configError } = await service
+            .from('store_config')
+            .insert({
+              tenant_id: tenant.id,
+              variant_attributes: isSimpleTemplate ? [] : [
+                { key: 'talle', label: 'Talle', type: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
+                { key: 'color', label: 'Color', type: 'text' },
+              ],
+              variant_mode: isSimpleTemplate ? 'simple' : 'sizes_colors',
+              product_image_ratio: isSimpleTemplate ? '1:1' : '2:3',
+              mp_enabled: Boolean(draft.mpEnabled),
+              transfer_enabled: Boolean(draft.transferEnabled),
+              cash_enabled: Boolean(draft.cashEnabled),
+              pickup_enabled: true,
+              whatsapp_number: draft.whatsapp?.trim?.() || null,
+              instagram_url: draft.instagram?.trim?.() || null,
+              facebook_url: draft.facebook?.trim?.() || null,
+              tiktok_url: draft.tiktok?.trim?.() || null,
+              pickup_address: draft.direccion?.trim?.() || null,
+              store_address: draft.direccionDespacho?.trim?.() || null,
+            })
+          if (configError) console.error('[billing/webhook] store_config del signup falló', tenant.id, configError)
+
+          try {
+            await addDomainToProject(chosenTemplate, `${tenant.slug}.gounuri.com`)
+          } catch (e) {
+            console.error('[billing/webhook] no se pudo dar de alta el dominio en Vercel', e)
+          }
+
+          // Borrador ya usado — se limpia para no reusarlo si este usuario
+          // vuelve a pasar por acá alguna vez (nueva tienda de cero, etc.).
+          await service.from('gounuri_accounts').update({ pending_signup: null }).eq('auth_user_id', ref.userId)
+        }
+      }
+
       if (!tenant) {
-        console.error('[billing/webhook] no se pudo crear el tenant placeholder para el signup', ref.userId, lastError)
+        // Red de seguridad: sin borrador utilizable (o si la creación de
+        // arriba falló) — el placeholder de siempre, a completar después en
+        // /onboarding vía /api/finalizar-tienda, igual que el flujo viejo.
+        let slug = `pendiente-${Math.random().toString(36).slice(2, 10)}`
+        for (let attempt = 0; attempt < 3 && !tenant; attempt++) {
+          const { data, error } = await service
+            .from('tenants')
+            .insert({
+              slug,
+              name: PLACEHOLDER_TENANT_NAME,
+              template: 'minimalista',
+              plan: ref.planId,
+              plan_status: 'active',
+              trial_ends_at: null,
+              status: 'active',
+              mp_preapproval_id: pre.id,
+              billing_term: months,
+              next_billing_date: addMonths(new Date(), months).toISOString(),
+            })
+            .select('id, name, slug')
+            .single()
+          if (data) { tenant = data; break }
+          lastError = error
+          if (error?.code === '23505') {
+            slug = `pendiente-${Math.random().toString(36).slice(2, 10)}`
+            continue
+          }
+          break
+        }
+      }
+
+      if (!tenant) {
+        console.error('[billing/webhook] no se pudo crear el tenant para el signup', ref.userId, lastError)
         return NextResponse.json({ ok: false }, { status: 500 })
       }
 
@@ -187,20 +299,33 @@ export async function POST(req: Request) {
           { onConflict: 'id' }
         )
       if (userError) {
-        console.error('[billing/webhook] no se pudo vincular el usuario al tenant placeholder', ref.userId, userError)
+        console.error('[billing/webhook] no se pudo vincular el usuario al tenant', ref.userId, userError)
         return NextResponse.json({ ok: false }, { status: 500 })
       }
+      await service.from('gounuri_accounts').update({ tenant_id: tenant.id }).eq('auth_user_id', ref.userId)
 
       // await (aunque adentro ya atrapa sus propios errores) para que el
       // envío del mail no quede colgando cuando Vercel corta la ejecución al
       // volver el response — ver nota arriba de notifySubscriptionPaid.
       await notifySubscriptionPaid(service, {
-        tenantName: `Alta nueva desde la landing (todavía sin completar onboarding)`,
+        tenantName: createdFromDraft ? tenant.name : `Alta nueva desde la landing (todavía sin completar onboarding)`,
         planId: ref.planId,
         months: ref.months,
         amount: pre.auto_recurring?.transaction_amount,
         metodo: 'Mercado Pago (débito automático)',
       })
+
+      // Mail de bienvenida al dueño — solo cuando la tienda quedó completa
+      // de una (createdFromDraft): si cayó al placeholder, /api/finalizar-tienda
+      // manda su propio mail de bienvenida al terminar el onboarding.
+      if (createdFromDraft && authUser?.user?.email) {
+        const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+        await sendEmail({
+          to: authUser.user.email,
+          subject: `¡Tu tienda ${tenant.name} está lista! — gounuri`,
+          html: emailBienvenidaTenant({ tenantName: tenant.name, email: authUser.user.email, panelUrl }),
+        }).catch(e => console.error('[billing/webhook] email bienvenida signup error:', e))
+      }
 
       return NextResponse.json({ ok: true, tenantId: tenant.id })
     }
