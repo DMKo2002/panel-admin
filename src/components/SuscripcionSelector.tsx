@@ -610,16 +610,24 @@ export default function SuscripcionSelector({
                   </span>
                   <span className="ml-1 text-sm text-zinc-500">/ {term} meses</span>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    equivale a {formatARS(Math.round(fullPriceForTerm(card, term) / term))}/mes
+                    equivale a {formatARS(Math.round(fullPriceForTerm(card, term) / term))}/mes · Mercado Pago
                   </p>
-                  {/* 2026-08-29, pedido de ARam: el aviso de descuento por
-                      transferencia estaba solo adentro del acordeón de
-                      transferencia -- quien elegía Mercado Pago directo
-                      nunca se enteraba de que existía. Ahora se ve de una,
-                      arriba de todo, sin tener que abrir nada. */}
-                  <p className="mt-1.5 text-xs font-medium text-emerald-600">
-                    Pagando por transferencia: {formatARS(priceForTerm(card, term))} (-{Math.round(TERM_DISCOUNTS[term] * 100)}% vs. Mercado Pago)
-                  </p>
+                  {/* 2026-08-29, pedido de ARam: el precio con descuento por
+                      transferencia ahora se ve con el mismo tamaño de fuente
+                      que el de Mercado Pago (antes era una línea chica) -- y
+                      con su propio "equivale a $X/mes" calculado sobre el
+                      monto YA con descuento, no sobre el de lista. Antes
+                      esto vivía escondido adentro del acordeón de
+                      transferencia -- ahora se ve de una, arriba de todo. */}
+                  <div className="mt-3">
+                    <span className="text-3xl font-bold tracking-tight text-emerald-600">
+                      {formatARS(priceForTerm(card, term))}
+                    </span>
+                    <span className="ml-1 text-sm text-zinc-500">/ {term} meses</span>
+                    <p className="mt-0.5 text-xs font-medium text-emerald-600">
+                      equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes · Transferencia (-{Math.round(TERM_DISCOUNTS[term] * 100)}%)
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="mt-6">
