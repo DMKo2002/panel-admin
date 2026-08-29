@@ -25,7 +25,10 @@ const navItems = [
   { label: 'Productos',              href: '/dashboard/productos',    icon: Shirt,            key: undefined as string | undefined },
   { label: 'Categorías',             href: '/dashboard/categorias',   icon: FolderOpen,       key: undefined as string | undefined },
   { label: 'Clientes',               href: '/dashboard/clientes',     icon: Users,            key: undefined as string | undefined },
-  ...SETTINGS_ROUTES.map(r => ({ label: r.label, href: r.href, icon: r.icon, key: r.key as string | undefined })),
+  // .filter(!hidden): "Arrepentimiento" sigue en SETTINGS_ROUTES (bloqueo a
+  // staff y permiso granular intactos) pero ya no se ve como ítem propio acá
+  // -- 2026-08-29, pedido de ARam, ver comentario en settings-nav.ts.
+  ...SETTINGS_ROUTES.filter(r => !r.hidden).map(r => ({ label: r.label, href: r.href, icon: r.icon, key: r.key as string | undefined })),
 ]
 
 // Grupos visuales del Panel, de arriba a abajo: Inicio, un bloque general

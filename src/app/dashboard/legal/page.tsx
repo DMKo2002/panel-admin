@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { Undo2, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Toggle from '@/components/Toggle'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
@@ -31,6 +33,12 @@ const LEGAL_STEPS: TutorialStep[] = [
     target: '[data-tutorial="legal-empresa"]',
     title: 'Datos de la empresa',
     content: 'Razón social, CUIT y domicilio legal. Si completás estos datos, aparece un link "Empresa" en el pie de tu tienda. Si lo dejás vacío, no se muestra.',
+  },
+  {
+    id: 'legal-arrepentimiento',
+    target: '[data-tutorial="legal-arrepentimiento"]',
+    title: 'Arrepentimiento',
+    content: 'Ahí ves las solicitudes que tus clientes mandan a través del Botón de Arrepentimiento de tu tienda (Res. 424/2020).',
   },
   {
     id: 'legal-consumer-defense',
@@ -294,6 +302,30 @@ export default function LegalPage() {
           </div>
         </div>
 
+        {/* 2026-08-29, pedido de ARam: "Arrepentimiento" tenía su propio
+            ítem en el Sidebar y quedaba muy visible ahí -- se mudó acá
+            adentro de Legal, arriba de "Defensa del Consumidor". La página
+            /dashboard/arrepentimiento en sí no cambió, solo cómo se llega. */}
+        <Link
+          href="/dashboard/arrepentimiento"
+          data-tutorial="legal-arrepentimiento"
+          className="flex items-center justify-between gap-4 bg-white rounded-xl border border-zinc-200 p-5 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+              <Undo2 className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-zinc-800">Arrepentimiento</p>
+                <TutorialHint pageKey="legal" step={LEGAL_STEPS[4]} />
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">Solicitudes de tus clientes a través del Botón de Arrepentimiento de tu tienda (Res. 424/2020)</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+        </Link>
+
         <div className="bg-white rounded-xl border border-zinc-200 p-5" data-tutorial="legal-consumer-defense">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -301,7 +333,7 @@ export default function LegalPage() {
                 <p className="text-sm text-zinc-800">Defensa del Consumidor</p>
                 <p className="text-xs text-zinc-400 mt-0.5">Agrega un link a Defensa del Consumidor en el pie de tu tienda (URL nacional fija, no editable)</p>
               </div>
-              <TutorialHint pageKey="legal" step={LEGAL_STEPS[4]} />
+              <TutorialHint pageKey="legal" step={LEGAL_STEPS[5]} />
             </div>
             <Toggle checked={consumerDefenseEnabled} onChange={setConsumerDefenseEnabled} />
           </div>
