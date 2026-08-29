@@ -49,7 +49,7 @@ function layout(bodyHtml: string): string {
 
   <!-- Header -->
   <tr><td style="background:#101010;padding:30px 40px;text-align:center;">
-    <img src="https://www.gounuri.com/img/email/gounuri-logo.png" width="160" height="31" alt="gounuri.com" style="display:block;margin:0 auto;border:0;outline:none;max-width:160px;height:auto;">
+    <img src="https://www.gounuri.com/img/email/gounuri-logo.png" width="293" height="56" alt="gounuri.com" style="display:block;margin:0 auto;border:0;outline:none;max-width:293px;height:auto;">
   </td></tr>
 
   ${bodyHtml}
