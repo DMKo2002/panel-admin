@@ -11,7 +11,7 @@
 // paso futuro (ver Cuentas), pero cuando eso exista, esta lista sigue siendo
 // el default/piso mínimo de bloqueo para cuentas sin permisos explícitos.
 import type { LucideIcon } from 'lucide-react'
-import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3, PieChart } from 'lucide-react'
+import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3, PieChart, Undo2 } from 'lucide-react'
 
 export interface SettingsRoute {
   key: string
@@ -34,6 +34,7 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'catalogo-config',label: 'Catálogo',              href: '/dashboard/catalogo-config',  icon: Tags,       staffBlocked: true },
   { key: 'apariencia',     label: 'Apariencia',            href: '/dashboard/apariencia',       icon: Palette,    staffBlocked: true },
   { key: 'legal',          label: 'Legal',                 href: '/dashboard/legal',            icon: FileText,   staffBlocked: true },
+  { key: 'arrepentimiento', label: 'Arrepentimiento',       href: '/dashboard/arrepentimiento',  icon: Undo2,      staffBlocked: true },
   { key: 'notificaciones', label: 'Notificaciones',        href: '/dashboard/notificaciones',   icon: Bell,       staffBlocked: true },
   { key: 'dominio',        label: 'Dominio',               href: '/dashboard/dominio',          icon: Globe,      staffBlocked: true },
   { key: 'seo',            label: 'SEO',                   href: '/dashboard/seo',              icon: Search,     staffBlocked: true },
