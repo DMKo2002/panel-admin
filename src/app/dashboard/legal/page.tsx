@@ -27,6 +27,12 @@ const LEGAL_STEPS: TutorialStep[] = [
     content: 'Describe el uso de cookies en tu tienda (sesión, carrito, análisis). Igual que las otras dos, podés partir del texto predeterminado.',
   },
   {
+    id: 'legal-empresa',
+    target: '[data-tutorial="legal-empresa"]',
+    title: 'Datos de la empresa',
+    content: 'Razón social, CUIT y domicilio legal. Si completás estos datos, aparece un link "Empresa" en el pie de tu tienda. Si lo dejás vacío, no se muestra.',
+  },
+  {
     id: 'legal-consumer-defense',
     target: '[data-tutorial="legal-consumer-defense"]',
     title: 'Defensa del Consumidor',
@@ -104,6 +110,9 @@ export default function LegalPage() {
   const [privacy, setPrivacy] = useState('')
   const [cookies, setCookies] = useState('')
   const [consumerDefenseEnabled, setConsumerDefenseEnabled] = useState(false)
+  const [sellerLegalName, setSellerLegalName] = useState('')
+  const [sellerCuit, setSellerCuit] = useState('')
+  const [sellerLegalAddress, setSellerLegalAddress] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
@@ -125,7 +134,7 @@ export default function LegalPage() {
       // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
       const { data, error } = await supabase
         .from('store_config')
-        .select('id, terms_and_conditions, privacy_policy, cookies_policy, consumer_defense_enabled')
+        .select('id, terms_and_conditions, privacy_policy, cookies_policy, consumer_defense_enabled, seller_legal_name, seller_cuit, seller_legal_address')
         .eq('tenant_id', userRow.tenant_id)
         .single()
       if (error) {
@@ -139,6 +148,9 @@ export default function LegalPage() {
         setPrivacy((data as any).privacy_policy ?? '')
         setCookies((data as any).cookies_policy ?? '')
         setConsumerDefenseEnabled(Boolean((data as any).consumer_defense_enabled))
+        setSellerLegalName((data as any).seller_legal_name ?? '')
+        setSellerCuit((data as any).seller_cuit ?? '')
+        setSellerLegalAddress((data as any).seller_legal_address ?? '')
       }
     }
     load()
@@ -153,6 +165,9 @@ export default function LegalPage() {
       privacy_policy:       privacy || null,
       cookies_policy:       cookies || null,
       consumer_defense_enabled: consumerDefenseEnabled,
+      seller_legal_name:    sellerLegalName    || null,
+      seller_cuit:          sellerCuit          || null,
+      seller_legal_address: sellerLegalAddress  || null,
     }).eq('id', configId)
     setSaving(false)
     if (error) {
@@ -239,6 +254,46 @@ export default function LegalPage() {
           </div>
         </div>
 
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4" data-tutorial="legal-empresa">
+          <div className="flex items-center gap-1.5">
+            <div>
+              <p className="text-sm text-zinc-800">Datos de la empresa</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Completá estos datos para mostrar el link "Empresa" en el pie de tu tienda (Res. 424/2020). Si dejás todo vacío, el link no se muestra.</p>
+            </div>
+            <TutorialHint pageKey="legal" step={LEGAL_STEPS[3]} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Razón social</label>
+            <input
+              type="text"
+              className="input"
+              value={sellerLegalName}
+              onChange={e => setSellerLegalName(e.target.value)}
+              placeholder="Ej: Mi Empresa S.R.L."
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">CUIT</label>
+            <input
+              type="text"
+              className="input"
+              value={sellerCuit}
+              onChange={e => setSellerCuit(e.target.value)}
+              placeholder="Ej: 30-12345678-9"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Domicilio legal</label>
+            <input
+              type="text"
+              className="input"
+              value={sellerLegalAddress}
+              onChange={e => setSellerLegalAddress(e.target.value)}
+              placeholder="Ej: Av. Siempre Viva 123, CABA"
+            />
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl border border-zinc-200 p-5" data-tutorial="legal-consumer-defense">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -246,7 +301,7 @@ export default function LegalPage() {
                 <p className="text-sm text-zinc-800">Defensa del Consumidor</p>
                 <p className="text-xs text-zinc-400 mt-0.5">Agrega un link a Defensa del Consumidor en el pie de tu tienda (URL nacional fija, no editable)</p>
               </div>
-              <TutorialHint pageKey="legal" step={LEGAL_STEPS[3]} />
+              <TutorialHint pageKey="legal" step={LEGAL_STEPS[4]} />
             </div>
             <Toggle checked={consumerDefenseEnabled} onChange={setConsumerDefenseEnabled} />
           </div>
