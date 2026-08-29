@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import UpdateWithdrawalStatusButton from '@/components/UpdateWithdrawalStatusButton'
+import DeleteWithdrawalButton from '@/components/DeleteWithdrawalButton'
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -85,6 +86,7 @@ export default async function ArrepentimientoPage() {
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Motivo</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Recibido</th>
                 <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Estado</th>
+                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -102,11 +104,14 @@ export default async function ArrepentimientoPage() {
                   <td className="px-4 py-3">
                     <UpdateWithdrawalStatusButton requestId={r.id} currentStatus={r.status} />
                   </td>
+                  <td className="px-4 py-3">
+                    <DeleteWithdrawalButton requestId={r.id} trackingCode={r.tracking_code} />
+                  </td>
                 </tr>
               ))}
               {requests.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-400 text-sm">
+                  <td colSpan={7} className="px-4 py-12 text-center text-zinc-400 text-sm">
                     Todavía no recibiste ninguna solicitud de arrepentimiento
                   </td>
                 </tr>
