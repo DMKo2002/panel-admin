@@ -47,10 +47,11 @@ export const PLANS: Record<PlanDef['id'], PlanDef> = {
   mini: {
     id: 'mini',
     nombre: 'Mini',
-    // TEMP TEST 2026-08-25: bajado de 9_900 a 20 para probar el cobro real
-    // de Mercado Pago con el tenant Test/TEST2 sin gastar plata de verdad.
-    // REVERTIR A 9_900 apenas termine la prueba.
-    precioARS: 20,
+    // 2026-08-29: terminados los testeos de pago con el tenant Test/TEST2 —
+    // vuelve al precio real (estuvo en 20 desde el 25/08 para probar el
+    // cobro con Mercado Pago sin gastar plata de verdad). Sincronizado con
+    // gounuri-web/src/lib/site.ts, mismo revert hecho ahí.
+    precioARS: 9_900,
     storageMB: 300,
     maxProductos: 50,
     visitasMes: 15_000,
