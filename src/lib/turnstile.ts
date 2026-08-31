@@ -96,10 +96,17 @@ export async function assignDomainToWidgetPool(domain: string): Promise<{ widget
   const widget = candidates?.[0] as TurnstileWidgetRow | undefined
 
   if (widget) {
-    if (widget.domains.includes(domain)) {
-      return { widgetId: widget.id, siteKey: widget.site_key }
-    }
-    const newDomains = [...widget.domains, domain]
+    // OJO (2026-08-31, bug real visto con base153.com): antes, si `domain`
+    // ya estaba en el array cacheado localmente, se devolvía de una sin
+    // llamar a Cloudflare -- si alguien lo sacó del widget directo desde el
+    // dashboard de Cloudflare (bypaseando esta función), la fila local queda
+    // "creyendo" que el dominio sigue autorizado y el tenant se asigna a un
+    // widget que en Cloudflare ya no lo cubre, con Turnstile roto y sin
+    // ningún reintento. Ahora siempre se confirma contra Cloudflare (PUT es
+    // idempotente si ya estaba) y recién se evita el UPDATE a la base si la
+    // lista no cambió.
+    const alreadyCached = widget.domains.includes(domain)
+    const newDomains = alreadyCached ? widget.domains : [...widget.domains, domain]
     try {
       await updateCloudflareWidgetDomains(widget.cf_widget_id, newDomains)
     } catch (e) {
@@ -128,11 +135,13 @@ export async function assignDomainToWidgetPool(domain: string): Promise<{ widget
       if (insertError || !inserted) throw new Error(insertError?.message || 'No se pudo guardar el widget nuevo en la base.')
       return { widgetId: inserted.id, siteKey: inserted.site_key }
     }
-    const { error: updateError } = await supabase
-      .from('turnstile_widgets')
-      .update({ domains: newDomains, domain_count: newDomains.length })
-      .eq('id', widget.id)
-    if (updateError) throw new Error(updateError.message)
+    if (!alreadyCached) {
+      const { error: updateError } = await supabase
+        .from('turnstile_widgets')
+        .update({ domains: newDomains, domain_count: newDomains.length })
+        .eq('id', widget.id)
+      if (updateError) throw new Error(updateError.message)
+    }
     return { widgetId: widget.id, siteKey: widget.site_key }
   }
 
