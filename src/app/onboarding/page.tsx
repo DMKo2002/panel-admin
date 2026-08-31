@@ -175,6 +175,7 @@ export default function OnboardingPage() {
   // esto, con plan Standard y MP/transferencia/retiro habilitados a
   // ciegas. Ver creart_checklist_bugs_20260828 en memoria.
   const [whatsapp, setWhatsapp] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
   const [instagram, setInstagram] = useState('')
   const [facebook, setFacebook] = useState('')
   const [tiktok, setTiktok] = useState('')
@@ -210,6 +211,7 @@ export default function OnboardingPage() {
         template,
         plan,
         whatsapp: whatsapp.trim() || null,
+        contactEmail: contactEmail.trim() || null,
         instagram: instagram.trim() || null,
         facebook: facebook.trim() || null,
         tiktok: tiktok.trim() || null,
@@ -364,6 +366,10 @@ export default function OnboardingPage() {
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">WhatsApp</label>
               <input className="input" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="Ej: 11 1234 5678" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Email de contacto</label>
+              <input type="email" className="input" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="contacto@tutienda.com" />
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Instagram</label>

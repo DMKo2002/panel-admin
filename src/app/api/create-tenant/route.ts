@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const {
     name, domain, template, plan,
     whatsapp, instagram, facebook, tiktok, direccion, direccionDespacho,
+    contactEmail,
     mpEnabled, transferEnabled, cashEnabled,
   } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
@@ -110,6 +111,7 @@ export async function POST(req: Request) {
       cash_enabled: Boolean(cashEnabled),
       pickup_enabled: true,
       whatsapp_number: whatsapp?.trim?.() || null,
+      contact_email: contactEmail?.trim?.() || null,
       instagram_url: instagram?.trim?.() || null,
       facebook_url: facebook?.trim?.() || null,
       tiktok_url: tiktok?.trim?.() || null,
