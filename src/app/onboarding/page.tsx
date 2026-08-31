@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Store, Check, ExternalLink, Loader2 } from 'lucide-react'
 import Toggle from '@/components/Toggle'
@@ -169,6 +169,26 @@ export default function OnboardingPage() {
   const [name, setName]         = useState('')
   const [domain, setDomain]     = useState('')
   const [template, setTemplate] = useState('minimalista')
+  // 2026-08-29: precios editables desde /superadmin/planes -- esta página
+  // es 100% client, sin componente servidor padre desde el cual recibirlos
+  // como prop, así que se piden a /api/plan-prices. Arranca con los valores
+  // hardcodeados de PLANS como fallback mientras carga (o si falla el fetch)
+  // para no dejar la pantalla en blanco ni bloquear el onboarding.
+  const [planPrices, setPlanPrices] = useState<Record<PlanId, number>>({
+    mini: PLANS.mini.precioARS,
+    standard: PLANS.standard.precioARS,
+    premium: PLANS.premium.precioARS,
+  })
+  useEffect(() => {
+    fetch('/api/plan-prices')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data && typeof data.mini === 'number' && typeof data.standard === 'number' && typeof data.premium === 'number') {
+          setPlanPrices(data)
+        }
+      })
+      .catch(() => {}) // silencioso -- se queda con el fallback hardcodeado
+  }, [])
   // 2026-08-28: pasos que faltaban acá respecto al onboarding de
   // gounuri.com (contacto, pagos, plan) -- hasta ahora el registro por
   // Google directo desde el Panel creaba el tenant sin pedir nada de
@@ -463,7 +483,7 @@ export default function OnboardingPage() {
                 >
                   <p className="text-sm font-semibold text-zinc-900">{p.nombre}</p>
                   <p className="text-xl font-bold text-zinc-900 mt-1">
-                    ${p.precioARS.toLocaleString('es-AR')}<span className="text-xs font-normal text-zinc-400">/mes</span>
+                    ${planPrices[id].toLocaleString('es-AR')}<span className="text-xs font-normal text-zinc-400">/mes</span>
                   </p>
                   <ul className="mt-3 space-y-1 text-xs text-zinc-500">
                     <li>Hasta {p.maxProductos} productos</li>

@@ -11,7 +11,7 @@
 // paso futuro (ver Cuentas), pero cuando eso exista, esta lista sigue siendo
 // el default/piso mínimo de bloqueo para cuentas sin permisos explícitos.
 import type { LucideIcon } from 'lucide-react'
-import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3, PieChart } from 'lucide-react'
+import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3, PieChart, Undo2 } from 'lucide-react'
 
 export interface SettingsRoute {
   key: string
@@ -19,6 +19,13 @@ export interface SettingsRoute {
   href: string
   icon: LucideIcon
   staffBlocked: boolean
+  // true = no aparece como ítem propio en el Sidebar, pero sigue existiendo
+  // acá para todo lo demás (bloqueo a staff vía STAFF_BLOCKED_PREFIXES,
+  // permiso granular vía GRANTABLE_SETTINGS_ROUTES) -- 2026-08-29, pedido de
+  // ARam: "Arrepentimiento" quedaba muy visible como ítem propio del menú;
+  // se mudó a un botón adentro de Legal (ver legal/page.tsx) en vez de
+  // sacarla de la lista, así el bloqueo a staff no se pierde.
+  hidden?: boolean
 }
 
 // Orden = orden real en el Panel (ver Sidebar.tsx: Inicio agarra 'dominio',
@@ -34,6 +41,7 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'catalogo-config',label: 'Catálogo',              href: '/dashboard/catalogo-config',  icon: Tags,       staffBlocked: true },
   { key: 'apariencia',     label: 'Apariencia',            href: '/dashboard/apariencia',       icon: Palette,    staffBlocked: true },
   { key: 'legal',          label: 'Legal',                 href: '/dashboard/legal',            icon: FileText,   staffBlocked: true },
+  { key: 'arrepentimiento', label: 'Arrepentimiento',       href: '/dashboard/arrepentimiento',  icon: Undo2,      staffBlocked: true, hidden: true },
   { key: 'notificaciones', label: 'Notificaciones',        href: '/dashboard/notificaciones',   icon: Bell,       staffBlocked: true },
   { key: 'dominio',        label: 'Dominio',               href: '/dashboard/dominio',          icon: Globe,      staffBlocked: true },
   { key: 'seo',            label: 'SEO',                   href: '/dashboard/seo',              icon: Search,     staffBlocked: true },

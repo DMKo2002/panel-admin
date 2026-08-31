@@ -1,7 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { Undo2, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Toggle from '@/components/Toggle'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
@@ -24,6 +27,24 @@ const LEGAL_STEPS: TutorialStep[] = [
     target: '[data-tutorial="legal-cookies"]',
     title: 'Política de cookies',
     content: 'Describe el uso de cookies en tu tienda (sesión, carrito, análisis). Igual que las otras dos, podés partir del texto predeterminado.',
+  },
+  {
+    id: 'legal-empresa',
+    target: '[data-tutorial="legal-empresa"]',
+    title: 'Datos de la empresa',
+    content: 'Razón social, CUIT y domicilio legal. Si completás estos datos, aparece un link "Empresa" en el pie de tu tienda. Si lo dejás vacío, no se muestra.',
+  },
+  {
+    id: 'legal-arrepentimiento',
+    target: '[data-tutorial="legal-arrepentimiento"]',
+    title: 'Arrepentimiento',
+    content: 'Ahí ves las solicitudes que tus clientes mandan a través del Botón de Arrepentimiento de tu tienda (Res. 424/2020).',
+  },
+  {
+    id: 'legal-consumer-defense',
+    target: '[data-tutorial="legal-consumer-defense"]',
+    title: 'Defensa del Consumidor',
+    content: 'Agrega un link a Defensa del Consumidor en el pie de tu tienda. Apagado por defecto — vos decidís si lo mostrás.',
   },
 ]
 
@@ -96,6 +117,10 @@ export default function LegalPage() {
   const [terms, setTerms] = useState('')
   const [privacy, setPrivacy] = useState('')
   const [cookies, setCookies] = useState('')
+  const [consumerDefenseEnabled, setConsumerDefenseEnabled] = useState(false)
+  const [sellerLegalName, setSellerLegalName] = useState('')
+  const [sellerCuit, setSellerCuit] = useState('')
+  const [sellerLegalAddress, setSellerLegalAddress] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
@@ -117,7 +142,7 @@ export default function LegalPage() {
       // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
       const { data, error } = await supabase
         .from('store_config')
-        .select('id, terms_and_conditions, privacy_policy, cookies_policy')
+        .select('id, terms_and_conditions, privacy_policy, cookies_policy, consumer_defense_enabled, seller_legal_name, seller_cuit, seller_legal_address')
         .eq('tenant_id', userRow.tenant_id)
         .single()
       if (error) {
@@ -130,6 +155,10 @@ export default function LegalPage() {
         setTerms((data as any).terms_and_conditions ?? '')
         setPrivacy((data as any).privacy_policy ?? '')
         setCookies((data as any).cookies_policy ?? '')
+        setConsumerDefenseEnabled(Boolean((data as any).consumer_defense_enabled))
+        setSellerLegalName((data as any).seller_legal_name ?? '')
+        setSellerCuit((data as any).seller_cuit ?? '')
+        setSellerLegalAddress((data as any).seller_legal_address ?? '')
       }
     }
     load()
@@ -143,6 +172,10 @@ export default function LegalPage() {
       terms_and_conditions: terms   || null,
       privacy_policy:       privacy || null,
       cookies_policy:       cookies || null,
+      consumer_defense_enabled: consumerDefenseEnabled,
+      seller_legal_name:    sellerLegalName    || null,
+      seller_cuit:          sellerCuit          || null,
+      seller_legal_address: sellerLegalAddress  || null,
     }).eq('id', configId)
     setSaving(false)
     if (error) {
@@ -226,6 +259,83 @@ export default function LegalPage() {
               onChange={e => setCookies(e.target.value)}
               placeholder="Política de cookies de tu tienda..."
             />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4" data-tutorial="legal-empresa">
+          <div className="flex items-center gap-1.5">
+            <div>
+              <p className="text-sm text-zinc-800">Datos de la empresa</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Completá estos datos para mostrar el link "Empresa" en el pie de tu tienda (Res. 424/2020). Si dejás todo vacío, el link no se muestra.</p>
+            </div>
+            <TutorialHint pageKey="legal" step={LEGAL_STEPS[3]} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Razón social</label>
+            <input
+              type="text"
+              className="input"
+              value={sellerLegalName}
+              onChange={e => setSellerLegalName(e.target.value)}
+              placeholder="Ej: Mi Empresa S.R.L."
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">CUIT</label>
+            <input
+              type="text"
+              className="input"
+              value={sellerCuit}
+              onChange={e => setSellerCuit(e.target.value)}
+              placeholder="Ej: 30-12345678-9"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Domicilio legal</label>
+            <input
+              type="text"
+              className="input"
+              value={sellerLegalAddress}
+              onChange={e => setSellerLegalAddress(e.target.value)}
+              placeholder="Ej: Av. Siempre Viva 123, CABA"
+            />
+          </div>
+        </div>
+
+        {/* 2026-08-29, pedido de ARam: "Arrepentimiento" tenía su propio
+            ítem en el Sidebar y quedaba muy visible ahí -- se mudó acá
+            adentro de Legal, arriba de "Defensa del Consumidor". La página
+            /dashboard/arrepentimiento en sí no cambió, solo cómo se llega. */}
+        <Link
+          href="/dashboard/arrepentimiento"
+          data-tutorial="legal-arrepentimiento"
+          className="flex items-center justify-between gap-4 bg-white rounded-xl border border-zinc-200 p-5 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+              <Undo2 className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-zinc-800">Arrepentimiento</p>
+                <TutorialHint pageKey="legal" step={LEGAL_STEPS[4]} />
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">Solicitudes de tus clientes a través del Botón de Arrepentimiento de tu tienda (Res. 424/2020)</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+        </Link>
+
+        <div className="bg-white rounded-xl border border-zinc-200 p-5" data-tutorial="legal-consumer-defense">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div>
+                <p className="text-sm text-zinc-800">Defensa del Consumidor</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Agrega un link a Defensa del Consumidor en el pie de tu tienda (URL nacional fija, no editable)</p>
+              </div>
+              <TutorialHint pageKey="legal" step={LEGAL_STEPS[5]} />
+            </div>
+            <Toggle checked={consumerDefenseEnabled} onChange={setConsumerDefenseEnabled} />
           </div>
         </div>
       </div>

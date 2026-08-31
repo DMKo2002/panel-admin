@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import SuperadminClient, { TenantRow } from './SuperadminClient'
 import { getPlanForTenant } from '@/lib/plans'
+import { getPlatformPlanPrices } from '@/lib/platformPlanPrices'
 
 export default async function SuperadminPage() {
   const serviceClient = createClient(
@@ -190,5 +191,9 @@ export default async function SuperadminPage() {
     }
   })
 
-  return <SuperadminClient initialTenants={rows} />
+  // 2026-08-29, pedido de ARam: precios vigentes de platform_plan_prices,
+  // para "Marcar como pagado" -- ver /superadmin/planes.
+  const planPrices = await getPlatformPlanPrices(serviceClient)
+
+  return <SuperadminClient initialTenants={rows} planPrices={planPrices} />
 }

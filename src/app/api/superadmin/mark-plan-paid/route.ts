@@ -22,6 +22,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isSuperAdmin } from '@/lib/superadmin'
 import { PLANS, getPlanForTenant, isBillingTerm, priceForTerm, type BillingTerm } from '@/lib/plans'
+import { getPlatformPlanPrices } from '@/lib/platformPlanPrices'
 import { sendEmail, emailPagoConfirmado } from '@/lib/email'
 
 // now + N meses de calendario (no N*30 días — un plazo de 12 meses tiene que
@@ -61,7 +62,15 @@ export async function POST(req: NextRequest) {
 
   const now = new Date()
   const paidUntil = addMonths(now, months)
-  const planDef = getPlanForTenant(plan)
+  // 2026-08-29, pedido de ARam: precio real leído de platform_plan_prices
+  // (editable desde /superadmin/planes) en vez del hardcodeado de PLANS --
+  // así "marcar como pagado" cobra en pantalla el mismo monto vigente que
+  // ve el tenant en /dashboard/facturacion/suscripcion.
+  const prices = await getPlatformPlanPrices(serviceClient)
+  const planDefBase = getPlanForTenant(plan)
+  const planDef = planDefBase.id in prices
+    ? { ...planDefBase, precioARS: prices[planDefBase.id as keyof typeof prices] }
+    : planDefBase
   const amount = priceForTerm(planDef, months)
 
   // Mismo patch que billing/webhook en la rama 'authorized': saca al tenant

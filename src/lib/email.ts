@@ -49,7 +49,7 @@ function layout(bodyHtml: string): string {
 
   <!-- Header -->
   <tr><td style="background:#101010;padding:30px 40px;text-align:center;">
-    <img src="https://www.gounuri.com/img/email/gounuri-logo.png" width="160" height="31" alt="gounuri.com" style="display:block;margin:0 auto;border:0;outline:none;max-width:160px;height:auto;">
+    <img src="https://www.gounuri.com/img/email/gounuri-logo.png" width="107" height="20" alt="gounuri.com" style="display:block;margin:0 auto;border:0;outline:none;max-width:107px;height:auto;">
   </td></tr>
 
   ${bodyHtml}
@@ -206,6 +206,52 @@ export function emailBienvenidaTenant({
       <a href="${faqUrl}" style="color:#101010;text-decoration:underline;font-weight:600;">Preguntas frecuentes</a>
       <br/>
       <span style="color:#bbb;">¿Por qué mi tienda está vacía? ¿Por qué no funciona mi dominio? Está todo ahí.</span>
+    </p>
+  </td></tr>`)
+}
+
+// ── Aviso de cambio de precio de plan (2026-08-29) ──────────────────────────
+// Se dispara desde /api/superadmin/update-plan-prices cada vez que se
+// guarda un precio nuevo para un plan que tiene tenants activos -- pedido
+// de ARam: en Argentina los precios se ajustan seguido por inflación y el
+// tenant tiene que enterarse, no que le cambie el cobro de sorpresa (ver
+// Res. 424/2020, Defensa del Consumidor, ya citada en /dashboard/legal).
+//
+// A propósito el texto NO promete una fecha exacta de próximo cobro: el
+// nuevo precio de lista se aplica a la próxima renovación (por transferencia
+// o por un nuevo alta de Mercado Pago desde el panel), pero una suscripción
+// de MP ya activa sigue debitando el monto viejo hasta que se actualice a
+// mano en MP (decisión de ARam 2026-08-29: eso no lo automatiza este
+// sistema) -- prometer acá "tu próximo cobro va a ser $X" sería inexacto
+// para ese caso.
+export function emailCambioPrecioPlan({
+  tenantName,
+  planNombre,
+  precioAnterior,
+  precioNuevo,
+  panelUrl,
+}: {
+  tenantName: string
+  planNombre: string
+  precioAnterior: number
+  precioNuevo: number
+  panelUrl: string
+}): string {
+  const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
+  const sube = precioNuevo > precioAnterior
+  return layout(`
+  <tr><td style="padding:40px 40px 8px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Aviso de precio</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">El precio de tu plan cambió</h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#555;line-height:1.7;">
+      Hola, te escribimos de gounuri para avisarte que el precio del plan <strong>${planNombre}</strong> de tu tienda <strong>${tenantName}</strong> ${sube ? 'aumentó' : 'bajó'} de ${fmt(precioAnterior)} a <strong>${fmt(precioNuevo)}</strong> por mes. Este nuevo precio se aplica a partir de tu próxima renovación.
+    </p>
+  </td></tr>
+
+  <tr><td style="padding:0 40px 40px;">
+    ${ctaButton(`${panelUrl}/dashboard/facturacion/suscripcion`, 'Ver mi suscripción')}
+    <p style="margin:20px 0 0;font-size:13px;color:#888;line-height:1.6;">
+      Cualquier duda sobre este cambio, escribinos y te ayudamos.
     </p>
   </td></tr>`)
 }

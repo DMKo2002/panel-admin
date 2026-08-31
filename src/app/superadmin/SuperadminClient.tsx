@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, isPlanId, type BillingTerm } from '@/lib/plans'
+import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, isPlanId, type BillingTerm, type PlanId } from '@/lib/plans'
 
 export type TenantRow = {
   id: string
@@ -233,7 +233,17 @@ function addMonthsLabel(months: number): string {
   return d.toLocaleDateString('es-AR')
 }
 
-export default function SuperadminClient({ initialTenants }: { initialTenants: TenantRow[] }) {
+export default function SuperadminClient({
+  initialTenants,
+  planPrices,
+}: {
+  initialTenants: TenantRow[]
+  // 2026-08-29, pedido de ARam: precios vigentes de platform_plan_prices,
+  // resueltos server-side en page.tsx -- se usan acá para "Marcar como
+  // pagado" (el precio real de lista, no el hardcodeado en PLANS). Ver
+  // /superadmin/planes.
+  planPrices: Record<PlanId, number>
+}) {
   const [tenants, setTenants] = useState(initialTenants)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -1231,7 +1241,7 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                   className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
                 >
                   {Object.values(PLANS).filter(p => p.id !== 'free').map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre} (${p.precioARS.toLocaleString('es-AR')}/mes)</option>
+                    <option key={p.id} value={p.id}>{p.nombre} (${(planPrices[p.id as PlanId] ?? p.precioARS).toLocaleString('es-AR')}/mes)</option>
                   ))}
                 </select>
               </div>
@@ -1257,7 +1267,12 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                 que le cobraría a un tenant que paga self-serve. */}
             <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-zinc-400">
               Total del plazo: <span className="text-zinc-100 font-semibold">
-                ${priceForTerm(getPlanForTenant(payPlan), payTerm).toLocaleString('es-AR')}
+                ${priceForTerm(
+                  isPlanId(payPlan)
+                    ? { ...getPlanForTenant(payPlan), precioARS: planPrices[payPlan] ?? getPlanForTenant(payPlan).precioARS }
+                    : getPlanForTenant(payPlan),
+                  payTerm,
+                ).toLocaleString('es-AR')}
               </span>
               {TERM_DISCOUNTS[payTerm] > 0 && (
                 <span className="text-emerald-400"> (incluye {TERM_DISCOUNTS[payTerm] * 100}% off)</span>
