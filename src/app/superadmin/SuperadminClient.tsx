@@ -79,6 +79,21 @@ export type TenantRow = {
   isFounder: boolean
   founderMarkedAt: string | null
   founderMarkedBy: string | null
+  // Motivo de baja (2026-08-27, bug reportado por David: cancelaba con un
+  // motivo elegido y no aparecía en ningún lado -- ver comentario en
+  // superadmin/page.tsx). El más reciente si canceló más de una vez.
+  lastCancelCategory: string | null
+  lastCancelReason: string | null
+  lastCancelAt: string | null
+}
+
+// Mismas categorías que CANCEL_REASONS en SuscripcionSelector.tsx (el
+// multiple choice que completa el tenant al cancelar).
+const CANCEL_CATEGORY_LABELS: Record<string, string> = {
+  muy_caro: 'Muy caro',
+  no_me_gusto: 'No le gustó el sistema',
+  solo_probando: 'Solo estaba probando',
+  otro: 'Otro motivo',
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -830,6 +845,26 @@ export default function SuperadminClient({ initialTenants }: { initialTenants: T
                       >
                         <HandCoins size={12} />
                         Pago a confirmar
+                      </span>
+                    )}
+                    {/* Motivo de baja (2026-08-27, bug reportado por David:
+                        cancelaba con un motivo elegido en el multiple choice
+                        y no aparecía en ningún lado -- billing_cancellation_
+                        feedback se guardaba desde el 2026-08-25 pero nunca se
+                        mostraba). Se ve aunque el tenant ya no esté cancelado
+                        ahora (volvió a pagar) -- es historial, no estado
+                        actual. */}
+                    {tenant.lastCancelAt && (
+                      <span
+                        title={[
+                          `Dio de baja el ${new Date(tenant.lastCancelAt).toLocaleDateString('es-AR')}`,
+                          tenant.lastCancelCategory ? (CANCEL_CATEGORY_LABELS[tenant.lastCancelCategory] ?? tenant.lastCancelCategory) : null,
+                          tenant.lastCancelReason ? `"${tenant.lastCancelReason}"` : null,
+                        ].filter(Boolean).join(' · ')}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-950 text-red-400 cursor-help"
+                      >
+                        <AlertTriangle size={12} />
+                        Motivo de baja
                       </span>
                     )}
                   </div>

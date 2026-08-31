@@ -52,6 +52,24 @@ export default async function SuperadminPage() {
     serviceClient.from('gounuri_accounts').select('tenant_id, nombre, apellido, dni, celular').not('tenant_id', 'is', null),
   ])
 
+  // Motivo de baja (2026-08-27, bug reportado por David en QA: cancelaba
+  // con un motivo elegido y no aparecía en ningún lado -- billing_
+  // cancellation_feedback se venía guardando desde el 2026-08-25 pero nunca
+  // se leyó de vuelta en ninguna pantalla). Se trae en una consulta aparte
+  // (no en el Promise.all de arriba, no vale la pena bloquear el resto de
+  // la tabla por esto) y se queda solo con la más reciente por tenant --
+  // puede cancelar más de una vez si se volvió a suscribir después.
+  const { data: cancelFeedbackRows } = await serviceClient
+    .from('billing_cancellation_feedback')
+    .select('tenant_id, category, reason, created_at')
+    .order('created_at', { ascending: false })
+  const lastCancelByTenant: Record<string, { category: string | null; reason: string | null; created_at: string }> = {}
+  for (const f of cancelFeedbackRows ?? []) {
+    if (!lastCancelByTenant[f.tenant_id]) {
+      lastCancelByTenant[f.tenant_id] = { category: f.category ?? null, reason: f.reason ?? null, created_at: f.created_at }
+    }
+  }
+
   const ownerByTenant = Object.fromEntries(
     (users ?? []).map(u => [u.tenant_id, u.email])
   )
@@ -165,6 +183,10 @@ export default async function SuperadminPage() {
       isFounder:       t.is_founder ?? false,
       founderMarkedAt: t.founder_marked_at ?? null,
       founderMarkedBy: t.founder_marked_by ?? null,
+      // Motivo de baja (2026-08-27) — ver comentario arriba.
+      lastCancelCategory: lastCancelByTenant[t.id]?.category ?? null,
+      lastCancelReason:   lastCancelByTenant[t.id]?.reason ?? null,
+      lastCancelAt:       lastCancelByTenant[t.id]?.created_at ?? null,
     }
   })
 
