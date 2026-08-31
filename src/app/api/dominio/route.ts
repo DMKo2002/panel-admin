@@ -64,17 +64,19 @@ export async function POST(req: Request) {
     const misconfigured = status.verified ? await isDomainMisconfigured(domain).catch(() => true) : true
     const live = status.verified && !misconfigured
 
-    await service
+    const { error: tenantUpdateError } = await service
       .from('tenants')
       .update({ domain, domain_status: live ? 'verified' : 'pending' })
       .eq('id', tenant.id)
+    if (tenantUpdateError) throw new Error(tenantUpdateError.message)
 
     if (live) {
       const { widgetId, siteKey } = await assignDomainToWidgetPool(domain)
-      await service
+      const { error: configUpdateError } = await service
         .from('store_config')
         .update({ turnstile_widget_id: widgetId, turnstile_site_key: siteKey })
         .eq('tenant_id', tenant.id)
+      if (configUpdateError) throw new Error(configUpdateError.message)
     }
 
     // Los TXT de "verification" (arriba) casi nunca vienen — sin esto el
@@ -107,17 +109,19 @@ export async function GET() {
     const misconfigured = status.verified ? await isDomainMisconfigured(tenant.domain).catch(() => true) : true
     const live = status.verified && !misconfigured
 
-    await service
+    const { error: tenantUpdateError } = await service
       .from('tenants')
       .update({ domain_status: live ? 'verified' : 'pending' })
       .eq('id', tenant.id)
+    if (tenantUpdateError) throw new Error(tenantUpdateError.message)
 
     if (live && !wasVerified) {
       const { widgetId, siteKey } = await assignDomainToWidgetPool(tenant.domain)
-      await service
+      const { error: configUpdateError } = await service
         .from('store_config')
         .update({ turnstile_widget_id: widgetId, turnstile_site_key: siteKey })
         .eq('tenant_id', tenant.id)
+      if (configUpdateError) throw new Error(configUpdateError.message)
     }
 
     const dns = live ? [] : await getDnsInstructions(tenant.template, tenant.domain).catch(() => [])
@@ -161,11 +165,13 @@ export async function DELETE() {
       // dominio viejo, y el próximo alta de dominio pisa un widget que ya
       // no existe del lado de Cloudflare ("Trying to access a deleted
       // widget"). Bug real, visto el 2026-08-04 con base153.com.
-      await service.from('store_config').update({ turnstile_widget_id: null, turnstile_site_key: null }).eq('tenant_id', tenant.id)
+      const { error: clearConfigError } = await service.from('store_config').update({ turnstile_widget_id: null, turnstile_site_key: null }).eq('tenant_id', tenant.id)
+      if (clearConfigError) throw new Error(clearConfigError.message)
       await removeDomainFromWidgetPool(widgetId, tenant.domain)
     }
 
-    await service.from('tenants').update({ domain: null, domain_status: 'none' }).eq('id', tenant.id)
+    const { error: clearTenantError } = await service.from('tenants').update({ domain: null, domain_status: 'none' }).eq('id', tenant.id)
+    if (clearTenantError) throw new Error(clearTenantError.message)
 
     return NextResponse.json({ ok: true })
   } catch (e) {
