@@ -16,6 +16,10 @@
 // manual_payment_term_migration.sql aplicadas — si no, falla con el error de
 // columna inexistente de Postgres (no hace fallback silencioso a propósito:
 // mejor un 500 ruidoso que un "pagado" que no quedó registrado).
+//
+// 2026-09-02: además de esos 3 plazos fijos, admite un plazo personalizado
+// (customPaidUntil, opcionalmente customAmount) para cuando ARam cobró
+// varios meses de una que no encajan en 1/6/12 — ver comentario más abajo.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
@@ -33,6 +37,17 @@ function addMonths(date: Date, months: number): Date {
   return d
 }
 
+// Meses calendario aprox. entre dos fechas — plazo personalizado (2026-09-02,
+// pedido de ARam: clientes de su cartera pagados varios meses de una que no
+// encajan en 1/6/12), solo para guardar un manual_payment_term informativo y
+// como base del monto sugerido cuando no viene customAmount. Mismo criterio
+// que monthsBetween en SuperadminClient.tsx (preview del modal).
+function monthsBetween(from: Date, to: Date): number {
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+  if (to.getDate() > from.getDate()) months += 1
+  return Math.max(1, months)
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -48,10 +63,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const { tenantId, plan, note, term } = await req.json()
+  const { tenantId, plan, note, term, customPaidUntil, customAmount } = await req.json()
   if (!tenantId) return NextResponse.json({ error: 'tenantId requerido' }, { status: 400 })
   if (plan && !(plan in PLANS)) {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
+  }
+
+  // Plazo personalizado (2026-09-02): customPaidUntil llega como fecha
+  // elegida a mano en vez de un plazo fijo de MP (1/6/12) — ver comentario
+  // en SuperadminClient.tsx. Validamos que sea una fecha real y futura antes
+  // de confiar en ella; cualquier problema cae al plazo fijo de 1 mes en vez
+  // de fallar en silencio con una fecha inválida guardada.
+  let customUntilDate: Date | null = null
+  if (typeof customPaidUntil === 'string' && customPaidUntil) {
+    const parsed = new Date(customPaidUntil + 'T00:00:00')
+    if (!isNaN(parsed.getTime()) && parsed.getTime() > Date.now()) {
+      customUntilDate = parsed
+    } else {
+      return NextResponse.json({ error: 'Fecha de vencimiento inválida' }, { status: 400 })
+    }
   }
   const months: BillingTerm = isBillingTerm(term) ? term : 1
 
@@ -61,7 +91,6 @@ export async function POST(req: NextRequest) {
   )
 
   const now = new Date()
-  const paidUntil = addMonths(now, months)
   // 2026-08-29, pedido de ARam: precio real leído de platform_plan_prices
   // (editable desde /superadmin/planes) en vez del hardcodeado de PLANS --
   // así "marcar como pagado" cobra en pantalla el mismo monto vigente que
@@ -71,7 +100,20 @@ export async function POST(req: NextRequest) {
   const planDef = planDefBase.id in prices
     ? { ...planDefBase, precioARS: prices[planDefBase.id as keyof typeof prices] }
     : planDefBase
-  const amount = priceForTerm(planDef, months)
+
+  // Plazo personalizado (2026-09-02): vence-el es la fecha elegida a mano,
+  // no now+months. El monto default es mensual × meses SIN el descuento de
+  // TERM_DISCOUNTS (ese descuento es solo para los plazos fijos 6/12 de MP,
+  // no aplica a un período arbitrario) — customAmount lo pisa si ARam tipeó
+  // uno (transferencias manuales no siempre cierran redondo). months queda
+  // como el entero aprox. de meses solo para manual_payment_term (informativo).
+  const paidUntil = customUntilDate ?? addMonths(now, months)
+  const effectiveMonths = customUntilDate ? monthsBetween(now, customUntilDate) : months
+  const amount = customUntilDate
+    ? (typeof customAmount === 'number' && customAmount > 0
+        ? Math.round(customAmount)
+        : Math.round(planDef.precioARS * effectiveMonths))
+    : priceForTerm(planDef, months)
 
   // Mismo patch que billing/webhook en la rama 'authorized': saca al tenant
   // del trial/gracia y limpia los warnings, para que el cron de enforce no
@@ -90,7 +132,7 @@ export async function POST(req: NextRequest) {
     manual_payment_note: note?.trim() || null,
     manual_payment_at: now.toISOString(),
     manual_payment_by: user.email ?? null,
-    manual_payment_term: months,
+    manual_payment_term: effectiveMonths,
     manual_payment_amount: amount,
     manual_paid_until: paidUntil.toISOString(),
     manual_payment_warned_at: null,
@@ -149,7 +191,7 @@ export async function POST(req: NextRequest) {
         html: emailPagoConfirmado({
           tenantName: updatedTenant?.name ?? 'tu tienda',
           planNombre: planDef.nombre,
-          months,
+          months: effectiveMonths,
           amount,
           paidUntil: paidUntil.toISOString(),
           panelUrl,
@@ -160,5 +202,5 @@ export async function POST(req: NextRequest) {
     console.error('[mark-plan-paid] error enviando mail de pago confirmado:', e)
   }
 
-  return NextResponse.json({ ok: true, paidUntil: paidUntil.toISOString(), amount })
+  return NextResponse.json({ ok: true, paidUntil: paidUntil.toISOString(), amount, term: effectiveMonths })
 }

@@ -233,6 +233,17 @@ function addMonthsLabel(months: number): string {
   return d.toLocaleDateString('es-AR')
 }
 
+// Meses calendario aprox. entre hoy y una fecha elegida a mano (plazo
+// personalizado, 2026-09-02) — solo para la preview del modal (≈ N meses,
+// precio sugerido); el server recalcula lo mismo al confirmar. Redondea
+// hacia arriba si sobran días, mínimo 1 (nunca 0 aunque la fecha elegida
+// esté a pocos días de hoy — sigue siendo "un mes" a efectos de precio).
+function monthsBetween(from: Date, to: Date): number {
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+  if (to.getDate() > from.getDate()) months += 1
+  return Math.max(1, months)
+}
+
 export default function SuperadminClient({
   initialTenants,
   planPrices,
@@ -266,7 +277,14 @@ export default function SuperadminClient({
   // /api/superadmin/mark-plan-paid)
   const [payTarget, setPayTarget] = useState<TenantRow | null>(null)
   const [payPlan, setPayPlan] = useState<string>('standard')
-  const [payTerm, setPayTerm] = useState<BillingTerm>(1)
+  // 'custom' (2026-09-02, pedido de ARam: clientes de su cartera pagados
+  // varios meses de una — "hasta diciembre" — que no encajan en 1/6/12) se
+  // suma a los plazos fijos de MP. Con 'custom' se elige la fecha de
+  // vencimiento directamente en vez de derivarla de un plazo — ver
+  // payCustomUntil/payCustomAmount y el manejo en mark-plan-paid/route.ts.
+  const [payTerm, setPayTerm] = useState<BillingTerm | 'custom'>(1)
+  const [payCustomUntil, setPayCustomUntil] = useState('')
+  const [payCustomAmount, setPayCustomAmount] = useState('')
   const [payNote, setPayNote] = useState('')
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
@@ -424,18 +442,31 @@ export default function SuperadminClient({
       isBillingTerm(tenant.manualPaymentPendingTerm) ? tenant.manualPaymentPendingTerm
         : isBillingTerm(tenant.manualPaymentTerm) ? tenant.manualPaymentTerm : 1
     )
+    setPayCustomUntil('')
+    setPayCustomAmount('')
     setPayNote('')
     setPayError(null)
   }
 
   async function handleMarkPaid() {
     if (!payTarget) return
+    if (payTerm === 'custom' && !payCustomUntil) {
+      setPayError('Elegí la fecha de vencimiento')
+      return
+    }
     setPaying(true)
     setPayError(null)
     const res = await fetch('/api/superadmin/mark-plan-paid', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId: payTarget.id, plan: payPlan, term: payTerm, note: payNote.trim() || null }),
+      body: JSON.stringify({
+        tenantId: payTarget.id,
+        plan: payPlan,
+        term: payTerm === 'custom' ? null : payTerm,
+        customPaidUntil: payTerm === 'custom' ? payCustomUntil : null,
+        customAmount: payTerm === 'custom' && payCustomAmount ? Number(payCustomAmount) : null,
+        note: payNote.trim() || null,
+      }),
     })
     const data = await res.json()
     if (!res.ok || data.error) {
@@ -451,7 +482,7 @@ export default function SuperadminClient({
           status: 'active',
           debe: false,
           manualPaymentNote: payNote.trim() || null,
-          manualPaymentTerm: payTerm,
+          manualPaymentTerm: payTerm === 'custom' ? (data.term ?? null) : payTerm,
           manualPaymentAmount: data.amount ?? null,
           manualPaidUntil: data.paidUntil ?? null,
           // El server ya lo limpia (ver mark-plan-paid) — reflejarlo acá
@@ -1249,7 +1280,7 @@ export default function SuperadminClient({
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plazo</label>
                 <select
                   value={payTerm}
-                  onChange={e => setPayTerm(Number(e.target.value) as BillingTerm)}
+                  onChange={e => setPayTerm(e.target.value === 'custom' ? 'custom' : Number(e.target.value) as BillingTerm)}
                   className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
                 >
                   {([1, 6, 12] as BillingTerm[]).map(months => (
@@ -1258,27 +1289,69 @@ export default function SuperadminClient({
                       {TERM_DISCOUNTS[months] > 0 ? ` (-${TERM_DISCOUNTS[months] * 100}%)` : ''}
                     </option>
                   ))}
+                  <option value="custom">Personalizado (elegir fecha)</option>
                 </select>
               </div>
             </div>
 
-            {/* Precio del plazo elegido, mismo cálculo que el checkout de MP
-                (priceForTerm) — así el número que ve David acá es el mismo
-                que le cobraría a un tenant que paga self-serve. */}
-            <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-zinc-400">
-              Total del plazo: <span className="text-zinc-100 font-semibold">
-                ${priceForTerm(
-                  isPlanId(payPlan)
-                    ? { ...getPlanForTenant(payPlan), precioARS: planPrices[payPlan] ?? getPlanForTenant(payPlan).precioARS }
-                    : getPlanForTenant(payPlan),
-                  payTerm,
-                ).toLocaleString('es-AR')}
-              </span>
-              {TERM_DISCOUNTS[payTerm] > 0 && (
-                <span className="text-emerald-400"> (incluye {TERM_DISCOUNTS[payTerm] * 100}% off)</span>
-              )}
-              <span className="text-zinc-600"> · vence el {addMonthsLabel(payTerm)}</span>
-            </div>
+            {payTerm === 'custom' ? (
+              /* ── Plazo personalizado (2026-09-02): vence-el elegido a mano
+                  en vez de derivado de 1/6/12 — para clientes de la cartera
+                  de ARam pagados varios meses de una que no encajan en esos
+                  plazos fijos de MP. Bloque separado del de abajo a
+                  propósito: no comparte cálculo de descuento/fecha con los
+                  plazos fijos. ── */
+              <div className="mb-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vence el</label>
+                  <input
+                    type="date"
+                    value={payCustomUntil}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={e => setPayCustomUntil(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                    Monto <span className="text-zinc-600 font-normal">(opcional — si lo dejás vacío, se calcula precio mensual × meses, sin descuento)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={payCustomAmount}
+                    onChange={e => setPayCustomAmount(e.target.value)}
+                    placeholder={String(
+                      (isPlanId(payPlan) ? (planPrices[payPlan] ?? getPlanForTenant(payPlan).precioARS) : getPlanForTenant(payPlan).precioARS)
+                      * Math.max(1, monthsBetween(new Date(), payCustomUntil ? new Date(payCustomUntil + 'T00:00:00') : new Date()))
+                    )}
+                    className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                {payCustomUntil && (
+                  <p className="text-xs text-zinc-600">
+                    ≈ {monthsBetween(new Date(), new Date(payCustomUntil + 'T00:00:00'))} mes(es) desde hoy
+                  </p>
+                )}
+              </div>
+            ) : (
+              /* Precio del plazo elegido, mismo cálculo que el checkout de MP
+                  (priceForTerm) — así el número que ve David acá es el mismo
+                  que le cobraría a un tenant que paga self-serve. */
+              <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-zinc-400">
+                Total del plazo: <span className="text-zinc-100 font-semibold">
+                  ${priceForTerm(
+                    isPlanId(payPlan)
+                      ? { ...getPlanForTenant(payPlan), precioARS: planPrices[payPlan] ?? getPlanForTenant(payPlan).precioARS }
+                      : getPlanForTenant(payPlan),
+                    payTerm,
+                  ).toLocaleString('es-AR')}
+                </span>
+                {TERM_DISCOUNTS[payTerm] > 0 && (
+                  <span className="text-emerald-400"> (incluye {TERM_DISCOUNTS[payTerm] * 100}% off)</span>
+                )}
+                <span className="text-zinc-600"> · vence el {addMonthsLabel(payTerm)}</span>
+              </div>
+            )}
 
             <label className="block text-xs font-medium text-zinc-400 mb-1.5">
               Nota <span className="text-zinc-600 font-normal">(opcional — para no perder el rastro de quién pagó qué)</span>
@@ -1307,7 +1380,7 @@ export default function SuperadminClient({
               </button>
               <button
                 onClick={handleMarkPaid}
-                disabled={paying}
+                disabled={paying || (payTerm === 'custom' && !payCustomUntil)}
                 className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {paying ? 'Guardando...' : 'Confirmar pago'}
