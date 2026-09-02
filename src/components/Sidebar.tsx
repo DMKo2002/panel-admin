@@ -332,8 +332,14 @@ export default function Sidebar({ storeName, storeDomain, isSuperAdmin, role, pe
                 // ahora vive DENTRO de Panel Admin (ver
                 // src/app/dashboard/facturacion/suscripcion/page.tsx), así
                 // que es navegación interna como el resto del menú.
+                // 2026-09-02, bug encontrado de paso (ARam pidió revisar
+                // otros links a la misma pantalla, ver
+                // project_grace_banner_activar_plan_link en memoria): le
+                // faltaba el prefijo /dashboard -- la ruta real es
+                // /dashboard/facturacion/suscripcion, así que este link daba
+                // 404 para cualquier tenant que lo clickeara.
                 <Link
-                  href="/facturacion/suscripcion"
+                  href="/dashboard/facturacion/suscripcion"
                   onClick={() => { setAccountMenuOpen(false); onClose?.() }}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
                 >

@@ -6,13 +6,25 @@
 // /dashboard/uso, que en ese momento redirigía) porque activar el plan era
 // un paso 100% manual (transferencia + /superadmin, ver mark-plan-paid), sin
 // nada self-serve del otro lado. 2026-08-22: eso cambió — gounuri.com/perfil/plan
-// ahora tiene un flujo real (Mercado Pago y/o transferencia), así que el
-// banner vuelve a linkear en vez de solo pedir que lo contacten.
+// tenía un flujo real (Mercado Pago y/o transferencia), así que el banner
+// volvió a linkear en vez de solo pedir que lo contacten.
+//
+// 2026-09-02, bug reportado por ARam: ese link a gounuri.com/perfil/plan
+// manda a un login DISTINTO del de Panel Admin (gounuri.com y
+// panel.gounuri.com son sesiones separadas — ver
+// project_gounuri_billing_subscriptions en memoria) — un tenant que ya está
+// logueado en Panel Admin, viendo este banner en su propio dashboard, caía
+// en una pantalla de login en vez de ir directo a activar el plan. Desde
+// 2026-08-26 existe /dashboard/facturacion/suscripcion DENTRO de Panel
+// Admin (mismo contenido, portado de gounuri-web/PlanSelector.tsx — ver
+// SuscripcionSelector.tsx) pero este banner nunca se actualizó para
+// apuntar ahí. Se cambia a un link interno (misma sesión, sin login extra).
+import Link from 'next/link'
 import { AlertTriangle, Clock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS } from '@/lib/usage'
 
-const GOUNURI_PLAN_URL = 'https://www.gounuri.com/perfil/plan'
+const SUSCRIPCION_URL = '/dashboard/facturacion/suscripcion'
 
 export default async function GraceBanner({ tenantId }: { tenantId: string }) {
   let usage
@@ -26,9 +38,9 @@ export default async function GraceBanner({ tenantId }: { tenantId: string }) {
   const { accountState, trialDaysLeft, trialGraceDaysLeft, overLimit, graceDaysLeft } = usage
 
   const contactanos = (
-    <a href={GOUNURI_PLAN_URL} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+    <Link href={SUSCRIPCION_URL} className="font-medium underline underline-offset-2">
       Activá tu plan.
-    </a>
+    </Link>
   )
 
   // ── Suspensión ──────────────────────────────────────────────────────────────

@@ -53,10 +53,17 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'uso',            label: 'Plan y uso',            href: '/dashboard/uso',              icon: PieChart,   staffBlocked: true },
 ]
 
-// URL externa de "Facturación / Plan y uso" — vive en gounuri.com (cuenta
-// del dueño), no acá (Panel Admin es la operación día a día de la tienda).
-// Única fuente de verdad: /dashboard/uso/page.tsx y el menú de cuenta en
-// Sidebar.tsx la importan de acá para no desincronizarse.
+// URL externa de gounuri.com/perfil/plan — YA NO SE USA para navegación
+// interna de Panel Admin (2026-09-02: /dashboard/uso/page.tsx y el menú de
+// cuenta en Sidebar.tsx mandaban acá y era un bug -- gounuri.com tiene un
+// login separado del de Panel Admin, así que un tenant ya logueado caía en
+// una pantalla de login en vez de ir a /dashboard/facturacion/suscripcion,
+// que es donde vive ese flujo DENTRO de Panel Admin desde el 2026-08-26.
+// Ver project_grace_banner_activar_plan_link en memoria. Se deja el export
+// sin borrar por si algo externo a Panel Admin todavía lo necesita (ver
+// mismo valor hardcodeado, por separado, en api/cron/enforce/route.ts para
+// el mail de aviso de vencimiento -- ese sí es un link para abrir desde el
+// mail, sin sesión de Panel Admin todavía, así que no aplica el mismo fix).
 export const GOUNURI_PLAN_URL = 'https://www.gounuri.com/perfil/plan'
 
 // Usado por src/proxy.ts (matcher de prefijos de ruta)

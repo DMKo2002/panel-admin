@@ -3,19 +3,24 @@
 // (transferencia + superadmin, ver mark-plan-paid) y no tenía sentido
 // ofrecerle a cada tenant una pantalla de self-serve billing que no podía
 // operar solo. Eso cambió el mismo día 2026-08-22: gounuri.com/perfil/plan
-// ahora tiene un flujo real de cambio de plan (Mercado Pago y/o
+// pasó a tener un flujo real de cambio de plan (Mercado Pago y/o
 // transferencia con CBU/alias, configurable desde superadmin — ver
-// gounuri-web/src/app/perfil/plan). Btw sigue viviendo en gounuri.com, no acá
-// (Panel Admin es la operación día a día de la tienda, gounuri.com es la
-// cuenta/facturación del dueño) — esta página muestra el USO real (mismos
-// números que ve superadmin, ver /superadmin) y linkea para cambiar de plan
-// en vez de duplicar todo el checkout acá.
+// gounuri-web/src/app/perfil/plan) y esta página empezó a linkear ahí en
+// vez de duplicar el checkout.
+//
+// 2026-09-02, bug reportado por ARam (mismo que en GraceBanner.tsx — ver
+// project_grace_banner_activar_plan_link en memoria): ese link a
+// gounuri.com/perfil/plan manda a un login SEPARADO del de Panel Admin, así
+// que un tenant ya logueado acá caía en una pantalla de login en vez de
+// cambiar de plan. Desde 2026-08-26 el checkout vive DENTRO de Panel Admin
+// (/dashboard/facturacion/suscripcion, ver SuscripcionSelector.tsx) — esta
+// página nunca se actualizó para apuntar ahí. Se cambia a link interno.
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
-import { ExternalLink, Package, HardDrive, Eye, ShoppingCart } from 'lucide-react'
+import Link from 'next/link'
+import { Package, HardDrive, Eye, ShoppingCart } from 'lucide-react'
 import { getTenantUsage } from '@/lib/usage'
-import { GOUNURI_PLAN_URL } from '@/lib/settings-nav'
 
 const PLAN_STATUS_LABELS: Record<string, string> = {
   trial:     'Prueba gratis',
@@ -94,14 +99,12 @@ export default async function UsoPage() {
                 <p className="text-sm text-red-600 mt-1">Tu tienda pública está suspendida — activá un plan para reactivarla.</p>
               )}
             </div>
-            <a
-              href={GOUNURI_PLAN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/dashboard/facturacion/suscripcion"
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
             >
-              Cambiar de plan <ExternalLink size={14} />
-            </a>
+              Cambiar de plan
+            </Link>
           </div>
           <p className="mt-3 text-xs text-zinc-400">
             El cambio de plan y el pago (Mercado Pago o transferencia) se manejan desde tu cuenta en gounuri.com, no desde acá.
