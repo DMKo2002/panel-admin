@@ -381,8 +381,20 @@ export default function AparienciaPage() {
           setHeroTextColor((cfg as any).hero_text_color ?? '#FFFFFF')
           setHeroEyebrow((cfg as any).hero_eyebrow ?? 'Nueva temporada')
           setHeroLine1((cfg as any).hero_title_line1 ?? 'Estilo que')
-          setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
-          setHeroLine3((cfg as any).hero_title_line3 ?? 'tendencia')
+          if (tmpl === 'atelier') {
+            // Atelier consolidó a 2 renglones: el storefront de esa plantilla
+            // concatena italic + line3 en un solo renglón (compat legacy), así
+            // que acá mostramos ese texto completo en el campo itálico para que
+            // se pueda editar/acortar, y al guardar queda todo en italic con
+            // line3 en null — no hay campo propio de Línea 3 para esta plantilla.
+            const rawItalic = (cfg as any).hero_title_italic ?? 'trasciende'
+            const rawLine3 = (cfg as any).hero_title_line3 ?? ''
+            setHeroItalic(rawLine3 ? `${rawItalic} ${rawLine3}`.trim() : rawItalic)
+            setHeroLine3('')
+          } else {
+            setHeroItalic((cfg as any).hero_title_italic ?? 'trasciende')
+            setHeroLine3((cfg as any).hero_title_line3 ?? 'tendencia')
+          }
           setHeroSeason((cfg as any).hero_season ?? 'AW')
           setHeroSubtitle((cfg as any).hero_subtitle ?? 'Piezas únicas diseñadas para\nquienes buscan estilo y distinción.')
           setNavTextColor((cfg as any).nav_text_color ?? '#FFFFFF')
@@ -481,7 +493,7 @@ export default function AparienciaPage() {
       hero_eyebrow:      heroEyebrow    || null,
       hero_title_line1:  heroLine1      || null,
       hero_title_italic: heroItalic     || null,
-      hero_title_line3:  heroLine3      || null,
+      hero_title_line3:  template === 'atelier' ? null : (heroLine3 || null),
       hero_subtitle:     heroSubtitle   || null,
       hero_season:       heroSeason     || null,
       hero_text_color:   heroTextColor  || null,
@@ -733,6 +745,16 @@ export default function AparienciaPage() {
               <label className="block text-xs text-zinc-500 mb-1">Título — Línea 1 <span className="text-zinc-400">(regular)</span></label>
               <input className="input text-sm" value={heroLine1} onChange={e => setHeroLine1(e.target.value)} placeholder="Estilo que" />
             </div>
+            {template === 'atelier' ? (
+            /* ── Atelier: SOLO esta plantilla usa este bloque. 2 renglones, ninguno itálico. ── */
+            <div className="col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">Título — Línea 2 <span className="text-zinc-400">(regular)</span></label>
+              <input className="input text-sm" value={heroItalic} onChange={e => setHeroItalic(e.target.value)} placeholder="Temporada" />
+              <p className="text-xs text-zinc-400 mt-1">Segundo renglón del título</p>
+            </div>
+            ) : (
+            /* ── Minimalista (y cualquier otra no-atelier de este grupo): 2-3 renglones, el 2do itálico. ── */
+            <>
             <div className="col-span-2">
               <label className="block text-xs text-zinc-500 mb-1">Título — Línea 2 <span className="italic">(itálica)</span></label>
               <input className="input text-sm italic" value={heroItalic} onChange={e => setHeroItalic(e.target.value)} placeholder="trasciende la tendencia" />
@@ -744,6 +766,8 @@ export default function AparienciaPage() {
               <input className="input text-sm" value={heroLine3} onChange={e => setHeroLine3(e.target.value)} placeholder="tendencia" />
               <p className="text-xs text-zinc-400 mt-1">Tercer renglón del título, debajo de la línea itálica</p>
             </div>
+            )}
+            </>
             )}
             <div className="col-span-2">
               <label className="block text-xs text-zinc-500 mb-1">Bajada (debajo del título)</label>
