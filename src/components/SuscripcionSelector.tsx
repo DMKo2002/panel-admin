@@ -425,7 +425,11 @@ export default function SuscripcionSelector({
                             </label>
                           ))}
                         </div>
-                        {CANCEL_REASONS.find(r => r.id === cancelCategory)?.needsDetail && (
+                        {/* 2026-09-03, pedido de ARam: antes esto solo aparecía para
+                            "No me gustó el sistema" u "Otros" (needsDetail) -- dejaba el
+                            espacio vacío para "Muy caro"/"Solo estaba probando". Ahora se
+                            muestra en cuanto se elige cualquier motivo, no solo esos dos. */}
+                        {cancelCategory != null && (
                           <div className="mt-3">
                             <label className="block text-xs font-medium text-red-700 mb-1">
                               ¿Podés contarnos más? Tu feedback puede ayudarnos a mejorar y brindar un mejor servicio (opcional)
