@@ -1,26 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
-import DeleteCustomerButton from '@/components/DeleteCustomerButton'
 import CsvImportExportButtons from '@/components/CsvImportExportButtons'
+import ClientesTable, { type ClienteRow } from '@/components/ClientesTable'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
-}
-
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })
-}
-
-function TypeBadge({ type }: { type: string }) {
-  const isWholesale = type === 'wholesale' || type === 'mayorista'
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-      isWholesale ? 'bg-primary-50 text-primary-700' : 'bg-zinc-100 text-zinc-600'
-    }`}>
-      {isWholesale ? 'Mayorista' : 'Minorista'}
-    </span>
-  )
 }
 
 export default async function ClientesPage() {
@@ -99,6 +84,28 @@ export default async function ClientesPage() {
   const totalRevenue = Array.from(statsMap.values()).reduce((s, c) => s + c.totalSpent, 0)
   const withPending = Array.from(statsMap.values()).filter(c => c.pendingCount > 0).length
 
+  // Lista con stats ya resueltas, para el buscador + filtro de historial de
+  // compra (2026-09-03, pedido de ARam) -- ver ClientesTable.tsx.
+  const customersWithStats: ClienteRow[] = customers.map(c => {
+    const stats = statsMap.get(c.id) ?? { totalSpent: 0, orderCount: 0, pendingCount: 0, lastOrderDate: null }
+    return {
+      id: c.id,
+      full_name: c.full_name,
+      last_name: c.last_name,
+      email: c.email,
+      phone: c.phone,
+      type: c.type,
+      company_name: c.company_name,
+      created_at: c.created_at,
+      orderCount: stats.orderCount,
+      totalSpent: stats.totalSpent,
+      pendingCount: stats.pendingCount,
+      lastOrderDate: stats.lastOrderDate,
+      woo_orders_count: c.woo_orders_count ?? 0,
+      woo_total_spent: c.woo_total_spent ?? 0,
+    }
+  })
+
   return (
     <div>
       {/* Header */}
@@ -132,94 +139,9 @@ export default async function ClientesPage() {
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="px-8 pb-8">
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100">
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Cliente</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Tipo</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Empresa</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Pedidos</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Total gastado</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Pend. pago</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Último pedido</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Registrado</th>
-                <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers?.map(c => {
-                const stats = statsMap.get(c.id) ?? { totalSpent: 0, orderCount: 0, pendingCount: 0, lastOrderDate: null }
-                return (
-                  <tr key={c.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors last:border-0">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-zinc-800">{c.full_name}{c.last_name ? ` ${c.last_name}` : ''}</p>
-                      <p className="text-xs text-zinc-400">{c.email}</p>
-                      {c.phone && <p className="text-xs text-zinc-300">{c.phone}</p>}
-                    </td>
-                    <td className="px-4 py-3"><TypeBadge type={c.type ?? 'retail'} /></td>
-                    <td className="px-4 py-3 text-xs text-zinc-500">{c.company_name ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      {stats.orderCount > 0 ? (
-                        <span className="text-sm font-semibold text-zinc-900">{stats.orderCount}</span>
-                      ) : c.woo_orders_count > 0 ? (
-                        <span className="text-sm font-semibold text-zinc-400" title="Historial WooCommerce">
-                          {c.woo_orders_count}
-                          <span className="ml-1 text-[10px] font-normal text-zinc-300">woo</span>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-zinc-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {stats.totalSpent > 0 ? (
-                        <span className="text-sm font-semibold text-emerald-600">{fmt(stats.totalSpent)}</span>
-                      ) : c.woo_total_spent > 0 ? (
-                        <span className="text-sm font-semibold text-zinc-400" title="Historial WooCommerce">
-                          {fmt(c.woo_total_spent)}
-                          <span className="ml-1 text-[10px] font-normal text-zinc-300">woo</span>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-zinc-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {stats.pendingCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
-                          {stats.pendingCount} pendiente{stats.pendingCount > 1 ? 's' : ''}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-zinc-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-zinc-400">
-                      {stats.lastOrderDate ? fmtDate(stats.lastOrderDate) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-zinc-400">
-                      {fmtDate(c.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <DeleteCustomerButton
-                        customerId={c.id}
-                        customerName={`${c.full_name}${c.last_name ? ` ${c.last_name}` : ''}`}
-                      />
-                    </td>
-                  </tr>
-                )
-              })}
-              {(!customers || customers.length === 0) && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-zinc-400 text-sm">
-                    Todavía no hay clientes registrados en la tienda
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Buscador + filtro de historial de compra + tabla (2026-09-03,
+          pedido de ARam) -- ver ClientesTable.tsx */}
+      <ClientesTable customers={customersWithStats} />
     </div>
   )
 }
