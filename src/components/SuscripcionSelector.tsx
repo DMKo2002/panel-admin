@@ -236,19 +236,14 @@ export default function SuscripcionSelector({
     }
   }
 
-  if (legacyManualBilling) {
-    return (
-      <div ref={sectionRef}>
-        <p className="text-sm text-zinc-500">
-          Tu plan lo gestiona el equipo de Gounuri directamente — escribinos si querés hacer algún cambio.
-        </p>
-      </div>
-    )
-  }
-
   // Solo hay algo que "resumir" arriba cuando ya existe una suscripción real
   // (activa o recién cancelada) -- si todavía no eligió ningún plan, no hay
   // nada que mostrar ahí y las cards de plan son lo único que tiene sentido.
+  // Calculado ANTES del return de legacyManualBilling (2026-09-03, pedido de
+  // ARam: botón "Cancelar suscripción" arriba a la derecha del header, ver
+  // headerBar más abajo) para poder decidir ahí si corresponde mostrar el
+  // botón -- en el branch legacyManualBilling canCancelFromHeader siempre da
+  // false, ese caso ya está cortado aparte.
   const isPaidPlan = isPlanId(currentPlan)
   // Pagado a mano por superadmin (transferencia, ver mark-plan-paid/route.ts)
   // -- manualPaidUntil a futuro es la única señal de que hay un plan pago
@@ -257,6 +252,58 @@ export default function SuscripcionSelector({
   // isManuallyPaid se apaga solo sin tener que comparar fechas acá.
   const isManuallyPaid = isPaidPlan && !trialing && !mpPreapprovalId && !billingPausedByUser && !!manualPaidUntil
   const hasPaidSummary = isPaidPlan && !trialing && (mpPreapprovalId || billingPausedByUser || isManuallyPaid)
+
+  // Botón "Cancelar suscripción" en el header, arriba a la derecha (2026-09-
+  // 03, pedido de ARam -- lugar marcado en una captura de la pantalla).
+  // Mismo criterio que el botón que ya vivía adentro del acordeón de
+  // detalle: solo hay algo que cancelar si hay una suscripción paga vigente
+  // (MP o pagada a mano) y todavía no la dio de baja (billingPausedByUser
+  // true = ya la canceló, ahí abajo se ve el aviso ámbar en vez del botón).
+  // En vez de duplicar el flujo de confirmación (motivos de baja, etc.) que
+  // ya está armado adentro del acordeón, este botón abre ese mismo
+  // acordeón con la confirmación ya desplegada y hace scroll hasta ahí, así
+  // no hay dos lugares con lógica de cancelación separada.
+  const canCancelFromHeader = !legacyManualBilling && hasPaidSummary && (isManuallyPaid || !!mpPreapprovalId)
+  function openCancelFromHeader() {
+    setSubDetailOpen(true)
+    setShowCancelConfirm(true)
+    requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+  const headerBar = (
+    <div className="flex items-start justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-6 sm:px-8">
+      <div>
+        <h1 className="text-xl font-semibold text-zinc-900">Suscripción</h1>
+        <p className="mt-0.5 text-sm text-zinc-500">Esta vista sirve para elegir el plan a suscribir, ver tu vencimiento y tu historial de pago.</p>
+      </div>
+      {canCancelFromHeader && (
+        <button
+          type="button"
+          onClick={openCancelFromHeader}
+          className="shrink-0 self-start bg-transparent text-sm font-medium text-zinc-900 hover:underline"
+        >
+          Cancelar suscripción
+        </button>
+      )}
+    </div>
+  )
+
+  if (legacyManualBilling) {
+    return (
+      <div>
+        {headerBar}
+        <div className="px-4 py-6 max-w-5xl sm:px-8">
+          <div ref={sectionRef}>
+            <p className="text-sm text-zinc-500">
+              Tu plan lo gestiona el equipo de Gounuri directamente — escribinos si querés hacer algún cambio.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const hasTrialSummary = trialing
   // Sin suscripción activa (2026-08-26, pedido de ARam -- reportado con los
   // tenants Test2 y Beck): ni pago vigente ni en prueba -- plan quedó en
@@ -281,7 +328,10 @@ export default function SuscripcionSelector({
   const cardsVisible = showPlanCards || !hasSummary
 
   return (
-    <div ref={sectionRef}>
+    <div>
+      {headerBar}
+      <div className="px-4 py-6 max-w-5xl sm:px-8">
+      <div ref={sectionRef}>
       {/* Resumen de la suscripción actual arriba de todo (2026-08-26, pedido
           de ARam) -- vencimiento, plan elegido, precio de renovación y el
           toggle de renovación automática, con todo el detalle (y "Cancelar
@@ -808,6 +858,8 @@ export default function SuscripcionSelector({
         {paymentSettings.manualTransferEnabled && (
           <p>Con transferencia, el plan se activa una vez que confirmemos el pago.</p>
         )}
+      </div>
+      </div>
       </div>
     </div>
   )

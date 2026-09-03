@@ -67,30 +67,26 @@ export default async function SuscripcionPage() {
     metodo: (c.mp_payment_id || c.mp_preapproval_id) ? 'Mercado Pago' : 'Transferencia',
   }))
 
+  // El header (título "Suscripción" + bajada) y el botón "Cancelar
+  // suscripción" arriba a la derecha (2026-09-03, pedido de ARam) ahora los
+  // renderiza SuscripcionSelector -- necesita ser un client component para
+  // controlar el mismo estado que abre la confirmación de baja, ver
+  // headerBar en SuscripcionSelector.tsx.
   return (
-    <div>
-      <div className="px-4 sm:px-8 py-6 border-b border-zinc-200 bg-white">
-        <h1 className="text-xl font-semibold text-zinc-900">Suscripción</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">Esta vista sirve para elegir el plan a suscribir, ver tu vencimiento y tu historial de pago.</p>
-      </div>
-
-      <div className="px-4 sm:px-8 py-6 max-w-5xl">
-        <SuscripcionSelector
-          currentPlan={currentPlan}
-          trialing={trialing}
-          paymentSettings={paymentSettings}
-          planPrices={planPrices}
-          billingTerm={tenant.billing_term ?? null}
-          nextBillingDate={tenant.next_billing_date ?? null}
-          trialEndsAt={tenant.trial_ends_at ?? null}
-          mpPreapprovalId={tenant.mp_preapproval_id ?? null}
-          billingPausedByUser={tenant.billing_paused_by_user ?? false}
-          legacyManualBilling={tenant.legacy_manual_billing ?? false}
-          manualPaidUntil={tenant.manual_paid_until ?? null}
-          manualPaymentTerm={tenant.manual_payment_term ?? null}
-          paymentHistory={paymentHistory}
-        />
-      </div>
-    </div>
+    <SuscripcionSelector
+      currentPlan={currentPlan}
+      trialing={trialing}
+      paymentSettings={paymentSettings}
+      planPrices={planPrices}
+      billingTerm={tenant.billing_term ?? null}
+      nextBillingDate={tenant.next_billing_date ?? null}
+      trialEndsAt={tenant.trial_ends_at ?? null}
+      mpPreapprovalId={tenant.mp_preapproval_id ?? null}
+      billingPausedByUser={tenant.billing_paused_by_user ?? false}
+      legacyManualBilling={tenant.legacy_manual_billing ?? false}
+      manualPaidUntil={tenant.manual_paid_until ?? null}
+      manualPaymentTerm={tenant.manual_payment_term ?? null}
+      paymentHistory={paymentHistory}
+    />
   )
 }
