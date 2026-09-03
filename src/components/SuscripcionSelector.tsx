@@ -272,7 +272,7 @@ export default function SuscripcionSelector({
     })
   }
   const headerBar = (
-    <div className="flex items-start justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-6 sm:px-8">
+    <div className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-6 sm:px-8">
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Suscripción</h1>
         <p className="mt-0.5 text-sm text-zinc-500">Esta vista sirve para elegir el plan a suscribir, ver tu vencimiento y tu historial de pago.</p>
@@ -281,7 +281,7 @@ export default function SuscripcionSelector({
         <button
           type="button"
           onClick={openCancelFromHeader}
-          className="shrink-0 self-start bg-transparent text-sm font-medium text-zinc-900 hover:underline"
+          className="shrink-0 rounded-lg border border-zinc-900 bg-transparent px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50"
         >
           Cancelar suscripción
         </button>
