@@ -28,7 +28,7 @@ export default async function SuscripcionPage() {
     // David en QA: "marcar como pagado" en superadmin no se veía acá adentro
     // -- faltaban estas dos columnas, la única fuente de vencimiento/ciclo
     // para un tenant pagado por transferencia, ver SuscripcionSelector.tsx).
-    .select('name, plan, plan_status, status, billing_term, next_billing_date, trial_ends_at, mp_preapproval_id, billing_paused_by_user, legacy_manual_billing, manual_paid_until, manual_payment_term')
+    .select('name, plan, plan_status, status, billing_term, next_billing_date, trial_ends_at, mp_preapproval_id, billing_paused_by_user, legacy_manual_billing, manual_paid_until, manual_payment_term, referred_by, referido_descuento_hasta')
     .eq('id', tenantId)
     .limit(1)
   const tenant = _tenantRows?.[0]
@@ -40,6 +40,9 @@ export default async function SuscripcionPage() {
   // deshabilitado como si ya estuviera pago.
   const trialing = tenant.plan_status === 'trial' || tenant.status === 'suspended'
   const currentPlan = tenant.plan ?? 'standard'
+  // Mismo criterio que aplicaDescuentoReferido en api/billing/subscribe/route.ts
+  // (solo avisa -- la condición real la vuelve a chequear el backend al cobrar).
+  const elegibleDescuentoReferido = Boolean(tenant.referred_by) && !tenant.referido_descuento_hasta
 
   const paymentSettings = await getPlatformPaymentSettings(service)
   // 2026-08-29: precios editables desde /superadmin/planes -- se resuelven
@@ -89,6 +92,7 @@ export default async function SuscripcionPage() {
           manualPaidUntil={tenant.manual_paid_until ?? null}
           manualPaymentTerm={tenant.manual_payment_term ?? null}
           paymentHistory={paymentHistory}
+          elegibleDescuentoReferido={elegibleDescuentoReferido}
         />
       </div>
     </div>

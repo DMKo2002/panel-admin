@@ -21,6 +21,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Package, HardDrive, Eye, ShoppingCart } from 'lucide-react'
 import { getTenantUsage } from '@/lib/usage'
+import ReferidosCard from '@/components/ReferidosCard'
 
 const PLAN_STATUS_LABELS: Record<string, string> = {
   trial:     'Prueba gratis',
@@ -65,6 +66,11 @@ export default async function UsoPage() {
       </div>
 
       <div className="px-4 sm:px-8 py-6 space-y-6 max-w-3xl">
+
+        {/* Pedido de David 2026-09-11: el link de invitación va acá (Plan y
+            uso), no en Mi cuenta -- tiene más sentido al lado del plan y la
+            suscripción. */}
+        <ReferidosCard compact />
 
         {/* Plan actual */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5">

@@ -130,6 +130,7 @@ export default function SuscripcionSelector({
   manualPaidUntil,
   manualPaymentTerm,
   paymentHistory,
+  elegibleDescuentoReferido,
 }: {
   currentPlan: string
   trialing: boolean
@@ -150,6 +151,12 @@ export default function SuscripcionSelector({
   manualPaidUntil: string | null
   manualPaymentTerm: BillingTerm | null
   paymentHistory: { id: string; amount: number; status: string; created_at: string; mpPaymentId: string | null; mpPreapprovalId: string | null; metodo: string }[]
+  // 2026-09-11 (bug reportado por David en QA: "no se ve el 20% en ningún
+  // lado"): true si el tenant llegó por invitación y todavía no usó su
+  // descuento (mismo criterio que aplicaDescuentoReferido en
+  // api/billing/subscribe/route.ts) -- antes el descuento se aplicaba
+  // solo, sin avisar nada acá.
+  elegibleDescuentoReferido: boolean
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -523,6 +530,11 @@ export default function SuscripcionSelector({
 
       {cardsVisible && (
       <>
+      {elegibleDescuentoReferido && (
+        <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          🎁 Llegaste por invitación: tenés <strong>20% off tus primeros 2 meses</strong> pagando mes a mes (plazo Mensual). No se combina con los descuentos de Semestral/Anual.
+        </div>
+      )}
       <div className="mt-10 flex justify-center">
         {/* SVG de descuento inline (misma geometría del archivo original) para poder
             aplicar el hover como stroke sobre la forma real de cada píldora. */}

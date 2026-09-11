@@ -24,7 +24,6 @@ import { useEffect, useState } from 'react'
 import type { UserIdentity } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react'
-import ReferidosCard from '@/components/ReferidosCard'
 
 function IconGoogle() {
   return (
@@ -180,9 +179,6 @@ export default function MiCuentaPage() {
       <h1 className="text-xl font-semibold text-zinc-900 mb-1">Mi cuenta</h1>
       <p className="text-sm text-zinc-500 mb-6">Formas de entrar habilitadas para tu usuario.</p>
 
-      <div className="mb-6">
-        <ReferidosCard compact />
-      </div>
 
       {error && (
         <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
