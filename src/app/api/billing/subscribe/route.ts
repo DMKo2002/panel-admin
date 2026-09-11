@@ -18,6 +18,15 @@ function addMonths(date: Date, months: number): Date {
   return d
 }
 
+// Descuento por referido (2026-09): 20% off los primeros 2 meses, SOLO si
+// paga mes a mes — no se combina con el descuento por plazo de 6/12 meses
+// (ver decisión de producto: mezclarlos tocaría fullPriceForTerm y el flujo
+// de transferencia, que ya tuvo un bug de QA el 26/08 por mezclar MP y
+// transferencia). Ver createPreapproval en lib/billing.ts para el porqué de
+// que esto no "vuelve solo" a precio completo después de los 2 meses.
+const REFERIDO_DESCUENTO_PCT = 20
+const REFERIDO_DESCUENTO_MESES = 2
+
 export async function POST(req: Request) {
   const service = createServiceClient()
 
@@ -65,7 +74,9 @@ export async function POST(req: Request) {
   // poder disparar un cobro real de Mercado Pago desde acá — ver memoria de
   // proyecto "Gounuri billing/subscriptions".
   const { data: _tenantRows } = await service
-    .from('tenants').select('legacy_manual_billing, mp_preapproval_id').eq('id', tenantId).limit(1)
+    .from('tenants')
+    .select('legacy_manual_billing, mp_preapproval_id, referred_by, referido_descuento_hasta')
+    .eq('id', tenantId).limit(1)
   const tenantRow = _tenantRows?.[0]
   if (tenantRow?.legacy_manual_billing) {
     return NextResponse.json(
@@ -73,6 +84,11 @@ export async function POST(req: Request) {
       { status: 403 }
     )
   }
+
+  // Se registró con un código de invitación y todavía no usó el descuento
+  // por referido (referido_descuento_hasta null = nunca se le aplicó) — solo
+  // vale la primera vez que se suscribe pagando mes a mes.
+  const aplicaDescuentoReferido = months === 1 && Boolean(tenantRow?.referred_by) && !tenantRow?.referido_descuento_hasta
 
   // Si ya tenía un preapproval activo (por ejemplo, está cambiando de plazo
   // mensual → anual), cancelarlo primero — si no, quedaría con dos débitos
@@ -99,6 +115,7 @@ export async function POST(req: Request) {
       payerEmail,
       backUrl: `${origin}/dashboard/facturacion/suscripcion?sub=pendiente`,
       months,
+      discountPct: aplicaDescuentoReferido ? REFERIDO_DESCUENTO_PCT : undefined,
     })
     // Guardar ya mismo el plazo elegido y el id — el webhook confirma la
     // activación después y va a volver a escribir estos mismos campos (es
@@ -110,8 +127,9 @@ export async function POST(req: Request) {
       billing_term: months,
       next_billing_date: addMonths(now, months).toISOString(),
       billing_paused_by_user: false,
+      ...(aplicaDescuentoReferido ? { referido_descuento_hasta: addMonths(now, REFERIDO_DESCUENTO_MESES).toISOString() } : {}),
     }).eq('id', tenantId)
-    return NextResponse.json({ init_point: preapproval.init_point })
+    return NextResponse.json({ init_point: preapproval.init_point, referidoDescuentoAplicado: aplicaDescuentoReferido })
   } catch (e) {
     console.error('[billing/subscribe]', e)
     return NextResponse.json({ error: 'No se pudo iniciar la suscripción. Probá de nuevo.' }, { status: 500 })

@@ -35,7 +35,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getTenantUsage, GRACE_DAYS, TRIAL_GRACE_DAYS, PAID_TERM_GRACE_DAYS } from '@/lib/usage'
 import { getPlanForTenant } from '@/lib/plans'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, emailReferidoDescuentoTerminando } from '@/lib/email'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 
 export const dynamic = 'force-dynamic'
@@ -345,6 +345,47 @@ export async function GET(req: Request) {
       billing_paused_by_user: false,
     }).eq('id', t.id)
     acciones.push(`bajado a free (dar de baja de MP venció): ${t.name}`)
+  }
+
+    // ── 6. Aviso de fin del descuento por referido ──────────────────────────────
+  // (2026-09) Cuando termina el período de 20% off por haberse registrado con
+  // un código de invitación (referido_descuento_hasta, ver
+  // /api/billing/subscribe), el monto de la suscripción activa NO se ajusta
+  // solo (ver comentario en lib/billing.ts/createPreapproval — mismo
+  // criterio que el ajuste manual de precios por inflación). Esta sección
+  // solo AVISA por mail al tenant y a Gounuri, y limpia el campo para no
+  // avisar dos veces — el ajuste real de precio, si hace falta, se hace a
+  // mano en Mercado Pago o el tenant se resuscribe desde su panel.
+  const { data: descuentoVencido } = await service
+    .from('tenants')
+    .select('id, name')
+    .not('referido_descuento_hasta', 'is', null)
+    .lte('referido_descuento_hasta', new Date(now).toISOString())
+
+  for (const t of descuentoVencido ?? []) {
+    await service.from('tenants').update({ referido_descuento_hasta: null }).eq('id', t.id)
+
+    try {
+      const { data: ownerRows } = await service
+        .from('users').select('email').eq('tenant_id', t.id).eq('role', 'owner').limit(1)
+      const ownerEmail = ownerRows?.[0]?.email
+      if (ownerEmail) {
+        await sendEmail({
+          to: ownerEmail,
+          subject: 'Terminó tu descuento por invitación — gounuri',
+          html: emailReferidoDescuentoTerminando({ tenantName: t.name, panelUrl: PANEL }),
+        })
+      }
+      const settings = await getPlatformPaymentSettings(service)
+      await sendEmail({
+        to: settings.contactEmail,
+        subject: `ℹ️ Terminó el descuento por referido de ${t.name}`,
+        html: `<p><strong>${t.name}</strong> terminó su período de 20% off por invitación. Si hace falta ajustar el monto de su suscripción en Mercado Pago, es manual (no se toca solo).</p>`,
+      })
+    } catch (e) {
+      console.error('[cron/enforce] error avisando fin de descuento por referido', t.id, e)
+    }
+    acciones.push(`aviso fin de descuento por referido: ${t.name}`)
   }
 
   return NextResponse.json({ ok: true, acciones })

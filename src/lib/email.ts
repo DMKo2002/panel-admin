@@ -298,3 +298,56 @@ export function emailBajaConfirmada({
     ${ctaButton(`${panelUrl}/dashboard`, 'Ir a mi panel')}
   </td></tr>`)
 }
+
+// ── Recompensa por referido (2026-09) ───────────────────────────────────────
+// Al que invitó, cuando el invitado confirma su primer pago (ver
+// billing/webhook/route.ts, rama 'authorized' de kind 'tenant') — suma 2
+// meses gratis al saldo, canjeables cuando quiera desde /perfil/plan.
+export function emailReferidoRecompensa({
+  tenantName,
+  invitedName,
+  panelUrl,
+}: {
+  tenantName: string
+  invitedName: string
+  panelUrl: string
+}): string {
+  return layout(`
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Recompensa por invitación</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">¡Sumaste 2 meses gratis! 🎉</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.7;">
+      <strong>${invitedName}</strong> se registró en Gounuri con tu invitación y ya confirmó su primer pago — como agradecimiento, tu tienda <strong>${tenantName}</strong> suma <strong>2 meses gratis</strong> a tu saldo.
+    </p>
+    <p style="margin:0 0 28px;font-size:14px;color:#767676;line-height:1.7;">
+      Los podés usar cuando quieras, no se aplican solos — entrá a tu panel y usalos cuando te convenga.
+    </p>
+    ${ctaButton(`${panelUrl}/dashboard/facturacion/suscripcion`, 'Usar mis meses gratis')}
+  </td></tr>`)
+}
+
+// ── Fin del descuento por referido (2026-09) ────────────────────────────────
+// Aviso al tenant cuando termina su período de 20% off por haberse
+// registrado con un código de invitación (ver referido_descuento_hasta en
+// tenants, avisado desde cron/enforce). Importante: el monto de la
+// suscripción activa NO se ajusta solo (ver comentario en
+// lib/billing.ts/createPreapproval) — este mail solo informa; si el tenant
+// quiere volver a precio completo o revisar su plan, lo hace desde
+// /dashboard/facturacion/suscripcion como cualquier cambio de plan.
+export function emailReferidoDescuentoTerminando({
+  tenantName,
+  panelUrl,
+}: {
+  tenantName: string
+  panelUrl: string
+}): string {
+  return layout(`
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 18px;font-size:12px;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Descuento por invitación</p>
+    <h1 style="margin:0 0 16px;font-size:26px;font-weight:700;color:#101010;line-height:1.3;">¡Hola!</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.7;">
+      Tu 20% de descuento por haberte registrado con un código de invitación en <strong>${tenantName}</strong> ya terminó. Tu suscripción sigue activa normalmente — si querés revisar tu plan o método de pago, lo hacés desde tu panel.
+    </p>
+    ${ctaButton(`${panelUrl}/dashboard/facturacion/suscripcion`, 'Ver mi suscripción')}
+  </td></tr>`)
+}

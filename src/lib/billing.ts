@@ -83,6 +83,13 @@ export async function createPreapproval(opts: {
   // 1 = mensual (sin descuento), 6 = -10% pagando 6 meses de una, 12 = -20%
   // pagando 12 meses de una. Default 1 para no romper llamadas viejas.
   months?: BillingTerm
+  // Descuento por referido (2026-09) — 0-100, SOLO se usa cuando months=1
+  // (ver decisión en /api/billing/subscribe: no se combina con el
+  // descuento por plazo de 6/12 meses, para no tocar fullPriceForTerm ni el
+  // flujo de transferencia). Afecta nada más el monto de ESTE preapproval —
+  // ver comentario más abajo sobre por qué no "vuelve solo" al precio de
+  // lista después de los 2 meses.
+  discountPct?: number
 }): Promise<Preapproval> {
   const months = opts.months ?? 1
   // 2026-08-29, pedido de ARam: el precio real de cada plan ahora se lee de
@@ -105,7 +112,20 @@ export async function createPreapproval(opts: {
   // priceForTerm. El descuento sigue existiendo, pero solo se ve/cobra en
   // el flujo de transferencia (TransferPaymentBlock, notify-manual-intent,
   // mark-plan-paid).
-  const amount = fullPriceForTerm(plan, months)
+  let amount = fullPriceForTerm(plan, months)
+  // Descuento por referido: SOLO se aplica al monto de este preapproval —
+  // igual que el ajuste de precio por inflación, este código NUNCA toca una
+  // suscripción ya activa. Cuando termina el período de descuento (ver
+  // referido_descuento_hasta en tenants), cron/enforce solo AVISA por mail
+  // al tenant y a Gounuri — no cambia el monto solo. Si el tenant quiere
+  // seguir a precio completo, tiene que resuscribirse (mismo botón de
+  // siempre en /dashboard/facturacion/suscripcion); si nadie hace nada, el
+  // preapproval descontado sigue cobrando ese monto — es una limitación
+  // conocida y aceptada, no un bug: MP no soporta cambiar el monto de una
+  // suscripción activa desde acá (ver comentario del párrafo anterior).
+  if (opts.discountPct && opts.discountPct > 0 && months === 1) {
+    amount = Math.round(amount * (1 - opts.discountPct / 100))
+  }
   const reason = months === 1
     ? `Gounuri — Plan ${plan.nombre}`
     : `Gounuri — Plan ${plan.nombre} (${months} meses)`
@@ -141,7 +161,9 @@ export async function getPreapproval(id: string): Promise<Preapproval> {
 // Cancela un preapproval en MP — usado tanto por "dar de baja" (el tenant
 // decide no renovar más, ver /api/billing/cancel) como internamente por
 // /api/billing/subscribe antes de crear uno nuevo cuando el tenant cambia
-// de plazo (evita quedar con dos débitos automáticos activos en paralelo).
+// de plazo (evita quedar con dos débitos automáticos activos en paralelo),
+// y también por /api/referidos/usar-mes-gratis (ver ahí) para "saltear" un
+// cobro reusando el mismo mecanismo de baja+next_billing_date.
 // Una vez cancelado, MP no permite reactivarlo — para volver hace falta un
 // preapproval nuevo con una autorización nueva.
 export async function cancelPreapproval(id: string): Promise<Preapproval> {

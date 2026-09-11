@@ -15,7 +15,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getPreapproval, getPayment, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
 import { getPlanForTenant, isBillingTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
-import { sendEmail, emailPagoConfirmado, emailBienvenidaTenant } from '@/lib/email'
+import { sendEmail, emailPagoConfirmado, emailBienvenidaTenant, emailReferidoRecompensa } from '@/lib/email'
 import { addDomainToProject } from '@/lib/vercel'
 
 // now + N meses de calendario — mismo criterio que mark-plan-paid/route.ts.
@@ -24,6 +24,11 @@ function addMonths(date: Date, months: number): Date {
   d.setMonth(d.getMonth() + months)
   return d
 }
+
+// Recompensa por referido (2026-09): meses gratis que suma el que invitó
+// cuando el invitado confirma su PRIMER pago — ver bloque más abajo, dentro
+// de la rama pre.status === 'authorized'.
+const REFERIDO_RECOMPENSA_MESES = 2
 
 // Notificación a GOUNURI cada vez que MP confirma una suscripción — pedido
 // 2026-08-22, para no depender de entrar a mirar el panel. Nunca tira: si
@@ -51,6 +56,68 @@ async function notifySubscriptionPaid(service: SupabaseClient, opts: {
     })
   } catch (e) {
     console.error('[billing/webhook] error notificando suscripción pagada:', e)
+  }
+}
+
+// Recompensa por referido: si este tenant se registró con un código de
+// invitación (referred_by) y este es su PRIMER pago confirmado
+// (referido_recompensa_aplicada_at todavía null — MP puede reintentar este
+// mismo webhook, ver comentario de seguridad al principio del archivo), el
+// que invitó suma REFERIDO_RECOMPENSA_MESES al saldo de meses gratis. El
+// incremento va por una función de Postgres (increment_meses_gratis, ver
+// migración referidos_increment_function) en vez de leer-y-reescribir desde
+// acá, para no perder un incremento si dos referidos del mismo inviter
+// confirman pago casi al mismo tiempo. Todo esto es best-effort: un error
+// acá no debe tirar abajo la confirmación del pago en sí (ya se procesó
+// arriba), así que va en su propio try/catch sin relanzar.
+async function aplicarRecompensaReferido(service: SupabaseClient, opts: {
+  tenantId: string
+  tenantName: string
+}) {
+  try {
+    const { data: refRows } = await service
+      .from('tenants')
+      .select('referred_by, referido_recompensa_aplicada_at')
+      .eq('id', opts.tenantId)
+      .limit(1)
+    const refTenant = refRows?.[0]
+    if (!refTenant?.referred_by || refTenant.referido_recompensa_aplicada_at) return
+
+    // Se marca ANTES de sumar el saldo — si el mail o el increment fallan y
+    // MP reintenta el webhook, no queremos duplicar la recompensa.
+    await service.from('tenants')
+      .update({ referido_recompensa_aplicada_at: new Date().toISOString() })
+      .eq('id', opts.tenantId)
+
+    const { error: incError } = await service.rpc('increment_meses_gratis', {
+      p_tenant_id: refTenant.referred_by,
+      p_meses: REFERIDO_RECOMPENSA_MESES,
+    })
+    if (incError) {
+      console.error('[billing/webhook] no se pudo acreditar meses gratis al referente', incError)
+      return
+    }
+
+    const { data: inviterRows } = await service
+      .from('tenants').select('name').eq('id', refTenant.referred_by).limit(1)
+    const inviterName = inviterRows?.[0]?.name
+    const { data: inviterOwnerRows } = await service
+      .from('users').select('email').eq('tenant_id', refTenant.referred_by).eq('role', 'owner').limit(1)
+    const inviterOwnerEmail = inviterOwnerRows?.[0]?.email
+    if (inviterOwnerEmail) {
+      const panelUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://panel.gounuri.com'
+      await sendEmail({
+        to: inviterOwnerEmail,
+        subject: '🎉 Sumaste 2 meses gratis por invitar a alguien a Gounuri',
+        html: emailReferidoRecompensa({
+          tenantName: inviterName ?? 'tu tienda',
+          invitedName: opts.tenantName,
+          panelUrl,
+        }),
+      }).catch(e => console.error('[billing/webhook] email recompensa referido error:', e))
+    }
+  } catch (e) {
+    console.error('[billing/webhook] error procesando recompensa de referido', e)
   }
 }
 
@@ -151,6 +218,12 @@ export async function POST(req: Request) {
       // link viejo que no pasó por el wizard nuevo) cae al placeholder de
       // siempre como red de seguridad, que se completa después en
       // /onboarding vía /api/finalizar-tienda.
+      //
+      // NOTA (2026-09): este camino de "pagar directo sin trial" todavía NO
+      // captura referred_by — el programa de referidos por ahora solo cubre
+      // el camino principal (trial gratis → /api/billing/subscribe). Si
+      // este flujo empieza a usarse en serio, hay que sumarle la misma
+      // lógica que /api/create-tenant de gounuri-web.
       const { data: accountRows } = await service
         .from('gounuri_accounts')
         .select('nombre, pending_signup')
@@ -416,6 +489,15 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error('[billing/webhook] error notificando al tenant del pago:', e)
       }
+
+      // Recompensa por referido — ver aplicarRecompensaReferido() arriba.
+      // Va después de todo lo anterior a propósito: si algo de esto falla,
+      // no queremos perder la recompensa por un error en, por ejemplo, el
+      // mail de bienvenida.
+      await aplicarRecompensaReferido(service, {
+        tenantId: ref.tenantId,
+        tenantName: updatedTenant?.name ?? 'tu tienda',
+      })
     } else if (pre.status === 'paused') {
       // OJO: esto es MP pausando SOLO porque falló un cobro (dunning) — el
       // "dar de baja" a pedido del tenant (/api/billing/cancel) usa
