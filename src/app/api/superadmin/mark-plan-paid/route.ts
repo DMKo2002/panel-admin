@@ -28,6 +28,7 @@ import { isSuperAdmin } from '@/lib/superadmin'
 import { PLANS, getPlanForTenant, isBillingTerm, priceForTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPlanPrices } from '@/lib/platformPlanPrices'
 import { sendEmail, emailPagoConfirmado } from '@/lib/email'
+import { aplicarRecompensaReferido } from '@/lib/referidos'
 
 // now + N meses de calendario (no N*30 días — un plazo de 12 meses tiene que
 // vencer un año después, no 360 días después).
@@ -91,6 +92,22 @@ export async function POST(req: NextRequest) {
   )
 
   const now = new Date()
+
+  // Descuento por referido (2026-09-11, bug reportado por David en QA: "el
+  // descuento se hace únicamente por Mercado Pago") -- mismo criterio que
+  // aplicaDescuentoReferido en api/billing/subscribe/route.ts: solo si es
+  // plazo mensual (1 mes, sin plazo personalizado) y el tenant llegó por
+  // invitación y todavía no usó su descuento. No se combina con el 10%/20%
+  // de TERM_DISCOUNTS (esos son de plazo 6/12, mutuamente excluyentes con
+  // esto por definición ya que el descuento de referido es solo mensual).
+  const { data: refRows } = await serviceClient
+    .from('tenants')
+    .select('referred_by, referido_descuento_hasta')
+    .eq('id', tenantId)
+    .limit(1)
+  const refTenant = refRows?.[0]
+  const aplicaDescuentoReferido = !customPaidUntil && months === 1
+    && Boolean(refTenant?.referred_by) && !refTenant?.referido_descuento_hasta
   // 2026-08-29, pedido de ARam: precio real leído de platform_plan_prices
   // (editable desde /superadmin/planes) en vez del hardcodeado de PLANS --
   // así "marcar como pagado" cobra en pantalla el mismo monto vigente que
@@ -113,7 +130,9 @@ export async function POST(req: NextRequest) {
     ? (typeof customAmount === 'number' && customAmount > 0
         ? Math.round(customAmount)
         : Math.round(planDef.precioARS * effectiveMonths))
-    : priceForTerm(planDef, months)
+    : aplicaDescuentoReferido
+      ? Math.round(priceForTerm(planDef, months) * 0.8)
+      : priceForTerm(planDef, months)
 
   // Mismo patch que billing/webhook en la rama 'authorized': saca al tenant
   // del trial/gracia y limpia los warnings, para que el cron de enforce no
@@ -142,6 +161,7 @@ export async function POST(req: NextRequest) {
     manual_payment_pending_term: null,
   }
   if (plan) patch.plan = plan
+  if (aplicaDescuentoReferido) patch.referido_descuento_hasta = addMonths(now, 2).toISOString()
 
   const { data: updatedTenant, error } = await serviceClient
     .from('tenants').update(patch).eq('id', tenantId).select('name').single()
@@ -163,6 +183,15 @@ export async function POST(req: NextRequest) {
     status_detail: 'pago_manual',
     mp_payment_id: null,
     mp_preapproval_id: null,
+  })
+
+  // Recompensa por referido — mismo helper que usa el webhook de MP (ver
+  // @/lib/referidos), acá aplicado al pago manual por transferencia. Va
+  // best-effort, después de confirmar el pago, para no arriesgar el
+  // marcado-como-pagado en sí si esto falla.
+  await aplicarRecompensaReferido(serviceClient, {
+    tenantId,
+    tenantName: updatedTenant?.name ?? 'tu tienda',
   })
 
   // Si estaba suspendida por trial vencido, exceso de cupo o vencimiento de

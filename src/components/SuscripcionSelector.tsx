@@ -19,7 +19,7 @@
 // no afectar a los 4 tenants activos hasta que esta pantalla esté validada.
 
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Check, Loader2, ChevronRight } from 'lucide-react'
 import { PLANS, priceForTerm, fullPriceForTerm, TERM_DISCOUNTS, TRIAL_DAYS, isPlanId, type PlanDef, type PlanId, type BillingTerm } from '@/lib/plans'
 import { createClient } from '@/lib/supabase/client'
@@ -131,6 +131,7 @@ export default function SuscripcionSelector({
   manualPaymentTerm,
   paymentHistory,
   elegibleDescuentoReferido,
+  tieneReferido,
 }: {
   currentPlan: string
   trialing: boolean
@@ -157,10 +158,48 @@ export default function SuscripcionSelector({
   // api/billing/subscribe/route.ts) -- antes el descuento se aplicaba
   // solo, sin avisar nada acá.
   elegibleDescuentoReferido: boolean
+  // true si el tenant ya tiene un código de invitación cargado (de
+  // /registro, o aplicado acá mismo) -- si es false, se ofrece el campo
+  // para cargar uno ahora (ver bloque del cupón más abajo).
+  tieneReferido: boolean
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [payerEmail, setPayerEmail] = useState('')
+  const router = useRouter()
+  // Cupón de invitación cargado acá mismo (2026-09-11, pedido de David en
+  // QA) -- ver /api/referidos/aplicar-codigo. router.refresh() vuelve a
+  // pedir los datos del server component (page.tsx) para que
+  // elegibleDescuentoReferido/tieneReferido reflejen el cambio sin recargar
+  // toda la página.
+  const [cuponInput, setCuponInput] = useState('')
+  const [cuponLoading, setCuponLoading] = useState(false)
+  const [cuponError, setCuponError] = useState<string | null>(null)
+  const [cuponAplicado, setCuponAplicado] = useState<string | null>(null)
+  async function aplicarCupon() {
+    const codigo = cuponInput.trim()
+    if (!codigo) return
+    setCuponLoading(true)
+    setCuponError(null)
+    try {
+      const res = await fetch('/api/referidos/aplicar-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codigo }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setCuponError(json.error ?? 'No se pudo aplicar el código.')
+      } else {
+        setCuponAplicado(json.tiendaName ?? null)
+        router.refresh()
+      }
+    } catch {
+      setCuponError('No se pudo aplicar el código. Probá de nuevo.')
+    } finally {
+      setCuponLoading(false)
+    }
+  }
   const [term, setTerm] = useState<BillingTerm>(1)
   const [expandedPlan, setExpandedPlan] = useState<PlanId | null>(null)
   const [mpEmailPlan, setMpEmailPlan] = useState<PlanId | null>(null)
@@ -532,9 +571,42 @@ export default function SuscripcionSelector({
       <>
       {elegibleDescuentoReferido && (
         <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          🎁 Llegaste por invitación: tenés <strong>20% off tus primeros 2 meses</strong> pagando mes a mes (plazo Mensual). No se combina con los descuentos de Semestral/Anual.
+          🎁 Llegaste por invitación: tenés <strong>20% off tus primeros 2 meses</strong> pagando mes a mes (plazo Mensual) — se aplica solo, no hace falta hacer nada más. No se combina con los descuentos de Semestral/Anual.
         </div>
       )}
+
+      {!tieneReferido && !cuponAplicado && (
+        <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <p className="text-sm font-medium text-zinc-700">¿Tenés un código de invitación?</p>
+          <p className="mt-0.5 text-xs text-zinc-500">Cargalo antes de pagar y llevate 20% off tus primeros 2 meses (mensual, por Mercado Pago o transferencia).</p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              value={cuponInput}
+              onChange={e => { setCuponInput(e.target.value.toUpperCase()); setCuponError(null) }}
+              placeholder="CÓDIGO"
+              maxLength={12}
+              className="w-full max-w-[200px] rounded-lg border border-zinc-300 px-3 py-2 text-sm font-mono uppercase tracking-wide focus:border-zinc-500 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={aplicarCupon}
+              disabled={cuponLoading || !cuponInput.trim()}
+              className="btn-outline inline-flex items-center justify-center gap-1.5 !py-2 text-sm disabled:opacity-50"
+            >
+              {cuponLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+              Aplicar código
+            </button>
+          </div>
+          {cuponError && <p className="mt-2 text-xs text-red-600">{cuponError}</p>}
+        </div>
+      )}
+      {cuponAplicado && (
+        <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          🎁 Código aplicado — {cuponAplicado} te invitó. Ya tenés <strong>20% off tus primeros 2 meses</strong> pagando mes a mes.
+        </div>
+      )}
+
       <div className="mt-10 flex justify-center">
         {/* SVG de descuento inline (misma geometría del archivo original) para poder
             aplicar el hover como stroke sobre la forma real de cada píldora. */}

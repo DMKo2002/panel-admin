@@ -43,6 +43,7 @@ export default async function SuscripcionPage() {
   // Mismo criterio que aplicaDescuentoReferido en api/billing/subscribe/route.ts
   // (solo avisa -- la condición real la vuelve a chequear el backend al cobrar).
   const elegibleDescuentoReferido = Boolean(tenant.referred_by) && !tenant.referido_descuento_hasta
+  const tieneReferido = Boolean(tenant.referred_by)
 
   const paymentSettings = await getPlatformPaymentSettings(service)
   // 2026-08-29: precios editables desde /superadmin/planes -- se resuelven
@@ -93,6 +94,7 @@ export default async function SuscripcionPage() {
           manualPaymentTerm={tenant.manual_payment_term ?? null}
           paymentHistory={paymentHistory}
           elegibleDescuentoReferido={elegibleDescuentoReferido}
+          tieneReferido={tieneReferido}
         />
       </div>
     </div>
