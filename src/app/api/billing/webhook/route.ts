@@ -336,6 +336,31 @@ export async function POST(req: Request) {
     if (pre.status === 'authorized') {
       const months: BillingTerm = isBillingTerm(pre.auto_recurring?.frequency) ? (pre.auto_recurring!.frequency as BillingTerm) : 1
       const nextBillingDate = addMonths(new Date(), months)
+
+      // Descuento por referido (2026-09-13, bug reportado por David en QA:
+      // "fui a pagar, no pagué, volví atrás, y el descuento ya había
+      // desaparecido") -- ANTES /api/billing/subscribe marcaba
+      // referido_descuento_hasta apenas se CREABA el preapproval (status
+      // 'pending'), no cuando se confirmaba el pago. Eso significa que con
+      // solo abrir el checkout de MP y volver atrás sin pagar, el tenant ya
+      // quedaba marcado como "descuento usado" para siempre. Se saca de
+      // subscribe/route.ts (ya no toca este campo) y se mueve acá, al único
+      // momento que de verdad importa: cuando MP confirma que se pagó. El
+      // monto YA cobrado no cambia (el preapproval se creó con el 20% de
+      // descuento aplicado si correspondía, ver createPreapproval en
+      // lib/billing.ts) -- esto solo corrige CUÁNDO se marca "usado" el
+      // beneficio. Mismo criterio exacto que aplicaDescuentoReferido en
+      // subscribe/route.ts y mark-plan-paid/route.ts: plazo mensual, plan
+      // Business, con código de invitación, sin usarlo todavía.
+      const { data: refRows } = await service
+        .from('tenants')
+        .select('referred_by, referido_descuento_hasta')
+        .eq('id', ref.tenantId)
+        .limit(1)
+      const refTenant = refRows?.[0]
+      const aplicaDescuentoReferido = months === 1 && ref.planId === 'standard'
+        && Boolean(refTenant?.referred_by) && !refTenant?.referido_descuento_hasta
+
       const { data: updatedTenant } = await service.from('tenants').update({
         plan: ref.planId,
         plan_status: 'active',
@@ -347,6 +372,7 @@ export async function POST(req: Request) {
         trial_ends_at: null,    // fin del trial: ya está pagando
         trial_warned_at: null,
         limit_warned_at: null,
+        ...(aplicaDescuentoReferido ? { referido_descuento_hasta: addMonths(new Date(), 2).toISOString() } : {}),
       }).eq('id', ref.tenantId).select('name').single()
 
       // Si estaba suspendida automáticamente (trial vencido / exceso de cupo),

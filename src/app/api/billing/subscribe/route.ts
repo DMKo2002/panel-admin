@@ -25,7 +25,6 @@ function addMonths(date: Date, months: number): Date {
 // transferencia). Ver createPreapproval en lib/billing.ts para el porqué de
 // que esto no "vuelve solo" a precio completo después de los 2 meses.
 const REFERIDO_DESCUENTO_PCT = 20
-const REFERIDO_DESCUENTO_MESES = 2
 
 export async function POST(req: Request) {
   const service = createServiceClient()
@@ -124,13 +123,22 @@ export async function POST(req: Request) {
     // activación después y va a volver a escribir estos mismos campos (es
     // idempotente), pero así el tenant ve el plazo elegido de inmediato sin
     // esperar al webhook.
+    //
+    // 2026-09-13 (bug reportado por David en QA): referido_descuento_hasta
+    // NO se toca acá -- si se marcara ya en este punto, con solo abrir el
+    // checkout de MP y volver atrás sin pagar, el tenant quedaría marcado
+    // como "ya usó su descuento" para siempre sin haber pagado nada. Se
+    // marca recién cuando el webhook confirma pre.status === 'authorized'
+    // (ver billing/webhook/route.ts) -- el único momento que de verdad
+    // importa. discountPct de arriba sigue aplicándose igual: el MONTO del
+    // preapproval ya sale con el 20% off desde que se crea, esto solo
+    // corrige cuándo se marca "usado" el beneficio.
     const now = new Date()
     await service.from('tenants').update({
       mp_preapproval_id: preapproval.id,
       billing_term: months,
       next_billing_date: addMonths(now, months).toISOString(),
       billing_paused_by_user: false,
-      ...(aplicaDescuentoReferido ? { referido_descuento_hasta: addMonths(now, REFERIDO_DESCUENTO_MESES).toISOString() } : {}),
     }).eq('id', tenantId)
     return NextResponse.json({ init_point: preapproval.init_point, referidoDescuentoAplicado: aplicaDescuentoReferido })
   } catch (e) {
