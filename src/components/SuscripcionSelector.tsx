@@ -132,6 +132,7 @@ export default function SuscripcionSelector({
   paymentHistory,
   elegibleDescuentoReferido,
   tieneReferido,
+  referidoDescuentoHasta,
 }: {
   currentPlan: string
   trialing: boolean
@@ -162,6 +163,13 @@ export default function SuscripcionSelector({
   // /registro, o aplicado acá mismo) -- si es false, se ofrece el campo
   // para cargar uno ahora (ver bloque del cupón más abajo).
   tieneReferido: boolean
+  // 2026-09-13, pedido de David en QA ("después de usar el 20% off de
+  // invitado, ¿no tendría que seguir viéndose? desaparece directamente el
+  // mensaje"): fecha hasta la que dura el descuento ya aplicado (mismo
+  // campo que bloquea que se repita, ver elegibleDescuentoReferido) -- se
+  // usa para mostrar un cartel de "seguís con el descuento" en vez de que
+  // el aviso de arriba desaparezca sin dejar rastro.
+  referidoDescuentoHasta: string | null
 }) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -572,6 +580,16 @@ export default function SuscripcionSelector({
       {elegibleDescuentoReferido && (
         <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           🎁 Llegaste por invitación: tenés <strong>20% off tus primeros 2 meses en el plan Business</strong>, pagando mes a mes (plazo Mensual) — se aplica solo, no hace falta hacer nada más. No aplica a Mini ni Premium, y no se combina con los descuentos de Semestral/Anual.
+        </div>
+      )}
+
+      {/* 2026-09-13, pedido de David en QA: una vez USADO el 20% off (el
+          cartel de arriba ya no se muestra, ver elegibleDescuentoReferido),
+          seguir avisando mientras dure -- antes el mensaje desaparecía sin
+          dejar ningún rastro de que el descuento seguía aplicado. */}
+      {!elegibleDescuentoReferido && referidoDescuentoHasta && new Date(referidoDescuentoHasta).getTime() > Date.now() && (
+        <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          ✅ Tu 20% off de bienvenida por invitación sigue vigente hasta el <strong>{new Date(referidoDescuentoHasta).toLocaleDateString('es-AR')}</strong> — ya está aplicado a tu suscripción, no hace falta hacer nada más.
         </div>
       )}
 

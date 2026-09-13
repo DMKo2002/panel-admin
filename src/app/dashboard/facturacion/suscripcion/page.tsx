@@ -44,6 +44,14 @@ export default async function SuscripcionPage() {
   // (solo avisa -- la condición real la vuelve a chequear el backend al cobrar).
   const elegibleDescuentoReferido = Boolean(tenant.referred_by) && !tenant.referido_descuento_hasta
   const tieneReferido = Boolean(tenant.referred_by)
+  // 2026-09-13, pedido de David en QA ("después de usar el 20% off de
+  // invitado, ¿no tendría que seguir viéndose? porque desaparece
+  // directamente el mensaje"): referido_descuento_hasta ya se usa para
+  // BLOQUEAR que se repita el descuento (arriba); esto es solo para
+  // mostrarlo mientras sigue vigente en vez de que el cartel desaparezca
+  // sin ningún aviso. Se pasa la fecha entera, no solo el booleano, para
+  // que el cartel de abajo pueda mostrarla.
+  const referidoDescuentoHasta = tenant.referido_descuento_hasta ?? null
 
   const paymentSettings = await getPlatformPaymentSettings(service)
   // 2026-08-29: precios editables desde /superadmin/planes -- se resuelven
@@ -95,6 +103,7 @@ export default async function SuscripcionPage() {
           paymentHistory={paymentHistory}
           elegibleDescuentoReferido={elegibleDescuentoReferido}
           tieneReferido={tieneReferido}
+          referidoDescuentoHasta={referidoDescuentoHasta}
         />
       </div>
     </div>

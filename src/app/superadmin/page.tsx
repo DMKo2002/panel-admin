@@ -41,7 +41,7 @@ export default async function SuperadminPage() {
     { data: configRows },
     { data: accounts },
   ] = await Promise.all([
-    serviceClient.from('tenants').select('id, name, slug, domain, domain_status, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_paid_until, trial_ends_at, billing_term, next_billing_date, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by').order('created_at', { ascending: false }),
+    serviceClient.from('tenants').select('id, name, slug, domain, domain_status, template, status, plan, plan_status, suspended_reason, manual_payment_note, manual_payment_at, manual_payment_by, manual_payment_term, manual_payment_amount, manual_payment_referido_discount, manual_paid_until, trial_ends_at, billing_term, next_billing_date, created_at, manual_payment_pending_at, manual_payment_pending_plan, manual_payment_pending_term, is_founder, founder_marked_at, founder_marked_by, referred_by, referido_descuento_hasta, referral_code, meses_gratis_disponibles').order('created_at', { ascending: false }),
     serviceClient.from('users').select('tenant_id, email').eq('role', 'owner'),
     serviceClient.from('tenant_visits').select('tenant_id, count').eq('month', monthKey),
     serviceClient.from('orders').select('tenant_id').gte('created_at', monthStart.toISOString()),
@@ -74,6 +74,18 @@ export default async function SuperadminPage() {
   const ownerByTenant = Object.fromEntries(
     (users ?? []).map(u => [u.tenant_id, u.email])
   )
+  // Programa de referidos (2026-09-13, pedido de David: "estaria bueno que
+  // se muestre en superadmin si un usuario invito a alguien o si fue
+  // invitado") -- nombre de quien invitó y cantidad de invitados por
+  // tenant, calculados en JS a partir de esta misma lista de tenants (sin
+  // queries extra: referred_by apunta a un id de esta misma tabla).
+  const nameById = Object.fromEntries(
+    (tenants ?? []).map(t => [t.id, t.name])
+  )
+  const referredCountById: Record<string, number> = {}
+  for (const t of tenants ?? []) {
+    if (t.referred_by) referredCountById[t.referred_by] = (referredCountById[t.referred_by] ?? 0) + 1
+  }
   const accountByTenant = Object.fromEntries(
     (accounts ?? []).map(a => [a.tenant_id, a])
   )
@@ -188,6 +200,14 @@ export default async function SuperadminPage() {
       lastCancelCategory: lastCancelByTenant[t.id]?.category ?? null,
       lastCancelReason:   lastCancelByTenant[t.id]?.reason ?? null,
       lastCancelAt:       lastCancelByTenant[t.id]?.created_at ?? null,
+      // Programa de referidos (2026-09-13) — ver comentario arriba y
+      // TenantRow en SuperadminClient.tsx para dónde se usa cada uno.
+      hasReferrer:      Boolean(t.referred_by),
+      referredByName:   t.referred_by ? (nameById[t.referred_by] ?? null) : null,
+      referidoDescuentoHasta: t.referido_descuento_hasta ?? null,
+      referredCount:    referredCountById[t.id] ?? 0,
+      mesesGratisDisponibles: t.meses_gratis_disponibles ?? 0,
+      manualPaymentReferidoDiscount: t.manual_payment_referido_discount ?? false,
     }
   })
 

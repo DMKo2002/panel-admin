@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
   // vencimiento. manual_payment_pending_* también se limpia acá: es el rastro
   // de "declaró que iba a pagar" (ver notify-manual-intent en gounuri-web) —
   // una vez confirmado el pago de verdad, deja de estar pendiente.
-  const patch: Record<string, string | number | null> = {
+  const patch: Record<string, string | number | boolean | null> = {
     plan_status: 'active',
     trial_ends_at: null,
     trial_warned_at: null,
@@ -163,6 +163,14 @@ export async function POST(req: NextRequest) {
     manual_payment_pending_at: null,
     manual_payment_pending_plan: null,
     manual_payment_pending_term: null,
+    // 2026-09-13, pedido de David en QA ("no se ve si se aplicó o no el
+    // descuento" en superadmin): se guarda siempre (true/false), no solo
+    // cuando aplica, para que refleje el ÚLTIMO pago marcado -- a
+    // diferencia de referido_descuento_hasta (abajo), que una vez seteado
+    // queda para siempre como "ya usó su descuento" y no dice nada de un
+    // pago puntual. Ver TenantRow.manualPaymentReferidoDiscount en
+    // SuperadminClient.tsx.
+    manual_payment_referido_discount: aplicaDescuentoReferido,
   }
   if (plan) patch.plan = plan
   if (aplicaDescuentoReferido) patch.referido_descuento_hasta = addMonths(now, 2).toISOString()
@@ -235,5 +243,15 @@ export async function POST(req: NextRequest) {
     console.error('[mark-plan-paid] error enviando mail de pago confirmado:', e)
   }
 
-  return NextResponse.json({ ok: true, paidUntil: paidUntil.toISOString(), amount, term: effectiveMonths })
+  return NextResponse.json({
+    ok: true,
+    paidUntil: paidUntil.toISOString(),
+    amount,
+    term: effectiveMonths,
+    // 2026-09-13: para que el modal de superadmin refleje sin recargar si
+    // ESTE pago llevó el 20% off de referido (ver comentario de
+    // manual_payment_referido_discount arriba).
+    discountApplied: aplicaDescuentoReferido,
+    referidoDescuentoHasta: aplicaDescuentoReferido ? addMonths(now, 2).toISOString() : null,
+  })
 }

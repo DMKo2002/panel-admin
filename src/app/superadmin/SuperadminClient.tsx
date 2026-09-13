@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard } from 'lucide-react'
+import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard, Gift } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, isPlanId, type BillingTerm, type PlanId } from '@/lib/plans'
 
@@ -85,6 +85,24 @@ export type TenantRow = {
   lastCancelCategory: string | null
   lastCancelReason: string | null
   lastCancelAt: string | null
+  // Programa de referidos (2026-09-13, pedido de David en QA: "estaria
+  // bueno que se muestre en superadmin si un usuario invito a alguien o si
+  // fue invitado" + "no se ve si se aplicó o no el descuento" al marcar
+  // como pagado). hasReferrer/referredByName: llegó por invitación de otro
+  // tenant. referidoDescuentoHasta: mismo campo que aplicaDescuentoReferido
+  // en mark-plan-paid/route.ts -- una vez seteado (aunque la fecha ya haya
+  // pasado) significa "ya usó su 20% off de bienvenida", nunca se repite.
+  // referredCount/mesesGratisDisponibles: a cuántos invitó y cuántos meses
+  // gratis tiene acumulados por eso (ver ReferidosCard.tsx).
+  // manualPaymentReferidoDiscount: si el ÚLTIMO "marcar como pagado" llevó
+  // el 20% off (a diferencia de referidoDescuentoHasta, que no dice nada de
+  // un pago puntual una vez seteado).
+  hasReferrer: boolean
+  referredByName: string | null
+  referidoDescuentoHasta: string | null
+  referredCount: number
+  mesesGratisDisponibles: number
+  manualPaymentReferidoDiscount: boolean
 }
 
 // Mismas categorías que CANCEL_REASONS en SuscripcionSelector.tsx (el
@@ -264,6 +282,8 @@ export default function SuperadminClient({
   // entraba a gounuri.com/perfil/plan; ver CICLO_LABEL/cicloVigente() más
   // arriba. Un solo id porque solo puede haber un popover abierto a la vez.
   const [billingPopoverId, setBillingPopoverId] = useState<string | null>(null)
+  // Popover "Referidos" (2026-09-13) -- mismo patrón que el de Facturación.
+  const [referidosPopoverId, setReferidosPopoverId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -485,6 +505,10 @@ export default function SuperadminClient({
           manualPaymentTerm: payTerm === 'custom' ? (data.term ?? null) : payTerm,
           manualPaymentAmount: data.amount ?? null,
           manualPaidUntil: data.paidUntil ?? null,
+          // 2026-09-13 -- reflejar sin recargar si ESTE pago llevó el 20%
+          // off de referido (ver comentario en mark-plan-paid/route.ts).
+          manualPaymentReferidoDiscount: Boolean(data.discountApplied),
+          referidoDescuentoHasta: data.referidoDescuentoHasta ?? t.referidoDescuentoHasta,
           // El server ya lo limpia (ver mark-plan-paid) — reflejarlo acá
           // también para que el badge "Pago a confirmar" desaparezca sin
           // esperar a un reload.
@@ -849,6 +873,13 @@ export default function SuperadminClient({
                           ? [
                               tenant.manualPaymentNote ? `Pago manual: ${tenant.manualPaymentNote}` : 'Pago manual',
                               tenant.manualPaymentTerm ? `${tenant.manualPaymentTerm} ${tenant.manualPaymentTerm === 1 ? 'mes' : 'meses'}` : null,
+                              // 2026-09-13, pedido de David en QA: mostrar el
+                              // monto realmente cobrado y si llevó el 20% off
+                              // de referido -- antes esto no se veía en
+                              // ningún lado del superadmin.
+                              typeof tenant.manualPaymentAmount === 'number'
+                                ? `$${tenant.manualPaymentAmount.toLocaleString('es-AR')}${tenant.manualPaymentReferidoDiscount ? ' (con 20% off por referido)' : ''}`
+                                : null,
                               `vence ${new Date(tenant.manualPaidUntil).toLocaleDateString('es-AR')}`,
                               tenant.manualPaymentBy ? `marcado por ${tenant.manualPaymentBy}` : null,
                             ].filter(Boolean).join(' · ')
@@ -1128,6 +1159,61 @@ export default function SuperadminClient({
                       </div>
                     </div>
 
+                    {/* Referidos (2026-09-13, pedido de David: "estaria
+                        bueno que se muestre en superadmin si un usuario
+                        invito a alguien o si fue invitado") -- mismo patrón
+                        de popover que Facturación. */}
+                    <div className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => setReferidosPopoverId(id => id === tenant.id ? null : tenant.id)}
+                        title="Ver programa de referidos"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors ${
+                          tenant.hasReferrer || tenant.referredCount > 0 ? 'bg-violet-800 hover:bg-violet-700' : 'bg-zinc-700 hover:bg-zinc-600'
+                        }`}
+                      >
+                        <Gift size={13} />
+                        Referidos
+                      </button>
+                      <div
+                        className={`absolute right-0 top-full z-20 mt-1 w-64 rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-xs shadow-2xl ${
+                          referidosPopoverId === tenant.id ? 'block' : 'hidden group-hover:block'
+                        }`}
+                      >
+                        {(() => {
+                          const vigente = Boolean(tenant.referidoDescuentoHasta) && new Date(tenant.referidoDescuentoHasta as string).getTime() > Date.now()
+                          return (
+                            <div className="space-y-1.5">
+                              <p>
+                                <span className="text-zinc-500">Invitado por:</span>{' '}
+                                <span className="text-zinc-100">{tenant.hasReferrer ? (tenant.referredByName ?? '(tienda eliminada)') : '—'}</span>
+                              </p>
+                              {tenant.hasReferrer && (
+                                <p>
+                                  <span className="text-zinc-500">20% off de bienvenida:</span>{' '}
+                                  <span className={tenant.referidoDescuentoHasta ? (vigente ? 'text-emerald-400' : 'text-zinc-400') : 'text-amber-400'}>
+                                    {!tenant.referidoDescuentoHasta
+                                      ? 'sin usar todavía'
+                                      : vigente
+                                        ? `vigente hasta ${new Date(tenant.referidoDescuentoHasta as string).toLocaleDateString('es-AR')}`
+                                        : `usado (venció ${new Date(tenant.referidoDescuentoHasta as string).toLocaleDateString('es-AR')})`}
+                                  </span>
+                                </p>
+                              )}
+                              <p>
+                                <span className="text-zinc-500">Invitó a:</span>{' '}
+                                <span className="text-zinc-100">{tenant.referredCount} tienda{tenant.referredCount === 1 ? '' : 's'}</span>
+                              </p>
+                              <p>
+                                <span className="text-zinc-500">Meses gratis disponibles:</span>{' '}
+                                <span className="text-zinc-100">{tenant.mesesGratisDisponibles}</span>
+                              </p>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    </div>
+
                     {/* Marcar pagado — pilot Avellaneda (transferencia, sin
                         Mercado Pago), ver /api/superadmin/mark-plan-paid */}
                     <button
@@ -1336,21 +1422,43 @@ export default function SuperadminClient({
             ) : (
               /* Precio del plazo elegido, mismo cálculo que el checkout de MP
                   (priceForTerm) — así el número que ve David acá es el mismo
-                  que le cobraría a un tenant que paga self-serve. */
-              <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-zinc-400">
-                Total del plazo: <span className="text-zinc-100 font-semibold">
-                  ${priceForTerm(
-                    isPlanId(payPlan)
-                      ? { ...getPlanForTenant(payPlan), precioARS: planPrices[payPlan] ?? getPlanForTenant(payPlan).precioARS }
-                      : getPlanForTenant(payPlan),
-                    payTerm,
-                  ).toLocaleString('es-AR')}
-                </span>
-                {TERM_DISCOUNTS[payTerm] > 0 && (
-                  <span className="text-emerald-400"> (incluye {TERM_DISCOUNTS[payTerm] * 100}% off)</span>
-                )}
-                <span className="text-zinc-600"> · vence el {addMonthsLabel(payTerm)}</span>
-              </div>
+                  que le cobraría a un tenant que paga self-serve.
+                  2026-09-13, pedido de David en QA ("aparece como 34900$ y
+                  no se ve si se aplicó o no el descuento"): ahora también
+                  aplica el 20% off de referido acá, con el MISMO criterio
+                  que aplicaDescuentoReferido en mark-plan-paid/route.ts --
+                  el server vuelve a chequear esto al confirmar, esto es
+                  solo la vista previa. */
+              (() => {
+                const planParaPrecio = isPlanId(payPlan)
+                  ? { ...getPlanForTenant(payPlan), precioARS: planPrices[payPlan] ?? getPlanForTenant(payPlan).precioARS }
+                  : getPlanForTenant(payPlan)
+                const totalSinDescuentoReferido = priceForTerm(planParaPrecio, payTerm)
+                const aplicaDescuentoReferido = payTerm === 1 && payPlan === 'standard'
+                  && Boolean(payTarget?.hasReferrer) && !payTarget?.referidoDescuentoHasta
+                const total = aplicaDescuentoReferido ? Math.round(totalSinDescuentoReferido * 0.8) : totalSinDescuentoReferido
+                return (
+                  <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-zinc-400">
+                    Total del plazo: <span className="text-zinc-100 font-semibold">
+                      ${total.toLocaleString('es-AR')}
+                    </span>
+                    {aplicaDescuentoReferido && (
+                      <span className="text-emerald-400"> (incluye 20% off por referido)</span>
+                    )}
+                    {!aplicaDescuentoReferido && TERM_DISCOUNTS[payTerm] > 0 && (
+                      <span className="text-emerald-400"> (incluye {TERM_DISCOUNTS[payTerm] * 100}% off)</span>
+                    )}
+                    <span className="text-zinc-600"> · vence el {addMonthsLabel(payTerm)}</span>
+                    {payTarget?.hasReferrer && !aplicaDescuentoReferido && (
+                      <p className="mt-1.5 text-zinc-600">
+                        {payTerm !== 1 ? 'El 20% off por referido es solo con plazo Mensual.'
+                          : payPlan !== 'standard' ? 'El 20% off por referido es solo en el plan Business.'
+                          : 'Ya usó su 20% off por referido (no se repite).'}
+                      </p>
+                    )}
+                  </div>
+                )
+              })()
             )}
 
             <label className="block text-xs font-medium text-zinc-400 mb-1.5">
