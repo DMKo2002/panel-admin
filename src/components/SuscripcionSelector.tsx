@@ -571,14 +571,14 @@ export default function SuscripcionSelector({
       <>
       {elegibleDescuentoReferido && (
         <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          🎁 Llegaste por invitación: tenés <strong>20% off tus primeros 2 meses</strong> pagando mes a mes (plazo Mensual) — se aplica solo, no hace falta hacer nada más. No se combina con los descuentos de Semestral/Anual.
+          🎁 Llegaste por invitación: tenés <strong>20% off tus primeros 2 meses en el plan Business</strong>, pagando mes a mes (plazo Mensual) — se aplica solo, no hace falta hacer nada más. No aplica a Mini ni Premium, y no se combina con los descuentos de Semestral/Anual.
         </div>
       )}
 
       {!tieneReferido && !cuponAplicado && (
         <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
           <p className="text-sm font-medium text-zinc-700">¿Tenés un código de invitación?</p>
-          <p className="mt-0.5 text-xs text-zinc-500">Cargalo antes de pagar y llevate 20% off tus primeros 2 meses (mensual, por Mercado Pago o transferencia).</p>
+          <p className="mt-0.5 text-xs text-zinc-500">Cargalo antes de pagar y llevate 20% off tus primeros 2 meses en el plan Business (mensual, por Mercado Pago o transferencia).</p>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
@@ -603,7 +603,7 @@ export default function SuscripcionSelector({
       )}
       {cuponAplicado && (
         <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          🎁 Código aplicado — {cuponAplicado} te invitó. Ya tenés <strong>20% off tus primeros 2 meses</strong> pagando mes a mes.
+          🎁 Código aplicado — {cuponAplicado} te invitó. Ya tenés <strong>20% off tus primeros 2 meses en el plan Business</strong>, pagando mes a mes.
         </div>
       )}
 
@@ -688,6 +688,12 @@ export default function SuscripcionSelector({
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {PLANES.map(card => {
           const esActual = card.id === currentPlan && !trialing
+          // Descuento por referido: SOLO plazo mensual y SOLO plan Business
+          // (2026-09-11, pedido de David) -- mismo criterio exacto que
+          // aplicaDescuentoReferido en api/billing/subscribe/route.ts y
+          // mark-plan-paid/route.ts, para que lo que se ve acá sea lo que
+          // realmente se cobra en cualquiera de los dos métodos de pago.
+          const descuentoCard = elegibleDescuentoReferido && term === 1 && card.id === 'standard'
           return (
             <div
               key={card.id}
@@ -744,6 +750,19 @@ export default function SuscripcionSelector({
                       equivale a {formatARS(Math.round(priceForTerm(card, term) / term))}/mes · Transferencia (-{Math.round(TERM_DISCOUNTS[term] * 100)}%)
                     </p>
                   </div>
+                </div>
+              ) : descuentoCard ? (
+                <div className="mt-6">
+                  <span className="text-base font-medium text-zinc-400 line-through">
+                    {formatARS(card.precioARS)}
+                  </span>
+                  <div>
+                    <span className="text-3xl font-bold tracking-tight text-emerald-700">
+                      {formatARS(Math.round(card.precioARS * 0.8))}
+                    </span>
+                    <span className="ml-1 text-sm text-zinc-500">/ mes</span>
+                  </div>
+                  <p className="mt-0.5 text-xs font-medium text-emerald-600">20% off tus primeros 2 meses por invitación</p>
                 </div>
               ) : (
                 <div className="mt-6">
@@ -838,7 +857,7 @@ export default function SuscripcionSelector({
                       planId={card.id}
                       planNombre={card.nombre}
                       term={term}
-                      monto={priceForTerm(card, term)}
+                      monto={descuentoCard ? Math.round(priceForTerm(card, term) * 0.8) : priceForTerm(card, term)}
                       accion="pasar mi tienda"
                     />
                   </div>

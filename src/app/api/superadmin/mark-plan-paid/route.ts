@@ -106,8 +106,6 @@ export async function POST(req: NextRequest) {
     .eq('id', tenantId)
     .limit(1)
   const refTenant = refRows?.[0]
-  const aplicaDescuentoReferido = !customPaidUntil && months === 1
-    && Boolean(refTenant?.referred_by) && !refTenant?.referido_descuento_hasta
   // 2026-08-29, pedido de ARam: precio real leído de platform_plan_prices
   // (editable desde /superadmin/planes) en vez del hardcodeado de PLANS --
   // así "marcar como pagado" cobra en pantalla el mismo monto vigente que
@@ -117,6 +115,12 @@ export async function POST(req: NextRequest) {
   const planDef = planDefBase.id in prices
     ? { ...planDefBase, precioARS: prices[planDefBase.id as keyof typeof prices] }
     : planDefBase
+  // Solo en el plan Business (2026-09-11, pedido de David) -- planDef.id ya
+  // resuelve el default correcto (getPlanForTenant cae a 'standard' cuando
+  // no se manda `plan`, que es el caso normal de "marcar como pagado" sin
+  // cambiar de plan).
+  const aplicaDescuentoReferido = !customPaidUntil && months === 1 && planDef.id === 'standard'
+    && Boolean(refTenant?.referred_by) && !refTenant?.referido_descuento_hasta
 
   // Plazo personalizado (2026-09-02): vence-el es la fecha elegida a mano,
   // no now+months. El monto default es mensual × meses SIN el descuento de

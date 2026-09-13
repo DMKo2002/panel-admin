@@ -87,8 +87,11 @@ export async function POST(req: Request) {
 
   // Se registró con un código de invitación y todavía no usó el descuento
   // por referido (referido_descuento_hasta null = nunca se le aplicó) — solo
-  // vale la primera vez que se suscribe pagando mes a mes.
-  const aplicaDescuentoReferido = months === 1 && Boolean(tenantRow?.referred_by) && !tenantRow?.referido_descuento_hasta
+  // vale la primera vez que se suscribe pagando mes a mes, y SOLO en el plan
+  // Business (2026-09-11, pedido de David: la promo de referidos es
+  // únicamente para empujar a ese plan, no para Mini ni Premium).
+  const aplicaDescuentoReferido = months === 1 && plan === 'standard'
+    && Boolean(tenantRow?.referred_by) && !tenantRow?.referido_descuento_hasta
 
   // Si ya tenía un preapproval activo (por ejemplo, está cambiando de plazo
   // mensual → anual), cancelarlo primero — si no, quedaría con dos débitos
