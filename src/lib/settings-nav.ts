@@ -11,7 +11,7 @@
 // paso futuro (ver Cuentas), pero cuando eso exista, esta lista sigue siendo
 // el default/piso mínimo de bloqueo para cuentas sin permisos explícitos.
 import type { LucideIcon } from 'lucide-react'
-import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3, PieChart, Undo2 } from 'lucide-react'
+import { Settings, CreditCard, Truck, Tags, Phone, Bell, Palette, FileText, KeyRound, Search, Globe, BarChart3, PieChart, Undo2, Megaphone } from 'lucide-react'
 
 export interface SettingsRoute {
   key: string
@@ -46,6 +46,7 @@ export const SETTINGS_ROUTES: SettingsRoute[] = [
   { key: 'dominio',        label: 'Dominio',               href: '/dashboard/dominio',          icon: Globe,      staffBlocked: true },
   { key: 'seo',            label: 'SEO',                   href: '/dashboard/seo',              icon: Search,     staffBlocked: true },
   { key: 'google-analytics', label: 'Google Analytics',    href: '/dashboard/google-analytics', icon: BarChart3, staffBlocked: true },
+  { key: 'meta',            label: 'Meta (Facebook/Instagram)', href: '/dashboard/meta',        icon: Megaphone, staffBlocked: true },
   { key: 'cuentas',        label: 'Cuentas',               href: '/dashboard/cuentas',          icon: KeyRound,   staffBlocked: true },
   // 'uso' (Plan y uso) se sacó de acá el 2026-08-18 (self-serve no existía
   // todavía) y se repuso el 2026-08-22, ahora que gounuri.com/perfil/plan
