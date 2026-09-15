@@ -20,7 +20,7 @@ const SIZE_KEYS = ['talle', 'numero', 'talla', 'size']
 // ── Image resize: center-crop a un ancho×alto dado, compress a ≤150KB ─
 // glow usa cards cuadradas (1:1) en la tienda -> se procesa a 900x900 en vez
 // de 600x900 (2:3) para que no se recorte contra el marco cuadrado del grid.
-function resizeImageTo(targetW: number, targetH: number) {
+function resizeImageTo(targetW: number, targetH: number, maxBytes: number = 150 * 1024) {
   return (file: File): Promise<File> => new Promise(resolve => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -38,7 +38,7 @@ function resizeImageTo(targetW: number, targetH: number) {
       const tryCompress = (q: number) => {
         canvas.toBlob(blob => {
           if (!blob) { resolve(file); return }
-          if (blob.size <= 150 * 1024 || q <= 0.3)
+          if (blob.size <= maxBytes || q <= 0.3)
             resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
           else tryCompress(q - 0.1)
         }, 'image/jpeg', q)
@@ -93,6 +93,7 @@ export default function NuevoProductoPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
   const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
+  const [imageQuality, setImageQuality] = useState<'standard' | 'high'>('standard')
   const [weightUnit, setWeightUnit] = useState<string>('kg')
   const [dimensionUnit, setDimensionUnit] = useState<string>('cm')
   // Override propio de este producto — vacío = usa el de la tienda.
@@ -145,11 +146,12 @@ export default function NuevoProductoPage() {
       setTenantId(userRow?.tenant_id)
       const [{ data: cats }, { data: configData }] = await Promise.all([
         supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit, dimension_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
+        supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, product_image_quality, weight_unit, dimension_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
       ])
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
       setImageRatio((configData as any)?.product_image_ratio === '1:1' ? '1:1' : '2:3')
+      setImageQuality((configData as any)?.product_image_quality === 'high' ? 'high' : 'standard')
       setWeightUnit((configData as any)?.weight_unit ?? 'kg')
       setDimensionUnit((configData as any)?.dimension_unit ?? 'cm')
       setShowRetail((configData as any)?.enable_retail_pricing ?? true)
@@ -185,9 +187,21 @@ export default function NuevoProductoPage() {
     load()
   }, [])
 
+
+  // Dimensiones y peso maximo del JPEG segun el toggle de calidad de imagen
+  // (Personalizacion > Formato y unidades). standard = liviano para no llenar
+  // el cupo de storage del plan; high = mas nitido en la pagina de producto
+  // a costa de mas espacio -- ver creart_pricing_model para los cupos por plan.
+  function currentResizeFn() {
+    if (imageQuality === 'high') {
+      return imageRatio === '1:1' ? resizeImageTo(1800, 1800, 500 * 1024) : resizeImageTo(1200, 1800, 500 * 1024)
+    }
+    return imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+  }
+
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    const resizeFn = currentResizeFn()
     const resized = await Promise.all(files.map(resizeFn))
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
@@ -199,7 +213,7 @@ export default function NuevoProductoPage() {
     setIsDragging(false)
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
     if (!files.length) return
-    const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    const resizeFn = currentResizeFn()
     const resized = await Promise.all(files.map(resizeFn))
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
@@ -563,7 +577,7 @@ export default function NuevoProductoPage() {
           >
             <Upload size={20} className="text-zinc-400 mb-1" />
             <span className="text-sm text-zinc-500">{isDragging ? 'Soltá las imágenes acá' : 'Arrastrá o hacé click para subir fotos'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageRatio === '1:1' ? '900×900' : '600×900'}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageQuality === 'high' ? (imageRatio === '1:1' ? '1800×1800' : '1200×1800') : (imageRatio === '1:1' ? '900×900' : '600×900')}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
           {imagePreviews.length > 0 && (

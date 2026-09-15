@@ -74,7 +74,7 @@ export default function CatalogoConfigPage() {
       // datos en silencio. Ver CLAUDE.md, sección de permisos de store_config.
       const { data, error } = await supabase
         .from('store_config')
-        .select('id, variant_attributes, product_image_ratio, weight_unit, dimension_unit, variant_mode, variant_column_type, variant_row_label, variant_column_label')
+        .select('id, variant_attributes, product_image_ratio, product_image_quality, weight_unit, dimension_unit, variant_mode, variant_column_type, variant_row_label, variant_column_label')
         .eq('tenant_id', userRow.tenant_id)
         .single()
       if (error) {
@@ -115,6 +115,7 @@ export default function CatalogoConfigPage() {
     setErrorFormat(null)
     const { error } = await supabase.from('store_config').update({
       product_image_ratio: (config as any).product_image_ratio ?? '2:3',
+      product_image_quality: (config as any).product_image_quality ?? 'standard',
       weight_unit:      (config as any).weight_unit ?? 'kg',
       dimension_unit:   (config as any).dimension_unit ?? 'cm',
     }).eq('id', config.id)
@@ -361,6 +362,14 @@ export default function CatalogoConfigPage() {
                 <option value="1:1">Cuadrada (1:1) — ej. cosmética</option>
               </select>
               <p className="text-xs text-zinc-400 mt-1">Define cómo se recortan las fotos al subirlas y cómo se ven en el grid de la tienda.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Calidad de imagen de producto</label>
+              <select className="input" value={(config as any)?.product_image_quality ?? 'standard'} onChange={e => update('product_image_quality' as any, e.target.value)}>
+                <option value="standard">Estándar (recomendado) — liviana, cuida tu cupo de almacenamiento</option>
+                <option value="high">Alta — más nítida en la página de producto, ocupa más espacio</option>
+              </select>
+              <p className="text-xs text-zinc-400 mt-1">Solo afecta a las fotos que subas de ahora en adelante — las que ya están cargadas no cambian solas. En alta calidad vas a llegar más rápido al límite de almacenamiento de tu plan.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso / contenido</label>

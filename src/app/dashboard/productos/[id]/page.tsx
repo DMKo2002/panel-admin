@@ -34,7 +34,7 @@ function buildCellAttrs(attributes: Record<string, any> | null | undefined): Rec
 // ── Image resize: center-crop a un ancho×alto dado, compress a ≤150KB ──────────
 // El ratio (2:3 retrato o 1:1 cuadrada) sale de store_config.product_image_ratio,
 // configurable por tienda en Mi Tienda > Catálogo.
-function resizeImageTo(targetW: number, targetH: number) {
+function resizeImageTo(targetW: number, targetH: number, maxBytes: number = 150 * 1024) {
   return (file: File): Promise<File> => new Promise(resolve => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -52,7 +52,7 @@ function resizeImageTo(targetW: number, targetH: number) {
       const tryCompress = (q: number) => {
         canvas.toBlob(blob => {
           if (!blob) { resolve(file); return }
-          if (blob.size <= 150 * 1024 || q <= 0.3)
+          if (blob.size <= maxBytes || q <= 0.3)
             resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
           else tryCompress(q - 0.1)
         }, 'image/jpeg', q)
@@ -107,6 +107,7 @@ export default function EditarProductoPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [storeDomain, setStoreDomain] = useState<string>('')
   const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
+  const [imageQuality, setImageQuality] = useState<'standard' | 'high'>('standard')
   // Unidades por defecto de la tienda (store_config)
   const [weightUnit, setWeightUnit] = useState<string>('kg')
   const [dimensionUnit, setDimensionUnit] = useState<string>('cm')
@@ -271,13 +272,14 @@ export default function EditarProductoPage() {
           setTenantId(userRow?.tenant_id)
           const [{ data: cats }, { data: configData }, { data: tenantRow }] = await Promise.all([
             supabase.from('categories').select('id, name, parent_id').eq('tenant_id', userRow.tenant_id).eq('active', true).order('sort_order'),
-            supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, weight_unit, dimension_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
+            supabase.from('store_config').select('variant_attributes, preferred_colors, variant_mode, product_image_ratio, product_image_quality, weight_unit, dimension_unit, enable_retail_pricing, enable_wholesale_pricing, enable_discount_pricing, variant_column_type, variant_row_label, variant_column_label').eq('tenant_id', userRow.tenant_id).single(),
             supabase.from('tenants').select('domain').eq('id', userRow.tenant_id).single(),
           ])
           setCategories(cats ?? [])
           setFavoriteColors((configData as any)?.preferred_colors ?? [])
           setStoreDomain(tenantRow?.domain ?? '')
           setImageRatio((configData as any)?.product_image_ratio === '1:1' ? '1:1' : '2:3')
+          setImageQuality((configData as any)?.product_image_quality === 'high' ? 'high' : 'standard')
           setWeightUnit((configData as any)?.weight_unit ?? 'kg')
           setDimensionUnit((configData as any)?.dimension_unit ?? 'cm')
           setShowRetail((configData as any)?.enable_retail_pricing ?? true)
@@ -363,6 +365,18 @@ export default function EditarProductoPage() {
       setLoading(false)
   }
 
+
+  // Dimensiones y peso maximo del JPEG segun el toggle de calidad de imagen
+  // (Personalizacion > Formato y unidades). standard = liviano para no llenar
+  // el cupo de storage del plan; high = mas nitido en la pagina de producto
+  // a costa de mas espacio -- ver creart_pricing_model para los cupos por plan.
+  function currentResizeFn() {
+    if (imageQuality === 'high') {
+      return imageRatio === '1:1' ? resizeImageTo(1800, 1800, 500 * 1024) : resizeImageTo(1200, 1800, 500 * 1024)
+    }
+    return imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+  }
+
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!canUploadImages) {
       setError('Superaste el almacenamiento de tu plan — no se pueden subir más imágenes. Subí de plan o liberá espacio desde Plan y uso.')
@@ -370,7 +384,7 @@ export default function EditarProductoPage() {
       return
     }
     const files = Array.from(e.target.files ?? [])
-    const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    const resizeFn = currentResizeFn()
     const resized = await Promise.all(files.map(resizeFn))
     setNewImageFiles(prev => [...prev, ...resized])
     setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
@@ -387,7 +401,7 @@ export default function EditarProductoPage() {
     }
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
     if (files.length === 0) return
-    const resizeFn = imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    const resizeFn = currentResizeFn()
     const resized = await Promise.all(files.map(resizeFn))
     setNewImageFiles(prev => [...prev, ...resized])
     setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
@@ -1019,7 +1033,7 @@ export default function EditarProductoPage() {
           >
             <Upload size={20} className={`mb-1 ${dragOver ? 'text-primary-400' : 'text-zinc-400'}`} />
             <span className="text-sm text-zinc-500">{dragOver ? 'Soltar imágenes aquí' : 'Agregar más imágenes'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageRatio === '1:1' ? '900×900' : '600×900'}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageQuality === 'high' ? (imageRatio === '1:1' ? '1800×1800' : '1200×1800') : (imageRatio === '1:1' ? '900×900' : '600×900')}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
         </div>
