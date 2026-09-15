@@ -41,6 +41,12 @@ export default async function ProductosPage() {
 
   const products = (rawProducts ?? []).map((product: any) => {
     const cover = product.product_images?.find((i: any) => i.is_cover) ?? product.product_images?.[0]
+    // Peso total de las fotos del producto (suma de size_bytes de product_images).
+    // Fotos subidas antes de esta columna tienen size_bytes null -> se cuentan como 0
+    // y weightKnown queda en false para avisar en la UI que el numero es un piso, no el total real.
+    const imgs = product.product_images ?? []
+    const weightBytes = imgs.reduce((acc: number, im: any) => acc + (im.size_bytes ?? 0), 0)
+    const weightKnown = imgs.length > 0 && imgs.every((im: any) => im.size_bytes != null)
     const totalStock = product.variants?.reduce((acc: number, v: any) => acc + (v.stock ?? 0), 0) ?? 0
     const retailRule = product.variants?.[0]?.price_rules?.find(
       (p: any) => p.type === 'retail' && p.active && (p.min_qty ?? 1) <= 1
@@ -63,6 +69,8 @@ export default async function ProductosPage() {
       colors,
       category: catMap[product.category_id] ?? undefined,
       sortOrder: product.sort_order ?? 0,
+      weightBytes,
+      weightKnown,
     }
   })
 

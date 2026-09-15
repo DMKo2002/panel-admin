@@ -107,7 +107,7 @@ export default function EditarProductoPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [storeDomain, setStoreDomain] = useState<string>('')
   const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
-  const [imageQuality, setImageQuality] = useState<'standard' | 'high'>('standard')
+  const [imageQuality, setImageQuality] = useState<'low' | 'standard' | 'high'>('standard')
   // Unidades por defecto de la tienda (store_config)
   const [weightUnit, setWeightUnit] = useState<string>('kg')
   const [dimensionUnit, setDimensionUnit] = useState<string>('cm')
@@ -279,7 +279,7 @@ export default function EditarProductoPage() {
           setFavoriteColors((configData as any)?.preferred_colors ?? [])
           setStoreDomain(tenantRow?.domain ?? '')
           setImageRatio((configData as any)?.product_image_ratio === '1:1' ? '1:1' : '2:3')
-          setImageQuality((configData as any)?.product_image_quality === 'high' ? 'high' : 'standard')
+          setImageQuality((configData as any)?.product_image_quality === 'high' ? 'high' : (configData as any)?.product_image_quality === 'low' ? 'low' : 'standard')
           setWeightUnit((configData as any)?.weight_unit ?? 'kg')
           setDimensionUnit((configData as any)?.dimension_unit ?? 'cm')
           setShowRetail((configData as any)?.enable_retail_pricing ?? true)
@@ -372,9 +372,12 @@ export default function EditarProductoPage() {
   // a costa de mas espacio -- ver creart_pricing_model para los cupos por plan.
   function currentResizeFn() {
     if (imageQuality === 'high') {
-      return imageRatio === '1:1' ? resizeImageTo(2048, 2048, 700 * 1024) : resizeImageTo(1365, 2048, 700 * 1024)
+      return imageRatio === '1:1' ? resizeImageTo(3000, 3000, 1200 * 1024) : resizeImageTo(2000, 3000, 1200 * 1024)
     }
-    return imageRatio === '1:1' ? resizeImageTo(1200, 1200, 200 * 1024) : resizeImageTo(800, 1200, 200 * 1024)
+    if (imageQuality === 'low') {
+      return imageRatio === '1:1' ? resizeImageTo(1200, 1200, 200 * 1024) : resizeImageTo(800, 1200, 200 * 1024)
+    }
+    return imageRatio === '1:1' ? resizeImageTo(2048, 2048, 700 * 1024) : resizeImageTo(1365, 2048, 700 * 1024)
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -532,6 +535,7 @@ export default function EditarProductoPage() {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
           const { error: imgErr } = await supabase.from('product_images').insert({
             product_id: id, url: publicUrl, sort_order: images.length + i, is_cover: images.length === 0 && i === 0,
+            size_bytes: file.size,
           })
           if (imgErr) throw imgErr
         }
@@ -1033,7 +1037,7 @@ export default function EditarProductoPage() {
           >
             <Upload size={20} className={`mb-1 ${dragOver ? 'text-primary-400' : 'text-zinc-400'}`} />
             <span className="text-sm text-zinc-500">{dragOver ? 'Soltar imágenes aquí' : 'Agregar más imágenes'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageQuality === 'high' ? (imageRatio === '1:1' ? '2048×2048' : '1365×2048') : (imageRatio === '1:1' ? '1200×1200' : '800×1200')}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageQuality === 'high' ? (imageRatio === '1:1' ? '3000×3000' : '2000×3000') : imageQuality === 'low' ? (imageRatio === '1:1' ? '1200×1200' : '800×1200') : (imageRatio === '1:1' ? '2048×2048' : '1365×2048')}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
         </div>

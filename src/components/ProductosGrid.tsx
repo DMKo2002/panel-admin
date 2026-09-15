@@ -24,6 +24,10 @@ interface ProductItem {
   category?: string
   // Orden manual del tenant — menor aparece primero. Ver "Editar orden" abajo.
   sortOrder: number
+  // Peso total de las fotos del producto (bytes). weightKnown=false si alguna
+  // foto es de antes de trackear el peso (size_bytes null) -> el numero es un piso.
+  weightBytes: number
+  weightKnown: boolean
 }
 
 interface ProductosGridProps {
@@ -34,6 +38,15 @@ interface ProductosGridProps {
 
 const formatPrice = (n: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
+
+// '—' sin fotos, 'X MB' si se conoce el peso exacto de todas las fotos, 'X MB+'
+// si alguna foto es vieja (sin size_bytes trackeado) y el numero es un piso, no el total.
+function formatWeight(bytes: number, known: boolean): string {
+  if (bytes <= 0) return '—'
+  const mb = bytes / (1024 * 1024)
+  const label = mb < 0.1 ? `${Math.round(bytes / 1024)} KB` : `${mb.toFixed(1)} MB`
+  return known ? label : `${label}+`
+}
 
 async function deleteProduct(supabase: ReturnType<typeof createClient>, id: string) {
   const { data: variantRows } = await supabase.from('variants').select('id').eq('product_id', id)
@@ -60,6 +73,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // ── Editar orden (drag & drop, estilo springboard de iOS) ──────────────────
   // Modo aparte: mientras está activo se ignoran búsqueda/filtros/orden y se
@@ -178,16 +192,21 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
     }
   }
 
-  async function handleDeleteSingle(id: string, e: React.MouseEvent) {
+  function handleDeleteSingle(id: string, e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    if (!confirm('¿Eliminar este producto? Se eliminarán también sus variantes e imágenes.')) return
+    setConfirmDeleteId(id)
+  }
+
+  async function handleConfirmSingleDelete() {
+    if (!confirmDeleteId) return
     setDeleting(true)
     try {
-      await deleteProduct(supabase, id)
+      await deleteProduct(supabase, confirmDeleteId)
       router.refresh()
     } catch { }
     setDeleting(false)
+    setConfirmDeleteId(null)
   }
 
   async function handleBulkDelete() {
@@ -356,6 +375,22 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
         </div>
       )}
 
+      {/* Single delete modal — mismo diseño que el modal de borrado masivo, reemplaza el confirm() nativo del navegador */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border border-zinc-200 p-6 max-w-sm w-full mx-4 shadow-xl">
+            <h2 className="text-base font-semibold text-zinc-900 mb-2">¿Eliminar este producto?</h2>
+            <p className="text-sm text-zinc-500 mb-5">Se eliminarán también sus variantes e imágenes. Esta acción no se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button onClick={handleConfirmSingleDelete} disabled={deleting} className="flex-1 py-2 px-4 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg disabled:opacity-60 transition-colors">
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+              <button onClick={() => setConfirmDeleteId(null)} className="flex-1 btn-secondary justify-center">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingOrder && (
         <div className="sticky top-[73px] z-10 px-8 py-3 border-b border-amber-200 bg-amber-50 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-amber-800">
@@ -501,7 +536,10 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                       </div>
                       <div className="p-4">
                         <p className="font-medium text-zinc-900 text-sm truncate">{product.name}</p>
-                        {product.sku && <p className="text-[11px] text-zinc-400 font-mono mt-0.5">{product.sku}</p>}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {product.sku && <p className="text-[11px] text-zinc-400 font-mono">{product.sku}</p>}
+                          <p className="text-[11px] text-zinc-400">{formatWeight(product.weightBytes, product.weightKnown)}</p>
+                        </div>
                         <div className="mt-1.5 space-y-0.5">
                           {product.retailPrice != null && (
                             <p className="text-xs text-zinc-500">
@@ -550,6 +588,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3 w-12"></th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Producto</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">SKU</th>
+                    <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Peso</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Minorista</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Mayorista</th>
                     <th className="text-left text-xs font-medium text-zinc-400 px-4 py-3">Stock</th>
@@ -587,6 +626,9 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                             ? <span className="font-mono text-xs text-zinc-500">{product.sku}</span>
                             : <span className="text-zinc-300">-</span>
                           }
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="text-xs text-zinc-500">{formatWeight(product.weightBytes, product.weightKnown)}</span>
                         </td>
                         <td className="px-4 py-2">
                           {product.retailPrice != null ? (

@@ -366,10 +366,11 @@ export default function CatalogoConfigPage() {
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Calidad de imagen de producto</label>
               <select className="input" value={(config as any)?.product_image_quality ?? 'standard'} onChange={e => update('product_image_quality' as any, e.target.value)}>
-                <option value="standard">Estándar (recomendado) — liviana, cuida tu cupo de almacenamiento</option>
-                <option value="high">Alta — más nítida en la página de producto, ocupa más espacio</option>
+                <option value="low">Baja — liviana, cuida tu cupo de almacenamiento</option>
+                <option value="standard">Estándar (recomendado) — el estándar de la industria (mismo que usa Shopify)</option>
+                <option value="high">Alta — muy buena resolución, ocupa bastante más espacio</option>
               </select>
-              <p className="text-xs text-zinc-400 mt-1">Solo afecta a las fotos que subas de ahora en adelante — las que ya están cargadas no cambian solas. En alta calidad vas a llegar más rápido al límite de almacenamiento de tu plan.</p>
+              <p className="text-xs text-zinc-400 mt-1">Solo afecta a las fotos que subas de ahora en adelante — las que ya están cargadas no cambian solas. A mayor calidad, más rápido vas a llegar al límite de almacenamiento de tu plan.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso / contenido</label>

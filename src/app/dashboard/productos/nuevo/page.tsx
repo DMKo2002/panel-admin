@@ -93,7 +93,7 @@ export default function NuevoProductoPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [favoriteColors, setFavoriteColors] = useState<FavoriteColor[]>([])
   const [imageRatio, setImageRatio] = useState<'2:3' | '1:1'>('2:3')
-  const [imageQuality, setImageQuality] = useState<'standard' | 'high'>('standard')
+  const [imageQuality, setImageQuality] = useState<'low' | 'standard' | 'high'>('standard')
   const [weightUnit, setWeightUnit] = useState<string>('kg')
   const [dimensionUnit, setDimensionUnit] = useState<string>('cm')
   // Override propio de este producto — vacío = usa el de la tienda.
@@ -151,7 +151,7 @@ export default function NuevoProductoPage() {
       setCategories(cats ?? [])
       setFavoriteColors((configData as any)?.preferred_colors ?? [])
       setImageRatio((configData as any)?.product_image_ratio === '1:1' ? '1:1' : '2:3')
-      setImageQuality((configData as any)?.product_image_quality === 'high' ? 'high' : 'standard')
+      setImageQuality((configData as any)?.product_image_quality === 'high' ? 'high' : (configData as any)?.product_image_quality === 'low' ? 'low' : 'standard')
       setWeightUnit((configData as any)?.weight_unit ?? 'kg')
       setDimensionUnit((configData as any)?.dimension_unit ?? 'cm')
       setShowRetail((configData as any)?.enable_retail_pricing ?? true)
@@ -194,9 +194,12 @@ export default function NuevoProductoPage() {
   // a costa de mas espacio -- ver creart_pricing_model para los cupos por plan.
   function currentResizeFn() {
     if (imageQuality === 'high') {
-      return imageRatio === '1:1' ? resizeImageTo(2048, 2048, 700 * 1024) : resizeImageTo(1365, 2048, 700 * 1024)
+      return imageRatio === '1:1' ? resizeImageTo(3000, 3000, 1200 * 1024) : resizeImageTo(2000, 3000, 1200 * 1024)
     }
-    return imageRatio === '1:1' ? resizeImageTo(1200, 1200, 200 * 1024) : resizeImageTo(800, 1200, 200 * 1024)
+    if (imageQuality === 'low') {
+      return imageRatio === '1:1' ? resizeImageTo(1200, 1200, 200 * 1024) : resizeImageTo(800, 1200, 200 * 1024)
+    }
+    return imageRatio === '1:1' ? resizeImageTo(2048, 2048, 700 * 1024) : resizeImageTo(1365, 2048, 700 * 1024)
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -326,7 +329,7 @@ export default function NuevoProductoPage() {
         const { data: up } = await supabase.storage.from('product-images').upload(path, file, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' })
         if (up) {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
-          const { error: imgErr } = await supabase.from('product_images').insert({ product_id: product.id, url: publicUrl, sort_order: i, is_cover: i === 0 })
+          const { error: imgErr } = await supabase.from('product_images').insert({ product_id: product.id, url: publicUrl, sort_order: i, is_cover: i === 0, size_bytes: file.size })
           if (imgErr) throw imgErr
         }
       }
@@ -577,7 +580,7 @@ export default function NuevoProductoPage() {
           >
             <Upload size={20} className="text-zinc-400 mb-1" />
             <span className="text-sm text-zinc-500">{isDragging ? 'Soltá las imágenes acá' : 'Arrastrá o hacé click para subir fotos'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageQuality === 'high' ? (imageRatio === '1:1' ? '2048×2048' : '1365×2048') : (imageRatio === '1:1' ? '1200×1200' : '800×1200')}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageQuality === 'high' ? (imageRatio === '1:1' ? '3000×3000' : '2000×3000') : imageQuality === 'low' ? (imageRatio === '1:1' ? '1200×1200' : '800×1200') : (imageRatio === '1:1' ? '2048×2048' : '1365×2048')}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
           {imagePreviews.length > 0 && (

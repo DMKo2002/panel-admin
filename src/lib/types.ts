@@ -130,10 +130,10 @@ export interface StoreConfig {
   // '2:3' retrato (default) | '1:1' cuadrada (ej. cosmética con grid cuadrado)
   product_image_ratio: '2:3' | '1:1'
   // Calidad de resize de imagenes de producto al subirlas.
-  // 'standard' (default) = 1200px (o 800x1200), liviano, cuida el cupo de storage del plan.
-  // 'high' = 2048px (o 1365x2048, estandar de la industria segun Shopify), mas nitido
-  // en la pagina de producto, ocupa mas storage.
-  product_image_quality: 'standard' | 'high'
+  // 'low' = 1200px (o 800x1200), liviano, cuida el cupo de storage del plan.
+  // 'standard' (default) = 2048px (o 1365x2048, estandar de la industria segun Shopify).
+  // 'high' = ~3000px (o 2000x3000), muy buena resolucion, ocupa bastante mas storage.
+  product_image_quality: 'low' | 'standard' | 'high'
   // Unidad del campo "peso"/contenido del producto. El valor numérico se
   // guarda tal cual en esta unidad — el sufijo "_kg" de products.weight_kg es
   // histórico y NO implica que el dato esté en kilos ni que se convierta al
