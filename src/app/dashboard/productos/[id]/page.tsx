@@ -372,9 +372,9 @@ export default function EditarProductoPage() {
   // a costa de mas espacio -- ver creart_pricing_model para los cupos por plan.
   function currentResizeFn() {
     if (imageQuality === 'high') {
-      return imageRatio === '1:1' ? resizeImageTo(1800, 1800, 500 * 1024) : resizeImageTo(1200, 1800, 500 * 1024)
+      return imageRatio === '1:1' ? resizeImageTo(2048, 2048, 700 * 1024) : resizeImageTo(1365, 2048, 700 * 1024)
     }
-    return imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    return imageRatio === '1:1' ? resizeImageTo(1200, 1200, 200 * 1024) : resizeImageTo(800, 1200, 200 * 1024)
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1033,7 +1033,7 @@ export default function EditarProductoPage() {
           >
             <Upload size={20} className={`mb-1 ${dragOver ? 'text-primary-400' : 'text-zinc-400'}`} />
             <span className="text-sm text-zinc-500">{dragOver ? 'Soltar imágenes aquí' : 'Agregar más imágenes'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageQuality === 'high' ? (imageRatio === '1:1' ? '1800×1800' : '1200×1800') : (imageRatio === '1:1' ? '900×900' : '600×900')}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageQuality === 'high' ? (imageRatio === '1:1' ? '2048×2048' : '1365×2048') : (imageRatio === '1:1' ? '1200×1200' : '800×1200')}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
         </div>

@@ -194,9 +194,9 @@ export default function NuevoProductoPage() {
   // a costa de mas espacio -- ver creart_pricing_model para los cupos por plan.
   function currentResizeFn() {
     if (imageQuality === 'high') {
-      return imageRatio === '1:1' ? resizeImageTo(1800, 1800, 500 * 1024) : resizeImageTo(1200, 1800, 500 * 1024)
+      return imageRatio === '1:1' ? resizeImageTo(2048, 2048, 700 * 1024) : resizeImageTo(1365, 2048, 700 * 1024)
     }
-    return imageRatio === '1:1' ? resizeImageTo(900, 900) : resizeImageTo(600, 900)
+    return imageRatio === '1:1' ? resizeImageTo(1200, 1200, 200 * 1024) : resizeImageTo(800, 1200, 200 * 1024)
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -577,7 +577,7 @@ export default function NuevoProductoPage() {
           >
             <Upload size={20} className="text-zinc-400 mb-1" />
             <span className="text-sm text-zinc-500">{isDragging ? 'Soltá las imágenes acá' : 'Arrastrá o hacé click para subir fotos'}</span>
-            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageQuality === 'high' ? (imageRatio === '1:1' ? '1800×1800' : '1200×1800') : (imageRatio === '1:1' ? '900×900' : '600×900')}</span>
+            <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageQuality === 'high' ? (imageRatio === '1:1' ? '2048×2048' : '1365×2048') : (imageRatio === '1:1' ? '1200×1200' : '800×1200')}</span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
           </label>
           {imagePreviews.length > 0 && (
