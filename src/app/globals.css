@@ -53,7 +53,12 @@
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50 transition-colors;
   }
   .input {
-    @apply w-full px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition;
+    /* rounded-xl (mas curvo que el rounded-lg de antes) + sombra sutil en foco
+       para que el control cerrado se sienta menos "formulario de tramite" -- ver
+       pedido de David 2026-09-15. La lista desplegable de un <select> nativo la
+       dibuja el navegador/SO y no se puede restylear con CSS, esto solo afecta
+       al cuadro cerrado. */
+    @apply w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent focus:shadow-md transition;
   }
   .card {
     @apply bg-white rounded-xl border border-zinc-200 p-5;
