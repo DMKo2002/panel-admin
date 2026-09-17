@@ -21,9 +21,8 @@ export async function GET(req: NextRequest) {
   const { data: order, error } = await service
     .from('orders')
     .select(`
-      id, total, subtotal, shipping_total, payment_method, payment_status,
-      status, created_at, notes, shipping_method_label,
-      shipping_address_street, shipping_address_city, shipping_address_province, shipping_address_zip,
+      id, total, subtotal, shipping_cost, payment_method, payment_status,
+      status, created_at, notes, shipping_method, shipping_address,
       customers (full_name, last_name, email, phone, address_street, address_city, address_province),
       order_items (id, product_name, variant_desc, quantity, unit_price)
     `)
@@ -33,5 +32,19 @@ export async function GET(req: NextRequest) {
 
   if (error || !order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
 
-  return NextResponse.json(order)
+  // Las columnas reales son shipping_cost/shipping_method/shipping_address (jsonb) —
+  // se aplanan acá para no romper a los consumidores que esperan los campos
+  // sueltos (shipping_total, shipping_method_label, shipping_address_*).
+  const addr = (order as any).shipping_address ?? {}
+  const flattened = {
+    ...order,
+    shipping_total: (order as any).shipping_cost ?? null,
+    shipping_method_label: addr.method_name ?? (order as any).shipping_method ?? null,
+    shipping_address_street: addr.street ?? null,
+    shipping_address_city: addr.city ?? null,
+    shipping_address_province: addr.province ?? null,
+    shipping_address_zip: addr.zip ?? null,
+  }
+
+  return NextResponse.json(flattened)
 }
