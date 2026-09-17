@@ -23,8 +23,11 @@ const nextConfig = {
   async redirects() {
     return [{ source: '/facturacion/suscripcion', destination: '/dashboard/facturacion/suscripcion', permanent: false }]
   },
-  // @react-pdf/renderer uses Node.js-only modules — must run server-side only
-  serverExternalPackages: ['@react-pdf/renderer'],
+  // @react-pdf/renderer uses Node.js-only modules — must run server-side only.
+  // sharp tiene bindings nativos (usado por el importador CSV de Superadmin) —
+  // tiene que quedar afuera del bundle de webpack/turbopack para que Node lo
+  // resuelva en runtime desde node_modules como corresponde.
+  serverExternalPackages: ['@react-pdf/renderer', 'sharp'],
   turbopack: {
     root: __dirname,
   },
