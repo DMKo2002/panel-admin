@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendEmail, emailPedidoEnviado, emailPedidoCancelado } from '@creart/tienda-core/email'
+import { generateReciboPdfBuffer } from '@/lib/generateReciboPdf'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
@@ -79,11 +80,17 @@ export async function POST(req: NextRequest) {
       trackingCode: trackingCode ?? null,
       customIntro: cfg?.email_intro_pedido_enviado ?? null,
     })
+    // Adjuntar el recibo en PDF — pedido explícito de David (2026-09-18):
+    // cuando se avisa que el pedido está listo (enviado o para retirar), el
+    // cliente tiene que recibir el comprobante. Si falla la generación del
+    // PDF no frenamos el mail (mejor avisar sin adjunto que no avisar).
+    const pdfBuffer = await generateReciboPdfBuffer(orderId).catch(() => null)
     const { ok: emailOk } = await sendEmail({
       to: customerEmail,
       subject,
       html,
       fromName: cfg?.email_from_name ?? storeName,
+      attachments: pdfBuffer ? [{ filename: `recibo-${orderId.slice(0, 6)}.pdf`, content: pdfBuffer }] : undefined,
     })
     await service.from('notifications_log').insert({
       tenant_id: order.tenant_id,

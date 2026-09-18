@@ -189,6 +189,10 @@ export default async function PedidosPage({
                     <UpdateOrderStatusButton
                       orderId={order.id}
                       currentStatus={order.status}
+                      pendingEditNotification={
+                        !!order.items_edited_at &&
+                        (!order.items_edit_notified_at || new Date(order.items_edit_notified_at) < new Date(order.items_edited_at))
+                      }
                     />
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
