@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data: products, error } = await service
     .from('products')
-    .select('id, name, variants(id, size, color, sku, stock, active)')
+    .select('id, name, variants(id, size, color, sku, stock, active, price_rules(id, type, price, compare_at_price, min_qty, active))')
     .eq('tenant_id', userRow.tenant_id)
     .ilike('name', `%${q}%`)
     .order('name', { ascending: true })

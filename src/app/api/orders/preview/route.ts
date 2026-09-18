@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, total, subtotal, shipping_cost, payment_method, payment_status,
       status, created_at, notes, shipping_method, shipping_address,
-      customers (full_name, last_name, email, phone, address_street, address_city, address_province),
+      customers (full_name, last_name, email, phone, type, address_street, address_city, address_province),
       order_items (id, variant_id, product_name, variant_desc, quantity, unit_price)
     `)
     .eq('id', orderId)

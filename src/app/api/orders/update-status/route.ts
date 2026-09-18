@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const { data: _userRows } = await supabase.from('users').select('tenant_id').eq('id', user.id).limit(1)
   const userRow = _userRows?.[0]
   const { data: order } = await service.from('orders')
-    .select('*, customers(full_name, email)')
+    .select('*, customers(full_name, email), order_items(*)')
     .eq('id', orderId).eq('tenant_id', userRow?.tenant_id).single()
 
   if (!order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
@@ -75,10 +75,22 @@ export async function POST(req: NextRequest) {
     const subject = tipo === 'enviado'
       ? `Tu pedido está en camino — ${storeName}`
       : `Tu pedido está listo para retirar — ${storeName}`
+    const addr = (order.shipping_address ?? {}) as any
     const html = emailPedidoEnviado({
       storeName, orderId, customerName, tipo,
       trackingCode: trackingCode ?? null,
       customIntro: cfg?.email_intro_pedido_enviado ?? null,
+      items: (order.order_items ?? []).map((it: any) => ({
+        productName: it.product_name,
+        variantDesc: it.variant_desc ?? null,
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+      })),
+      subtotal: order.subtotal ?? 0,
+      shippingCost: order.shipping_cost ?? 0,
+      shippingPriceOnRequest: addr.price_on_request ?? false,
+      total: order.total ?? 0,
+      shippingLabel: addr.method_name ?? order.shipping_method ?? 'Envío',
     })
     // Adjuntar el recibo en PDF — pedido explícito de David (2026-09-18):
     // cuando se avisa que el pedido está listo (enviado o para retirar), el

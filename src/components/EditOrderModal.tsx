@@ -3,11 +3,21 @@
 import { useState, useRef } from 'react'
 import { Pencil, X, Plus, Trash2, Loader2, Save, Search, Download, Check } from 'lucide-react'
 
+interface PriceRule {
+  id: string
+  type: 'retail' | 'wholesale'
+  price: number
+  compare_at_price: number | null
+  min_qty: number
+  active: boolean
+}
+
 interface VariantOption {
   id: string
   size: string | null
   color: string | null
   active: boolean
+  price_rules: PriceRule[]
 }
 
 interface ProductMatch {
@@ -37,6 +47,37 @@ function variantLabel(v: VariantOption) {
   return label || 'Único'
 }
 
+// Suma la cantidad de todas las filas que son del mismo producto — el
+// mínimo mayorista se evalúa por producto (todas las variantes juntas), no
+// por variante suelta. Mismo criterio que crear-pedido.ts en tienda-core.
+function sumProductQty(itemsList: EditableItem[], productId: string) {
+  return itemsList
+    .filter(i => i.productId === productId)
+    .reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)
+}
+
+// Precio sugerido para una variante — mismo criterio que crear-pedido.ts:
+// mayorista solo si el cliente es mayorista Y la cantidad del producto llega
+// al mínimo de esa regla; si no, minorista (con el rebajado si corresponde);
+// si no hay regla minorista, cae a mayorista igual. Devuelve null si no hay
+// ninguna regla activa — en ese caso no se toca el precio tipeado.
+function suggestPrice(variant: VariantOption, productQty: number, priceType: 'retail' | 'wholesale'): number | null {
+  const rules = (variant.price_rules ?? []).filter(r => r.active)
+  const retailRule = rules.find(r => r.type === 'retail')
+  const wholesaleRule = rules.find(r => r.type === 'wholesale')
+
+  if (wholesaleRule && priceType === 'wholesale' && productQty >= (wholesaleRule.min_qty ?? 1)) {
+    return wholesaleRule.price
+  }
+  if (retailRule) {
+    return (retailRule.compare_at_price && retailRule.compare_at_price > 0 && retailRule.compare_at_price < retailRule.price)
+      ? retailRule.compare_at_price
+      : retailRule.price
+  }
+  if (wholesaleRule) return wholesaleRule.price
+  return null
+}
+
 let rowKeySeq = 0
 function newRowKey() {
   rowKeySeq += 1
@@ -50,10 +91,13 @@ interface Props {
 // Editor real del pedido: los productos se eligen por buscador contra el
 // catálogo (nunca texto libre) y el talle/color se elige entre las
 // variantes reales de ese producto — así no se puede cargar algo que no
-// existe. Cantidad y precio se siguen tipeando a mano, como antes. Guardar
-// persiste de verdad en order_items/orders (a diferencia del editor viejo,
-// que solo generaba un PDF corregido sin tocar la base). Avisar al cliente
-// por mail es opcional y queda desmarcado por default — pedido de David,
+// existe. Al elegir producto/variante se sugiere el precio real de catálogo
+// (mismo criterio que la tienda: minorista/mayorista según el cliente y el
+// mínimo por producto) pero queda editable — es una sugerencia, no un
+// candado. Cantidad también se tipea a mano. Guardar persiste de verdad en
+// order_items/orders (a diferencia del editor viejo, que solo generaba un
+// PDF corregido sin tocar la base). El aviso al cliente quedó aparte, como
+// 3ra opción del botón "Notificar" en la fila del pedido — pedido de David,
 // 2026-09-18.
 export default function EditOrderModal({ orderId }: Props) {
   const [open, setOpen] = useState(false)
@@ -62,6 +106,7 @@ export default function EditOrderModal({ orderId }: Props) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<EditableItem[]>([])
+  const [customerPriceType, setCustomerPriceType] = useState<'retail' | 'wholesale'>('retail')
   const [searchOpenKey, setSearchOpenKey] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ProductMatch[]>([])
@@ -81,6 +126,7 @@ export default function EditOrderModal({ orderId }: Props) {
         return
       }
       const data = await res.json()
+      setCustomerPriceType(data.customers?.type === 'wholesale' ? 'wholesale' : 'retail')
       const loaded: EditableItem[] = (data.order_items ?? []).map((it: any) => ({
         key: newRowKey(),
         variantId: it.variant_id ?? null,
@@ -167,23 +213,42 @@ export default function EditOrderModal({ orderId }: Props) {
 
   function pickProduct(key: string, product: ProductMatch) {
     const firstVariant = product.variants.length === 1 ? product.variants[0] : null
-    updateItem(key, {
-      productId: product.id,
-      productName: product.name,
-      variantOptions: product.variants,
-      variantId: firstVariant?.id ?? null,
-      variantDesc: firstVariant ? variantLabel(firstVariant) : null,
-      needsProduct: false,
+    setItems(prev => {
+      const withNewProductId = prev.map(p => (p.key === key ? { ...p, productId: product.id } : p))
+      const productQty = sumProductQty(withNewProductId, product.id)
+      const suggested = firstVariant ? suggestPrice(firstVariant, productQty, customerPriceType) : null
+      return withNewProductId.map(it => {
+        if (it.key !== key) return it
+        return {
+          ...it,
+          productName: product.name,
+          variantOptions: product.variants,
+          variantId: firstVariant?.id ?? null,
+          variantDesc: firstVariant ? variantLabel(firstVariant) : null,
+          needsProduct: false,
+          unitPrice: suggested != null ? suggested : it.unitPrice,
+        }
+      })
     })
     setSearchOpenKey(null)
   }
 
   function pickVariant(key: string, variantId: string) {
-    setItems(prev => prev.map(it => {
-      if (it.key !== key) return it
-      const v = it.variantOptions.find(v => v.id === variantId)
-      return { ...it, variantId, variantDesc: v ? variantLabel(v) : null }
-    }))
+    setItems(prev => {
+      const target = prev.find(it => it.key === key)
+      const v = target?.variantOptions.find(v => v.id === variantId)
+      const productQty = target?.productId ? sumProductQty(prev, target.productId) : 0
+      const suggested = v ? suggestPrice(v, productQty, customerPriceType) : null
+      return prev.map(it => {
+        if (it.key !== key) return it
+        return {
+          ...it,
+          variantId,
+          variantDesc: v ? variantLabel(v) : null,
+          unitPrice: suggested != null ? suggested : it.unitPrice,
+        }
+      })
+    })
   }
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
@@ -270,7 +335,7 @@ export default function EditOrderModal({ orderId }: Props) {
               {!loading && !saved && (
                 <>
                   <p className="text-xs text-zinc-400 mb-3">
-                    Los productos se eligen del catálogo — buscá y seleccioná. Cantidad y precio se tipean a mano.
+                    Los productos se eligen del catálogo — buscá y seleccioná. El precio se sugiere solo al elegir producto/talle/color; después queda libre para corregir.
                   </p>
 
                   <div className="space-y-2">
@@ -351,6 +416,7 @@ export default function EditOrderModal({ orderId }: Props) {
                                 step={1}
                                 value={it.quantity}
                                 onChange={e => updateItem(it.key, { quantity: Number(e.target.value) })}
+                                onFocus={e => e.target.select()}
                                 placeholder="Cant."
                                 className="w-16 text-xs px-2 py-1.5 rounded-lg border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-400"
                               />
@@ -360,6 +426,7 @@ export default function EditOrderModal({ orderId }: Props) {
                                 step={1}
                                 value={it.unitPrice}
                                 onChange={e => updateItem(it.key, { unitPrice: Number(e.target.value) })}
+                                onFocus={e => e.target.select()}
                                 placeholder="Precio unit."
                                 className="w-24 text-xs px-2 py-1.5 rounded-lg border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-400"
                               />

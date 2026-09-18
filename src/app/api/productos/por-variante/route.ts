@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const { data: product } = await service
     .from('products')
-    .select('id, name, tenant_id, variants(id, size, color, sku, stock, active)')
+    .select('id, name, tenant_id, variants(id, size, color, sku, stock, active, price_rules(id, type, price, compare_at_price, min_qty, active))')
     .eq('id', variant.product_id)
     .single()
 

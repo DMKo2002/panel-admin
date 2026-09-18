@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { sendEmail, emailPagoConfirmado } from '@creart/tienda-core/email'
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const { data: order } = await service
       .from('orders')
-      .select('id, tenant_id, payment_status')
+      .select('id, tenant_id, payment_status, customers(full_name, email)')
       .eq('id', order_id)
       .single()
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     // que nunca se reflejaron ahí en primer lugar.
     const { data: cfg } = await service
       .from('store_config')
-      .select('ignore_stock')
+      .select('ignore_stock, email_from_name')
       .eq('tenant_id', order.tenant_id)
       .single()
 
@@ -66,6 +67,35 @@ export async function POST(req: NextRequest) {
           }
         }
       }
+    }
+
+    // Avisar al cliente que confirmamos el pago — pedido de David (2026-09-18).
+    // Solo aplica acá (transferencia/efectivo marcados a mano); MercadoPago
+    // confirma por su propia vía en /api/mp/webhook.
+    const customerEmail = (order as any).customers?.email
+    if (customerEmail) {
+      const { data: tenant } = await service.from('tenants').select('name').eq('id', order.tenant_id).single()
+      const storeName = tenant?.name ?? 'Tienda'
+      const html = emailPagoConfirmado({
+        storeName,
+        orderId: order_id,
+        customerName: (order as any).customers?.full_name ?? 'Cliente',
+      })
+      const subject = `Confirmamos tu pago — ${storeName}`
+      const { ok: emailOk } = await sendEmail({
+        to: customerEmail,
+        subject,
+        html,
+        fromName: (cfg as any)?.email_from_name ?? storeName,
+      })
+      await service.from('notifications_log').insert({
+        tenant_id: order.tenant_id,
+        order_id: order_id,
+        channel: 'email',
+        recipient: customerEmail,
+        subject,
+        status: emailOk ? 'sent' : 'failed',
+      })
     }
 
     return NextResponse.json({ ok: true })
