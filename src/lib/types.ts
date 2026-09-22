@@ -288,10 +288,32 @@ export interface Order {
   shipping_address: Record<string, string> | null
   tracking_code: string | null
   notes: string | null
+  // Atribucion por UTM (tienda-core/AdAttribution.tsx) -- se completa sola
+  // al crear el pedido si la visita vino de un link con utm_source. Nunca
+  // se edita a mano.
+  utm_source: string | null
+  utm_medium: string | null
+  utm_campaign: string | null
   created_at: string
   updated_at: string
   customers?: Customer
   order_items?: OrderItem[]
+}
+
+// Carga manual de inversion en publicidad (Panel > Publicidad). No viene de
+// ninguna API de ads -- el tenant la carga el mismo.
+export type AdPlatform = 'meta' | 'google' | 'tiktok' | 'otro'
+export interface AdInvestment {
+  id: string
+  tenant_id: string
+  amount: number
+  period_start: string
+  period_end: string
+  platform: AdPlatform | null
+  campaign_label: string | null
+  notes: string | null
+  created_at: string
+  created_by: string | null
 }
 
 export interface OrderItem {
