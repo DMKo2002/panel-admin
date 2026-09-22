@@ -62,6 +62,36 @@ export async function POST(req: NextRequest) {
     const subtotal = items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0)
     const total = subtotal + (order.shipping_cost ?? 0)
 
+    // Foto de portada por producto — mismo criterio que crear-pedido.ts
+    // (tienda-core): se resuelve acá y se copia al item, no se calcula al
+    // vuelo en el PDF. Si no se hace esto, el reemplazo de order_items de
+    // abajo deja product_image_url en null y el recibo pierde las fotos de
+    // los productos apenas se edita el pedido — bug reportado por David,
+    // 2026-09-22.
+    const variantIds = [...new Set(items.map(it => it.variantId).filter((v): v is string => !!v))]
+    const productImageByVariant = new Map<string, string>()
+    if (variantIds.length > 0) {
+      const { data: variantRows } = await service
+        .from('variants')
+        .select('id, product_id')
+        .in('id', variantIds)
+      const productIds = [...new Set((variantRows ?? []).map((v: any) => v.product_id))]
+      const { data: productImages } = await service
+        .from('product_images')
+        .select('product_id, url, is_cover, sort_order')
+        .in('product_id', productIds)
+        .order('sort_order', { ascending: true })
+      const coverImageByProduct = new Map<string, string>()
+      for (const img of (productImages ?? []) as any[]) {
+        const current = coverImageByProduct.get(img.product_id)
+        if (img.is_cover || !current) coverImageByProduct.set(img.product_id, img.url)
+      }
+      for (const v of (variantRows ?? []) as any[]) {
+        const cover = coverImageByProduct.get(v.product_id)
+        if (cover) productImageByVariant.set(v.id, cover)
+      }
+    }
+
     // Reemplazo completo de los items: más simple y confiable que hacer un
     // diff insert/update/delete, y el volumen por pedido es chico.
     const { error: deleteErr } = await service.from('order_items').delete().eq('order_id', orderId)
@@ -76,6 +106,7 @@ export async function POST(req: NextRequest) {
         quantity: it.quantity,
         unit_price: it.unitPrice,
         price_type: priceType,
+        product_image_url: (it.variantId && productImageByVariant.get(it.variantId)) ?? null,
       }))
     )
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
