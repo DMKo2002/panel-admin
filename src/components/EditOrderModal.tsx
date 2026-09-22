@@ -264,6 +264,13 @@ export default function EditOrderModal({ orderId }: Props) {
         setError('Hay una fila sin producto elegido — buscalo y seleccionalo de la lista')
         return
       }
+      // Si el producto tiene variantes (talle/color), hay que elegir una — si
+      // no, el item queda sin variant_id y el pedido pierde la foto/el precio
+      // sugerido de catálogo en el recibo. Pedido de David, 2026-09-22.
+      if (it.variantOptions.length > 0 && !it.variantId) {
+        setError(`Elegí talle/color para "${it.productName}"`)
+        return
+      }
       if (!Number.isInteger(Number(it.quantity)) || Number(it.quantity) <= 0) {
         setError(`Cantidad inválida en "${it.productName}"`)
         return
@@ -398,7 +405,9 @@ export default function EditOrderModal({ orderId }: Props) {
                                 <select
                                   value={it.variantId ?? ''}
                                   onChange={e => pickVariant(it.key, e.target.value)}
-                                  className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-zinc-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-400"
+                                  className={`flex-1 text-xs px-2 py-1.5 rounded-lg border bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 ${
+                                    it.variantId ? 'border-zinc-200 text-zinc-700' : 'border-amber-300 text-amber-700'
+                                  }`}
                                 >
                                   <option value="" disabled>Talle / color…</option>
                                   {it.variantOptions.map(v => (
