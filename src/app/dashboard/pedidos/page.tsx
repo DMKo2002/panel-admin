@@ -20,10 +20,11 @@ function formatDate(d: string) {
 }
 
 export default async function PedidosPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { status?: string; payment?: string }
+  searchParams: Promise<{ status?: string; payment?: string }>
 }) {
+  const searchParams = await searchParamsPromise
   // Auth check con cliente normal
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -19,8 +19,9 @@ function formatPrice(n: number) {
 export default async function EstadisticasProductosPage({
   searchParams,
 }: {
-  searchParams: { mes?: string }
+  searchParams: Promise<{ mes?: string }>
 }) {
+  const { mes } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -29,7 +30,7 @@ export default async function EstadisticasProductosPage({
   const tenantId = _userRows?.[0]?.tenant_id
   if (!tenantId) return <div className="p-8 text-zinc-500">Tenant no encontrado.</div>
 
-  const range = getMonthRange(searchParams.mes)
+  const range = getMonthRange(mes)
 
   const [orders, items] = await Promise.all([
     fetchOrdersForRange(supabase, tenantId, range),

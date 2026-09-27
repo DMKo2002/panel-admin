@@ -18,13 +18,14 @@ const PRICE_TYPE: PriceType = 'retail' // igual que los scripts de migración a 
 // (cada llamada es un paso chico y seguro dentro del límite de Vercel) y
 // también sirve para "reanudar" un job si se cerró la pestaña a mitad de
 // camino — el cursor es processed_products, guardado en la base.
-export async function POST(req: NextRequest, { params }: { params: { jobId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
+  const { jobId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !isSuperAdmin(user.email)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const service = createServiceClient()
-  const { data: job } = await service.from('import_jobs').select('*').eq('id', params.jobId).single()
+  const { data: job } = await service.from('import_jobs').select('*').eq('id', jobId).single()
   if (!job) return NextResponse.json({ error: 'Job no encontrado' }, { status: 404 })
 
   if (job.status === 'done' || job.status === 'failed' || job.status === 'cancelled') {
