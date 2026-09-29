@@ -567,6 +567,8 @@ export default function SuperadminClient({
     })
     if (res.ok) {
       setTenants(prev => prev.filter(t => t.id !== deleteTarget.id))
+      const okData = await res.json().catch(() => ({}))
+      if (okData.warning) alert('Tienda borrada. Ojo: ' + okData.warning)
     } else {
       const data = await res.json()
       alert('Error: ' + (data.error ?? 'No se pudo borrar'))

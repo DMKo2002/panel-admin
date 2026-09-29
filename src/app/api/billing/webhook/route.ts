@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getPreapproval, getPayment, parseExternalReference, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
+import { getPreapproval, getPayment, parseExternalReference, cancelPreapprovalIfActive, PLACEHOLDER_TENANT_NAME } from '@/lib/billing'
 import { getPlanForTenant, isBillingTerm, type BillingTerm } from '@/lib/plans'
 import { getPlatformPaymentSettings } from '@/lib/platformBilling'
 import { sendEmail, emailPagoConfirmado, emailBienvenidaTenant } from '@/lib/email'
@@ -48,6 +48,41 @@ async function notifySubscriptionPaid(service: SupabaseClient, opts: {
     })
   } catch (e) {
     console.error('[billing/webhook] error notificando suscripción pagada:', e)
+  }
+}
+
+// Red de seguridad contra cobros huérfanos (2026-09-29, incidente: tenant de
+// prueba borrado que seguía cobrando $20/mes). Si llega un evento de MP de una
+// suscripción que ya no le corresponde a ninguna tienda viva, la cancelamos en
+// MP para que deje de cobrar y avisamos a Gounuri por mail. Devuelve true si
+// quedó cancelada (o ya lo estaba); false si falló -- en ese caso el que llama
+// responde 500 para que MP reintente.
+async function cancelOrphanPreapproval(service: SupabaseClient, opts: {
+  preapprovalId: string
+  reason: string
+}): Promise<boolean> {
+  let outcome: string
+  try {
+    outcome = await cancelPreapprovalIfActive(opts.preapprovalId)
+  } catch (e) {
+    console.error('[billing/webhook] no se pudo cancelar preapproval huérfano', opts.preapprovalId, e)
+    await alertOrphan(service, `⚠️ NO se pudo cancelar un cobro huérfano — suscripción ${opts.preapprovalId}`,
+      `<p>${opts.reason}</p><p>Se intentó cancelar automáticamente en Mercado Pago y <strong>falló</strong>. Cancelala a mano (MP → Suscripciones) — puede seguir cobrando.</p>`)
+    return false
+  }
+  if (outcome === 'cancelled') {
+    await alertOrphan(service, `🛑 Cobro huérfano cancelado automáticamente — suscripción ${opts.preapprovalId}`,
+      `<p>${opts.reason}</p><p>Se canceló automáticamente en Mercado Pago. No hace falta hacer nada más, es solo un aviso.</p>`)
+  }
+  return true
+}
+
+async function alertOrphan(service: SupabaseClient, subject: string, html: string) {
+  try {
+    const settings = await getPlatformPaymentSettings(service)
+    await sendEmail({ to: settings.contactEmail, subject, html })
+  } catch (e) {
+    console.error('[billing/webhook] error avisando cobro huérfano:', e)
   }
 }
 
@@ -92,6 +127,23 @@ export async function POST(req: Request) {
         ?? (payment as { metadata?: { preapproval_id?: string } }).metadata?.preapproval_id
         ?? null
 
+      // Cobro de un tenant que ya no existe (tienda borrada): insertar en
+      // billing_charges rompería por la FK y MP reintentaría para siempre.
+      // Se corta el cobro cancelando la suscripción (si sabemos cuál es) y
+      // se avisa igual, porque hubo plata cobrada que hay que devolver.
+      const { data: _payTenant } = await service.from('tenants').select('id').eq('id', ref.tenantId).limit(1)
+      if (!_payTenant?.length) {
+        const reason = `Mercado Pago cobró el pago ${payment.id} ($${payment.transaction_amount ?? '?'}, estado ${payment.status}) a nombre de la tienda ${ref.tenantId}, que ya no existe.`
+        if (preapprovalId) {
+          const ok = await cancelOrphanPreapproval(service, { preapprovalId, reason })
+          if (!ok) return NextResponse.json({ ok: false }, { status: 500 })
+        } else {
+          await alertOrphan(service, `🛑 Cobro de una tienda borrada — pago ${payment.id}`,
+            `<p>${reason}</p><p>MP no informó a qué suscripción pertenece: buscala a mano en MP → Suscripciones y cancelala. Considerá devolver el pago.</p>`)
+        }
+        return NextResponse.json({ ok: true, ignored: 'tenant inexistente (cobro huérfano)' })
+      }
+
       // Idempotencia simple: MP puede reintentar la misma notificación:  no
       // insertar de nuevo si ya guardamos este mp_payment_id.
       const { data: existing } = await service
@@ -133,6 +185,26 @@ export async function POST(req: Request) {
       const { data: existingUserRows } = await service
         .from('users').select('tenant_id').eq('id', ref.userId).limit(1)
       if (existingUserRows?.[0]?.tenant_id) {
+        // Puede ser (a) un reintento del mismo evento -- el tenant ya guarda
+        // este mismo preapproval -- o (b) OTRA suscripción autorizada para un
+        // usuario que ya tiene tienda con su propio débito: doble cobro. Solo
+        // en (b) con certeza (la tienda ya tiene otro preapproval distinto)
+        // se cancela sola; si la tienda no tiene ninguno, se deja como está
+        // y se avisa, para no cancelar un pago legítimo.
+        const { data: _dupTenant } = await service
+          .from('tenants').select('mp_preapproval_id').eq('id', existingUserRows[0].tenant_id).limit(1)
+        const storedId = _dupTenant?.[0]?.mp_preapproval_id as string | null | undefined
+        if (storedId === pre.id) {
+          return NextResponse.json({ ok: true, ignored: 'el usuario ya tiene tenant' })
+        }
+        const reason = `El usuario ${ref.userId} ya tiene la tienda ${existingUserRows[0].tenant_id} y autorizó otra suscripción de alta (${pre.id}, plan ${ref.planId}): habría doble débito.`
+        if (storedId) {
+          const ok = await cancelOrphanPreapproval(service, { preapprovalId: pre.id, reason })
+          if (!ok) return NextResponse.json({ ok: false }, { status: 500 })
+        } else {
+          await alertOrphan(service, `⚠️ Posible doble cobro — suscripción ${pre.id}`,
+            `<p>${reason}</p><p>La tienda no tiene ningún débito guardado, así que NO se canceló sola. Revisá a mano cuál corresponde.</p>`)
+        }
         return NextResponse.json({ ok: true, ignored: 'el usuario ya tiene tenant' })
       }
 
@@ -331,6 +403,19 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({ ok: true, tenantId: tenant.id })
+    }
+
+    // Suscripción de una tienda que ya no existe (borrada): cancelarla en MP
+    // para que no siga cobrando -- ver cancelOrphanPreapproval arriba.
+    const { data: _liveTenant } = await service.from('tenants').select('id').eq('id', ref.tenantId).limit(1)
+    if (!_liveTenant?.length) {
+      if (pre.status === 'cancelled') return NextResponse.json({ ok: true, ignored: 'tenant inexistente, suscripción ya cancelada' })
+      const ok = await cancelOrphanPreapproval(service, {
+        preapprovalId: pre.id,
+        reason: `La suscripción ${pre.id} (estado ${pre.status}, plan ${ref.planId}) pertenece a la tienda ${ref.tenantId}, que ya no existe.`,
+      })
+      if (!ok) return NextResponse.json({ ok: false }, { status: 500 })
+      return NextResponse.json({ ok: true, ignored: 'tenant inexistente (suscripción huérfana cancelada)' })
     }
 
     if (pre.status === 'authorized') {

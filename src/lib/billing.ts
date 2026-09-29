@@ -202,3 +202,46 @@ export async function getPayment(id: string): Promise<Payment> {
 export function billingEnabled(): boolean {
   return process.env.BILLING_ENABLED === 'true'
 }
+
+// ── Cancelación segura (2026-09-29) ─────────────────────────────────────────
+// Incidente: al borrar una tienda desde superadmin, el preapproval de MP
+// seguía vivo y le seguía cobrando al ex-tenant (nadie lo cancelaba, y al
+// borrarse la fila de tenants se perdía hasta el id). Estos helpers son
+// idempotentes a propósito: cancelar algo que ya estaba cancelado (o que MP
+// ya no conoce) NO es un error, así un borrado no queda trabado por eso.
+export type CancelOutcome = 'cancelled' | 'already_cancelled' | 'not_found'
+
+export async function cancelPreapprovalIfActive(id: string): Promise<CancelOutcome> {
+  const res = await fetch(`${MP_API}/preapproval/${id}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  })
+  if (res.status === 404) return 'not_found'
+  if (!res.ok) throw new Error(`[billing] MP get preapproval falló (${res.status}): ${await res.text()}`)
+  const pre = (await res.json()) as Preapproval
+  if (pre.status === 'cancelled') return 'already_cancelled'
+  await cancelPreapproval(id)
+  return 'cancelled'
+}
+
+// Busca en MP todos los preapprovals no cancelados cuyo external_reference
+// sea "<tenantId>:<planId>" (uno por plan pago). Sirve para encontrar
+// suscripciones viejas del mismo tenant que ya no están guardadas en
+// tenants.mp_preapproval_id (por ejemplo, un checkout abierto y autorizado
+// después de que se creó otro). Best-effort: el que llama decide qué hacer
+// si esta búsqueda falla.
+export async function findActivePreapprovalIdsForTenant(tenantId: string): Promise<string[]> {
+  const ids = new Set<string>()
+  for (const planId of Object.keys(PLANS)) {
+    if (planId === 'free') continue
+    const extRef = `${tenantId}:${planId}`
+    const res = await fetch(`${MP_API}/preapproval/search?external_reference=${encodeURIComponent(extRef)}`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    })
+    if (!res.ok) throw new Error(`[billing] MP search preapproval falló (${res.status}): ${await res.text()}`)
+    const json = (await res.json()) as { results?: Preapproval[] }
+    for (const r of json.results ?? []) {
+      if (r?.id && r.external_reference === extRef && r.status !== 'cancelled') ids.add(r.id)
+    }
+  }
+  return [...ids]
+}
