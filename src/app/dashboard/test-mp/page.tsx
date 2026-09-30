@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, ShoppingCart, CheckCircle, XCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
+import Select from '@/components/Select'
 
 export default function TestMPPage() {
   const supabase = createClient()
@@ -155,7 +156,7 @@ export default function TestMPPage() {
 
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Variante</label>
-            <select
+            <Select
               className="input"
               value={selectedVariant?.id ?? ''}
               onChange={e => {
@@ -172,7 +173,7 @@ export default function TestMPPage() {
                   </option>
                 )
               })}
-            </select>
+            </Select>
           </div>
 
           <div>

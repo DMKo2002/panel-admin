@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Pencil, X, Plus, Trash2, Loader2, Save, Search, Download, Check } from 'lucide-react'
+import Select from '@/components/Select'
 
 interface PriceRule {
   id: string
@@ -402,7 +403,7 @@ export default function EditOrderModal({ orderId }: Props) {
 
                             <div className="flex gap-1.5">
                               {it.variantOptions.length > 0 ? (
-                                <select
+                                <Select
                                   value={it.variantId ?? ''}
                                   onChange={e => pickVariant(it.key, e.target.value)}
                                   className={`flex-1 text-xs px-2 py-1.5 rounded-lg border bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 ${
@@ -413,7 +414,7 @@ export default function EditOrderModal({ orderId }: Props) {
                                   {it.variantOptions.map(v => (
                                     <option key={v.id} value={v.id}>{variantLabel(v)}</option>
                                   ))}
-                                </select>
+                                </Select>
                               ) : (
                                 <div className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-dashed border-zinc-200 text-zinc-400">
                                   {it.variantDesc || (it.productId ? 'Sin variantes' : 'Elegí un producto para ver talle/color')}

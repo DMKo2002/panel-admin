@@ -8,6 +8,7 @@ import { CheckCircle, XCircle } from 'lucide-react'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+import Select from '@/components/Select'
 
 // Un solo array fuente de verdad: lo usa tanto el tour completo de la página
 // (botón (?) del header) como cada botón (?) individual de cada bloque.
@@ -186,14 +187,14 @@ export default function PagosPage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Cuotas sin interés</label>
-                <select
+                <Select
                   className="input text-sm"
                   value={(config as any)?.interest_free_installments ?? ''}
                   onChange={e => update('interest_free_installments' as any, e.target.value ? Number(e.target.value) : null)}
                 >
                   <option value="">No ofrezco cuotas sin interés</option>
                   {[2, 3, 6, 9, 12].map(n => <option key={n} value={n}>Hasta {n} cuotas sin interés</option>)}
-                </select>
+                </Select>
                 <p className="text-xs text-zinc-400 mt-1.5">
                   Este dato es solo para mostrar el cartel correcto en tu tienda — no activa nada por sí solo. Tenés que activarlo antes en tu propia cuenta de Mercado Pago en{' '}
                   <a href="https://www.mercadopago.com.ar/ayuda/como-ofrecer-cuotas-sin-interes_19304" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">

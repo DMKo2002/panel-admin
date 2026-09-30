@@ -2,6 +2,7 @@
 
 import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
 import { Plus, X, Tag } from 'lucide-react'
+import Select from '@/components/Select'
 
 // Lista de variantes para tenants que NO usan la tabla (variant_mode='simple').
 //
@@ -300,11 +301,11 @@ const VariantList = forwardRef<VariantListHandle, Props>(({
                     <div key={attr.key}>
                       <label className="block text-xs text-zinc-500 mb-1">{attr.label}</label>
                       {attr.type === 'select' && attr.options?.length ? (
-                        <select className="input text-sm" value={row.attrs[attr.key] ?? ''}
+                        <Select className="input text-sm" value={row.attrs[attr.key] ?? ''}
                           onChange={e => updateAttr(row.rowId, attr.key, e.target.value)}>
                           <option value="">— Sin valor —</option>
                           {attr.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
+                        </Select>
                       ) : (
                         <input className="input text-sm" value={row.attrs[attr.key] ?? ''}
                           placeholder="— Sin valor —"

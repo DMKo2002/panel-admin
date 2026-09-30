@@ -7,6 +7,7 @@ import { Plus, Trash2, X } from 'lucide-react'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+import Select from '@/components/Select'
 
 interface VariantAttribute {
   key: string
@@ -221,19 +222,19 @@ export default function CatalogoConfigPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-1">Usar tabla de variantes</label>
-            <select className="input max-w-xs" value={(config as any)?.variant_mode ?? 'sizes_colors'} onChange={e => update('variant_mode' as any, e.target.value)}>
+            <Select className="input max-w-xs" value={(config as any)?.variant_mode ?? 'sizes_colors'} onChange={e => update('variant_mode' as any, e.target.value)}>
               <option value="sizes_colors">Sí — tabla con filas y columnas (ej: talle × color)</option>
               <option value="simple">No — variantes en texto libre, sin cruce de filas y columnas</option>
-            </select>
+            </Select>
             <p className="text-xs text-zinc-400 mt-1">Con "No", cada producto puede tener varias presentaciones con nombre libre (ej: "Pack x5", "Caja x40"), cada una con su propio stock y precio.</p>
           </div>
           {((config as any)?.variant_mode ?? 'sizes_colors') === 'sizes_colors' && (
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Tipo de columna</label>
-              <select className="input max-w-xs" value={(config as any)?.variant_column_type ?? 'color'} onChange={e => update('variant_column_type' as any, e.target.value)}>
+              <Select className="input max-w-xs" value={(config as any)?.variant_column_type ?? 'color'} onChange={e => update('variant_column_type' as any, e.target.value)}>
                 <option value="color">Color — selector de color con paleta y cuentagotas</option>
                 <option value="text">Texto libre — sin selector de color (ej: modelo, material, ancho)</option>
-              </select>
+              </Select>
               <p className="text-xs text-zinc-400 mt-1">
                 En modo "Color" las filas y columnas siempre dicen "Talle" y "Color", igual que hoy.
               </p>
@@ -306,10 +307,10 @@ export default function CatalogoConfigPage() {
                     </div>
                     <div>
                       <label className="block text-xs text-zinc-500 mb-1">Tipo</label>
-                      <select className="input text-sm" value={attr.type} onChange={e => updateAttribute(i, 'type', e.target.value as any)}>
+                      <Select className="input text-sm" value={attr.type} onChange={e => updateAttribute(i, 'type', e.target.value as any)}>
                         <option value="text">Texto libre</option>
                         <option value="select">Lista de opciones</option>
-                      </select>
+                      </Select>
                     </div>
                   </div>
                   <button onClick={() => removeAttribute(i)} className="text-zinc-300 hover:text-red-400 transition-colors mt-6 flex-shrink-0"><Trash2 size={15} /></button>
@@ -357,40 +358,40 @@ export default function CatalogoConfigPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Formato de imagen de producto</label>
-              <select className="input" value={(config as any)?.product_image_ratio ?? '2:3'} onChange={e => update('product_image_ratio' as any, e.target.value)}>
+              <Select className="input" value={(config as any)?.product_image_ratio ?? '2:3'} onChange={e => update('product_image_ratio' as any, e.target.value)}>
                 <option value="2:3">Retrato (2:3) — indumentaria</option>
                 <option value="1:1">Cuadrada (1:1) — ej. cosmética</option>
-              </select>
+              </Select>
               <p className="text-xs text-zinc-400 mt-1">Define cómo se recortan las fotos al subirlas y cómo se ven en el grid de la tienda.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Calidad de imagen de producto</label>
-              <select className="input" value={(config as any)?.product_image_quality ?? 'standard'} onChange={e => update('product_image_quality' as any, e.target.value)}>
+              <Select className="input" value={(config as any)?.product_image_quality ?? 'standard'} onChange={e => update('product_image_quality' as any, e.target.value)}>
                 <option value="low">Baja — liviana, cuida tu cupo de almacenamiento</option>
                 <option value="standard">Estándar (recomendado) — el estándar de la industria (mismo que usa Shopify)</option>
                 <option value="high">Alta — muy buena resolución, ocupa bastante más espacio</option>
-              </select>
+              </Select>
               <p className="text-xs text-zinc-400 mt-1">Solo afecta a las fotos que subas de ahora en adelante — las que ya están cargadas no cambian solas. A mayor calidad, más rápido vas a llegar al límite de almacenamiento de tu plan.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso / contenido</label>
-              <select className="input" value={(config as any)?.weight_unit ?? 'kg'} onChange={e => update('weight_unit' as any, e.target.value)}>
+              <Select className="input" value={(config as any)?.weight_unit ?? 'kg'} onChange={e => update('weight_unit' as any, e.target.value)}>
                 <option value="kg">Kilogramos (kg)</option>
                 <option value="g">Gramos (g)</option>
                 <option value="mg">Miligramos (mg)</option>
                 <option value="l">Litros (l)</option>
                 <option value="ml">Mililitros (ml)</option>
-              </select>
+              </Select>
               <p className="text-xs text-zinc-400 mt-1">Se usa en el campo "Peso" de cada producto y en la etiqueta de envío.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de medidas</label>
-              <select className="input" value={(config as any)?.dimension_unit ?? 'cm'} onChange={e => update('dimension_unit' as any, e.target.value)}>
+              <Select className="input" value={(config as any)?.dimension_unit ?? 'cm'} onChange={e => update('dimension_unit' as any, e.target.value)}>
                 <option value="cm">Centímetros (cm)</option>
                 <option value="mm">Milímetros (mm)</option>
                 <option value="m">Metros (m)</option>
                 <option value="in">Pulgadas (in)</option>
-              </select>
+              </Select>
               <p className="text-xs text-zinc-400 mt-1">Se usa en ancho, largo y altura de cada producto, y en la etiqueta de envío.</p>
             </div>
           </div>

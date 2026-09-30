@@ -12,6 +12,7 @@ import { useTutorial } from '@/components/tutorial/TutorialProvider'
 import { buildProductoSteps, hint } from '@/components/tutorial/productoSteps'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+import Select from '@/components/Select'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -528,21 +529,21 @@ export default function NuevoProductoPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de medidas</label>
-              <select className="input text-sm" value={productDimensionUnit} onChange={e => setProductDimensionUnit(e.target.value)}>
+              <Select className="input text-sm" value={productDimensionUnit} onChange={e => setProductDimensionUnit(e.target.value)}>
                 <option value="">Usar la de la tienda ({dimensionUnit})</option>
                 {Object.entries(LENGTH_UNIT_LABELS).map(([u, label]) => (
                   <option key={u} value={u}>{label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Unidad de peso / contenido</label>
-              <select className="input text-sm" value={productWeightUnit} onChange={e => setProductWeightUnit(e.target.value)}>
+              <Select className="input text-sm" value={productWeightUnit} onChange={e => setProductWeightUnit(e.target.value)}>
                 <option value="">Usar la de la tienda ({weightUnit})</option>
                 {Object.entries(WEIGHT_UNIT_LABELS).map(([u, label]) => (
                   <option key={u} value={u}>{label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 

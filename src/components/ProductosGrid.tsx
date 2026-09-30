@@ -9,6 +9,7 @@ import {
   Plus, ImageOff, Search, X, SlidersHorizontal, LayoutGrid, List, Trash2, CheckSquare, Square,
   ArrowUpDown, GripVertical, MoveVertical, ArrowUpToLine, ArrowDownToLine, Loader2, Check,
 } from 'lucide-react'
+import Select from '@/components/Select'
 
 interface ProductItem {
   id: string
@@ -270,7 +271,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
             )}
           </button>
 
-          <select
+          <Select
             value={orden} onChange={e => setOrden(e.target.value as any)}
             className="text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-zinc-400 transition-colors text-zinc-600 bg-white"
           >
@@ -279,7 +280,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
             <option value="precio-desc">Precio abajo</option>
             <option value="nombre">Nombre A-Z</option>
             <option value="stock-asc">Stock arriba</option>
-          </select>
+          </Select>
 
           {/* Vista toggle */}
           <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden">

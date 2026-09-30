@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { Plus, Pipette, X, Star, Tag } from 'lucide-react'
 import { nearestColorName, isPlaceholderName } from '@/lib/colorNames'
+import Select from '@/components/Select'
 
 export interface FavoriteColor { name: string; hex: string }
 
@@ -806,11 +807,11 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                   <div key={attr.key}>
                     <label className="block text-xs font-medium text-zinc-600 mb-1">{attr.label}</label>
                     {attr.type === 'select' && attr.options?.length ? (
-                      <select className="input text-sm" value={values[attr.key] ?? ''}
+                      <Select className="input text-sm" value={values[attr.key] ?? ''}
                         onChange={e => setValue(attr.key, e.target.value)}>
                         <option value="">— Sin valor —</option>
                         {attr.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
+                      </Select>
                     ) : (
                       <input className="input text-sm" value={values[attr.key] ?? ''}
                         placeholder="— Sin valor —"

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ExternalLink, LogIn, Pencil, Check, X, Copy, Globe, LogOut, Trash2, AlertTriangle, Eye, ShoppingBag, BarChart3, Wrench, Info, HandCoins, HardDrive, Shirt, CheckCircle2, Search, Crown, CreditCard, Gift } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, formatStorage, getPlanForTenant, priceForTerm, TERM_DISCOUNTS, isBillingTerm, isPlanId, type BillingTerm, type PlanId } from '@/lib/plans'
+import Select from '@/components/Select'
 
 export type TenantRow = {
   id: string
@@ -732,7 +733,7 @@ export default function SuperadminClient({
           />
         </div>
 
-        <select
+        <Select
           value={estadoFiltro}
           onChange={e => setEstadoFiltro(e.target.value as EstadoFiltro)}
           className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
@@ -741,9 +742,9 @@ export default function SuperadminClient({
           <option value="pagados">Pagados</option>
           <option value="deuda">En deuda</option>
           <option value="a_confirmar">Pago a confirmar</option>
-        </select>
+        </Select>
 
-        <select
+        <Select
           value={cicloFiltro}
           onChange={e => setCicloFiltro(e.target.value as CicloFiltro)}
           className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
@@ -753,9 +754,9 @@ export default function SuperadminClient({
           <option value="mensual">Mensual</option>
           <option value="semestral">Semestral</option>
           <option value="anual">Anual</option>
-        </select>
+        </Select>
 
-        <select
+        <Select
           value={ordenPor}
           onChange={e => setOrdenPor(e.target.value as OrdenPor)}
           className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
@@ -764,7 +765,7 @@ export default function SuperadminClient({
           <option value="fecha_union_asc">Fecha de unión: más antiguas primero</option>
           <option value="nombre_asc">Nombre (A-Z)</option>
           <option value="vencimiento_asc">Vencimiento más próximo</option>
-        </select>
+        </Select>
       </div>
 
       <div className="rounded-xl border border-zinc-800 overflow-x-auto">
@@ -1354,7 +1355,7 @@ export default function SuperadminClient({
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plan</label>
-                <select
+                <Select
                   value={payPlan}
                   onChange={e => setPayPlan(e.target.value)}
                   className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
@@ -1362,11 +1363,11 @@ export default function SuperadminClient({
                   {Object.values(PLANS).filter(p => p.id !== 'free').map(p => (
                     <option key={p.id} value={p.id}>{p.nombre} (${(planPrices[p.id as PlanId] ?? p.precioARS).toLocaleString('es-AR')}/mes)</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Plazo</label>
-                <select
+                <Select
                   value={payTerm}
                   onChange={e => setPayTerm(e.target.value === 'custom' ? 'custom' : Number(e.target.value) as BillingTerm)}
                   className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500"
@@ -1378,7 +1379,7 @@ export default function SuperadminClient({
                     </option>
                   ))}
                   <option value="custom">Personalizado (elegir fecha)</option>
-                </select>
+                </Select>
               </div>
             </div>
 

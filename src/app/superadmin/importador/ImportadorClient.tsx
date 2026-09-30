@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { UploadCloud, FileText, Loader2, PlayCircle, CheckCircle2, XCircle } from 'lucide-react'
+import Select from '@/components/Select'
 
 export interface TenantOption { id: string; name: string; slug: string; template: string | null }
 export interface ImportJobRow {
@@ -162,7 +163,7 @@ export default function ImportadorClient({ tenants, recentJobs }: { tenants: Ten
         <div className="grid sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs text-zinc-400 mb-1.5">Tienda destino</label>
-            <select
+            <Select
               value={tenantId}
               onChange={e => setTenantId(e.target.value)}
               disabled={running}
@@ -172,7 +173,7 @@ export default function ImportadorClient({ tenants, recentJobs }: { tenants: Ten
               {tenants.map(t => (
                 <option key={t.id} value={t.id}>{t.name} ({t.slug}{t.template ? ` — ${t.template}` : ''})</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>

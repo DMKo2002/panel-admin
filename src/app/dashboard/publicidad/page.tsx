@@ -7,6 +7,7 @@ import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 import { Trash2 } from 'lucide-react'
 import type { AdInvestment, AdPlatform } from '@/lib/types'
+import Select from '@/components/Select'
 
 const PLATFORM_LABELS: Record<AdPlatform, string> = {
   meta: 'Meta (Facebook/Instagram)',
@@ -237,11 +238,11 @@ export default function PublicidadPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Plataforma</label>
-              <select className="input text-sm" value={linkPlatform} onChange={e => setLinkPlatform(e.target.value as AdPlatform)}>
+              <Select className="input text-sm" value={linkPlatform} onChange={e => setLinkPlatform(e.target.value as AdPlatform)}>
                 {PLATFORMS.map(p => (
                   <option key={p} value={p}>{PLATFORM_LABELS[p]}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Nombre de la campaña (opcional)</label>
@@ -283,11 +284,11 @@ export default function PublicidadPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Plataforma</label>
-              <select className="input text-sm" value={newPlatform} onChange={e => setNewPlatform(e.target.value as AdPlatform)}>
+              <Select className="input text-sm" value={newPlatform} onChange={e => setNewPlatform(e.target.value as AdPlatform)}>
                 {PLATFORMS.map(p => (
                   <option key={p} value={p}>{PLATFORM_LABELS[p]}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
           <div>

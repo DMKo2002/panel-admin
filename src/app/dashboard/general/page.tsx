@@ -8,6 +8,7 @@ import { applyTheme } from '@/components/ThemeProvider'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
+import Select from '@/components/Select'
 
 const THEMES = [
   { id: 'default', label: 'Default', preview: { sidebar: 'bg-primary-600', bg: 'bg-zinc-100' } },
@@ -279,11 +280,11 @@ export default function GeneralPage() {
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">Quién puede ver los precios en tu tienda</p>
           </div>
-          <select className="input max-w-xs" value={config?.price_visibility ?? 'all'} onChange={e => update('price_visibility', e.target.value as any)}>
+          <Select className="input max-w-xs" value={config?.price_visibility ?? 'all'} onChange={e => update('price_visibility', e.target.value as any)}>
             <option value="all">Todos (sin login)</option>
             <option value="logged_in">Solo usuarios registrados</option>
             <option value="wholesale_only">Solo clientes mayoristas</option>
-          </select>
+          </Select>
         </div>
 
         {/* Tipos de precio */}
@@ -324,11 +325,11 @@ export default function GeneralPage() {
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">Qué tipo de cuenta puede crearse desde "Crear cuenta" en tu tienda</p>
           </div>
-          <select className="input max-w-xs" value={config?.registration_visibility ?? 'both'} onChange={e => update('registration_visibility', e.target.value as any)}>
+          <Select className="input max-w-xs" value={config?.registration_visibility ?? 'both'} onChange={e => update('registration_visibility', e.target.value as any)}>
             <option value="both">Minorista y mayorista</option>
             <option value="retail_only">Solo minorista</option>
             <option value="wholesale_only">Solo mayorista</option>
-          </select>
+          </Select>
         </div>
 
       </div>
