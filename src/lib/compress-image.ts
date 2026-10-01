@@ -8,13 +8,15 @@
 // Reglas:
 // - Videos, SVG y GIF pasan sin tocar (SVG es chico, GIF perdería animación).
 // - Logos/favicons (keepAlpha): resize a máx 800px manteniendo PNG (transparencia).
-// - Resto: resize a máx maxDim px y JPEG bajando calidad hasta ≤ targetKB.
+// - Resto: resize a máx maxDim px y JPEG bajando calidad hasta ≤ targetKB,
+//   sin pasar del piso minQuality.
 // - Si el resultado sale más pesado que el original, se conserva el original.
 
 export interface CompressOptions {
   maxDim?: number // lado mayor máximo en px
   targetKB?: number // peso objetivo
   keepAlpha?: boolean // true para logos: PNG con transparencia
+  minQuality?: number // piso de calidad JPEG (0-1): no se baja de acá aunque no llegue a targetKB
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {
@@ -32,7 +34,7 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Prom
 }
 
 export async function compressImage(file: File, opts: CompressOptions = {}): Promise<File> {
-  const { maxDim = 1920, targetKB = 400, keepAlpha = false } = opts
+  const { maxDim = 1920, targetKB = 400, keepAlpha = false, minQuality = 0.45 } = opts
 
   if (!file.type.startsWith('image/')) return file
   if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file
@@ -61,7 +63,9 @@ export async function compressImage(file: File, opts: CompressOptions = {}): Pro
     best = await toBlob(canvas, 'image/png')
   } else {
     // Bajar calidad JPEG hasta cumplir el objetivo
-    for (const q of [0.85, 0.75, 0.65, 0.55, 0.45]) {
+    // (se corta en minQuality: preferimos un archivo algo más pesado a uno con artefactos)
+    const qualities = [0.92, 0.88, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45].filter(q => q >= minQuality)
+    for (const q of qualities) {
       best = await toBlob(canvas, 'image/jpeg', q)
       if (best && best.size <= targetKB * 1024) break
     }
