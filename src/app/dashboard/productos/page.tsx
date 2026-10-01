@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 import ProductosGrid from '@/components/ProductosGrid'
 import CsvImportExportButtons from '@/components/CsvImportExportButtons'
 import { isSuperAdmin } from '@/lib/superadmin'
+import DemoNotice from '@/components/DemoNotice'
 
 export default async function ProductosPage() {
   const supabase = await createClient()
@@ -19,7 +20,7 @@ export default async function ProductosPage() {
   const [{ data: rawProducts }, { data: categories }, { data: storeConfig }] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, sku, active, category_id, sort_order, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty))')
+      .select('id, name, sku, active, is_demo, category_id, sort_order, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty))')
       .eq('tenant_id', tenantId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false }),
@@ -71,6 +72,7 @@ export default async function ProductosPage() {
       sortOrder: product.sort_order ?? 0,
       weightBytes,
       weightKnown,
+      isDemo: Boolean(product.is_demo),
     }
   })
 
@@ -95,6 +97,8 @@ export default async function ProductosPage() {
           </Link>
         </div>
       </div>
+
+      <DemoNotice tenantId={tenantId} />
 
       <ProductosGrid products={products} categories={categories ?? []} ignoreStock={Boolean((storeConfig as any)?.ignore_stock)} />
     </div>

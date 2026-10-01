@@ -6,6 +6,7 @@ import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react'
 import DashboardRefresher from '@/components/DashboardRefresher'
 import GraceBanner from '@/components/GraceBanner'
 import ReferidosCard from '@/components/ReferidosCard'
+import DemoNotice from '@/components/DemoNotice'
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
@@ -69,6 +70,7 @@ export default async function DashboardPage() {
       </div>
 
       <GraceBanner tenantId={tenantId} />
+      <DemoNotice tenantId={tenantId} />
 
       <div className="px-4 sm:px-8 py-6 space-y-6">
 

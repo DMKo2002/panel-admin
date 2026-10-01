@@ -29,6 +29,8 @@ interface ProductItem {
   // foto es de antes de trackear el peso (size_bytes null) -> el numero es un piso.
   weightBytes: number
   weightKnown: boolean
+  // Viene de los datos demo del template (ver DemoNotice).
+  isDemo?: boolean
 }
 
 interface ProductosGridProps {
@@ -467,7 +469,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                   )}
                 </div>
                 <div className="p-4 pointer-events-none">
-                  <p className="font-medium text-zinc-900 text-sm truncate">{product.name}</p>
+                  <p className="font-medium text-zinc-900 text-sm truncate">{product.name}{product.isDemo && <span className="ml-1.5 align-middle text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">DEMO</span>}</p>
                   {product.sku && <p className="text-[11px] text-zinc-400 font-mono mt-0.5">{product.sku}</p>}
                 </div>
               </div>
@@ -536,7 +538,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                         )}
                       </div>
                       <div className="p-4">
-                        <p className="font-medium text-zinc-900 text-sm truncate">{product.name}</p>
+                        <p className="font-medium text-zinc-900 text-sm truncate">{product.name}{product.isDemo && <span className="ml-1.5 align-middle text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">DEMO</span>}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           {product.sku && <p className="text-[11px] text-zinc-400 font-mono">{product.sku}</p>}
                           <p className="text-[11px] text-zinc-400">{formatWeight(product.weightBytes, product.weightKnown)}</p>
@@ -620,7 +622,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                           </div>
                         </td>
                         <td className="px-4 py-2 cursor-pointer" onClick={() => { window.location.href = `/dashboard/productos/${product.id}` }}>
-                          <p className="font-medium text-zinc-900 truncate max-w-xs">{product.name}</p>
+                          <p className="font-medium text-zinc-900 truncate max-w-xs">{product.name}{product.isDemo && <span className="ml-1.5 align-middle text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">DEMO</span>}</p>
                         </td>
                         <td className="px-4 py-2">
                           {product.sku
