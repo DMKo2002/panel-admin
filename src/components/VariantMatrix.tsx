@@ -571,7 +571,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
 
               {/* Column headers — swatch+picker en modo 'color', texto libre en modo 'text' */}
               {cols.map(col => (
-                <th key={col.id} className="px-2 py-2 border-b border-r border-zinc-200 min-w-[150px]">
+                <th key={col.id} className={`px-2 py-2 border-b border-r border-zinc-200 ${showDiscount ? 'min-w-[210px]' : 'min-w-[160px]'}`}>
                   <div className="flex items-center justify-center gap-1.5">
                     {columnType === 'color' && (
                       // Color swatch — usa el hex guardado; si todavía no eligió uno, lo deriva del nombre
@@ -675,7 +675,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                             <div className="p-1.5">
                               <p className="text-[9px] text-zinc-400 leading-none mb-1">$ Min.</p>
                               <input
-                                className="w-full text-xs border border-zinc-200 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
+                                className="w-full text-xs border border-zinc-200 rounded px-0.5 py-1.5 focus:outline-none focus:border-primary-400 bg-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 type="number" min="0" step="1"
                                 value={cell.retailPrice || ''}
                                 placeholder="0"
@@ -686,7 +686,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                               <div className="p-1.5 bg-orange-50/50">
                                 <p className="text-[9px] text-orange-400 leading-none mb-1">$ Min. reb.</p>
                                 <input
-                                  className="w-full text-xs border border-orange-100 rounded px-1 py-1 focus:outline-none focus:border-orange-300 bg-white text-center"
+                                  className="w-full text-xs border border-orange-100 rounded px-0.5 py-1.5 focus:outline-none focus:border-orange-300 bg-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   type="number" min="0" step="1"
                                   value={cell.retailCompareAt || ''}
                                   placeholder="0"
@@ -703,7 +703,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                             <div className="p-1.5 bg-primary-50/40">
                               <p className="text-[9px] text-primary-500 leading-none mb-1">$ May.</p>
                               <input
-                                className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
+                                className="w-full text-xs border border-primary-100 rounded px-0.5 py-1.5 focus:outline-none focus:border-primary-400 bg-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 type="number" min="0" step="1"
                                 value={cell.wholesalePrice || ''}
                                 placeholder="0"
@@ -714,7 +714,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                               <div className="p-1.5 bg-primary-50/40">
                                 <p className="text-[9px] text-primary-400 leading-none mb-1">$ May. reb.</p>
                                 <input
-                                  className="w-full text-xs border border-primary-100 rounded px-1 py-1 focus:outline-none focus:border-primary-400 bg-white text-center"
+                                  className="w-full text-xs border border-primary-100 rounded px-0.5 py-1.5 focus:outline-none focus:border-primary-400 bg-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   type="number" min="0" step="1"
                                   value={cell.wholesaleCompareAt || ''}
                                   placeholder="0"
