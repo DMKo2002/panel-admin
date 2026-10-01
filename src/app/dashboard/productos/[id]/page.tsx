@@ -769,7 +769,7 @@ export default function EditarProductoPage() {
         </div>
       )}
 
-      <form id="edit-form" onSubmit={handleSave} className="px-8 py-6 max-w-4xl space-y-6">
+      <form id="edit-form" onSubmit={handleSave} className="px-8 py-6 space-y-6 [&>*:not([data-wide])]:max-w-4xl">
 
         {/* Datos básicos */}
         <div data-tutorial="prod-basica" className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
@@ -1061,7 +1061,7 @@ export default function EditarProductoPage() {
               tenantGroupTitle={rowLabel}
             />
           ) : (
-            <>
+            <div data-wide>
               <VariantMatrix
                 key={matrixVersion}
                 ref={matrixRef}
@@ -1089,7 +1089,7 @@ export default function EditarProductoPage() {
                 tenantColumnLabel={columnLabel}
                 hintSlot={<TutorialHint pageKey="productos" step={hint('prod-tabla')} />}
               />
-            </>
+            </div>
           )
         )}
 

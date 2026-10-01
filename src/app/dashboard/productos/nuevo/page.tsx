@@ -395,7 +395,7 @@ export default function NuevoProductoPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-8 py-6 max-w-4xl space-y-6">
+      <form onSubmit={handleSubmit} className="px-8 py-6 space-y-6 [&>*:not([data-wide])]:max-w-4xl">
 
         {limits && !limits.canCreateProduct && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -624,7 +624,7 @@ export default function NuevoProductoPage() {
               tenantGroupTitle={rowLabel}
             />
           ) : initialSizes && (
-            <>
+            <div data-wide>
               <VariantMatrix
                 ref={matrixRef}
                 mode="create"
@@ -647,7 +647,7 @@ export default function NuevoProductoPage() {
                 tenantColumnLabel={columnLabel}
                 hintSlot={<TutorialHint pageKey="productos" step={hint('prod-tabla')} />}
               />
-            </>
+            </div>
           )
         )}
 
