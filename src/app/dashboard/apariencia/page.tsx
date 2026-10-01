@@ -445,7 +445,7 @@ export default function AparienciaPage() {
     // los que reventaron el egress de Supabase. Logos mantienen transparencia.
     const esLogo = slotKey.startsWith('logo')
     const file = rawFile.type.startsWith('image/')
-      ? await compressImage(rawFile, esLogo ? { maxDim: 800, keepAlpha: true } : { maxDim: 2400, targetKB: 900, minQuality: 0.72 })
+      ? await compressImage(rawFile, esLogo ? { maxDim: 800, keepAlpha: true } : { maxDim: 2400, targetKB: 1500, minQuality: 0.85 })
       : rawFile
     const ext = file.name.split('.').pop()
     const path = `${tenantId}/${slotKey}.${ext}`
