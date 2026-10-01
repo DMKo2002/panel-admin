@@ -7,17 +7,20 @@ export default function MonthSelector({
   prevParam,
   nextParam,
   isCurrentMonth,
+  paramName = 'mes',
 }: {
   basePath: string
   label: string
   prevParam: string
   nextParam: string
   isCurrentMonth: boolean
+  // 'mes' (YYYY-MM) o 'anio' (YYYY) -- el mismo selector sirve para los dos modos
+  paramName?: string
 }) {
   return (
     <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-lg px-1 py-1">
       <Link
-        href={`${basePath}?mes=${prevParam}`}
+        href={`${basePath}?${paramName}=${prevParam}`}
         className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
       >
         <ChevronLeft size={16} />
@@ -31,7 +34,7 @@ export default function MonthSelector({
         </span>
       ) : (
         <Link
-          href={`${basePath}?mes=${nextParam}`}
+          href={`${basePath}?${paramName}=${nextParam}`}
           className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
         >
           <ChevronRight size={16} />

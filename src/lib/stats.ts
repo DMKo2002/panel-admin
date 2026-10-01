@@ -63,6 +63,40 @@ export function getMonthRange(monthParam?: string): MonthRange {
   }
 }
 
+export interface YearRange {
+  year: number
+  startISO: string
+  endISO: string
+  label: string
+  param: string // "YYYY"
+  prevParam: string
+  nextParam: string
+  isCurrentYear: boolean
+}
+
+/** Rango anual a partir de un query param "YYYY". Si no viene o es inválido, usa el año actual. */
+export function getYearRange(yearParam?: string): YearRange {
+  const now = new Date()
+  let year = now.getFullYear()
+  if (yearParam && /^\d{4}$/.test(yearParam)) {
+    const y = Number(yearParam)
+    if (y >= 2000 && y <= 2100) year = y
+  }
+  return {
+    year,
+    startISO: new Date(year, 0, 1).toISOString(),
+    endISO: new Date(year + 1, 0, 1).toISOString(),
+    label: String(year),
+    param: String(year),
+    prevParam: String(year - 1),
+    nextParam: String(year + 1),
+    isCurrentYear: year === now.getFullYear(),
+  }
+}
+
+export const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+export { MESES }
+
 export interface OrderRow {
   id: string
   total: number
@@ -76,15 +110,26 @@ export async function fetchOrdersForRange(
   tenantId: string,
   range: Pick<MonthRange, 'startISO' | 'endISO'>
 ): Promise<OrderRow[]> {
-  const { data } = await supabase
-    .from('orders')
-    .select('id, total, created_at, status')
-    .eq('tenant_id', tenantId)
-    .neq('status', 'cancelled')
-    .gte('created_at', range.startISO)
-    .lt('created_at', range.endISO)
-
-  return (data ?? []) as OrderRow[]
+  // Paginado: PostgREST corta en 1000 filas por request, y en modo anual
+  // un año de pedidos puede pasarse de eso.
+  const PAGE = 1000
+  const all: OrderRow[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await supabase
+      .from('orders')
+      .select('id, total, created_at, status')
+      .eq('tenant_id', tenantId)
+      .neq('status', 'cancelled')
+      .gte('created_at', range.startISO)
+      .lt('created_at', range.endISO)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    const rows = (data ?? []) as OrderRow[]
+    all.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return all
 }
 
 export interface SalesItemRow {
@@ -104,7 +149,10 @@ export async function fetchSalesItemsForRange(
   tenantId: string,
   range: Pick<MonthRange, 'startISO' | 'endISO'>
 ): Promise<SalesItemRow[]> {
-  const { data } = await supabase
+  const PAGE = 1000
+  const data: any[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data: page } = await supabase
     .from('orders')
     .select(`
       id, status, created_at,
@@ -120,6 +168,13 @@ export async function fetchSalesItemsForRange(
     .neq('status', 'cancelled')
     .gte('created_at', range.startISO)
     .lt('created_at', range.endISO)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+    .range(from, from + PAGE - 1)
+    const rows = (page ?? []) as any[]
+    data.push(...rows)
+    if (rows.length < PAGE) break
+  }
 
   const rows: SalesItemRow[] = []
 
@@ -168,6 +223,21 @@ export function aggregateRevenueByDay(orders: OrderRow[], range: MonthRange): Da
   }
 
   return Array.from(byDay.entries()).map(([day, total]) => ({ day, total }))
+}
+
+export interface MonthRevenue {
+  month: number // 1-12
+  total: number
+}
+
+/** Agrupa el total de pedidos por mes del año (1..12) */
+export function aggregateRevenueByMonth(orders: OrderRow[]): MonthRevenue[] {
+  const byMonth = new Array<number>(12).fill(0)
+  for (const order of orders) {
+    const m = new Date(order.created_at).getMonth()
+    byMonth[m] += order.total ?? 0
+  }
+  return byMonth.map((total, i) => ({ month: i + 1, total }))
 }
 
 export interface CategoryAgg {

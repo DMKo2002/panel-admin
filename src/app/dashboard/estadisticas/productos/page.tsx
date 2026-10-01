@@ -7,7 +7,7 @@ import {
   aggregateRevenueByDay,
   aggregateByProduct,
 } from '@/lib/stats'
-import RevenueChart from '@/components/stats/RevenueChart'
+import RevenueChart, { type ChartBar } from '@/components/stats/RevenueChart'
 import MonthSelector from '@/components/stats/MonthSelector'
 import StatsTabs from '@/components/stats/StatsTabs'
 import ProductsTable from '@/components/stats/ProductsTable'
@@ -37,7 +37,12 @@ export default async function EstadisticasProductosPage({
     fetchSalesItemsForRange(supabase, tenantId, range),
   ])
 
-  const revenueByDay = aggregateRevenueByDay(orders, range)
+  const chartBars: ChartBar[] = aggregateRevenueByDay(orders, range).map(d => ({
+    key: d.day,
+    total: d.total,
+    axisLabel: d.day === 1 || d.day % 5 === 0 ? String(d.day) : '',
+    tooltipLabel: `Día ${d.day}`,
+  }))
   const products = aggregateByProduct(items)
   const itemsSold = items.reduce((acc, i) => acc + i.quantity, 0)
   const netSales = items.reduce((acc, i) => acc + i.subtotal, 0)
@@ -71,7 +76,7 @@ export default async function EstadisticasProductosPage({
         </div>
 
         {/* Chart */}
-        <RevenueChart data={revenueByDay} monthLabel={range.label} />
+        <RevenueChart data={chartBars} periodLabel={range.label} />
 
         {/* Tabla de productos más vendidos */}
         <ProductsTable products={products} />

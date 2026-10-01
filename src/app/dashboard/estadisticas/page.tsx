@@ -3,13 +3,18 @@ import { redirect } from 'next/navigation'
 import { TrendingUp, ShoppingCart, Package, Tag, Award } from 'lucide-react'
 import {
   getMonthRange,
+  getYearRange,
+  aggregateRevenueByMonth,
+  MESES,
+  MESES_CORTOS,
   fetchOrdersForRange,
   fetchSalesItemsForRange,
   aggregateRevenueByDay,
   aggregateByCategory,
   aggregateByProduct,
 } from '@/lib/stats'
-import RevenueChart from '@/components/stats/RevenueChart'
+import Link from 'next/link'
+import RevenueChart, { type ChartBar } from '@/components/stats/RevenueChart'
 import MonthSelector from '@/components/stats/MonthSelector'
 import StatsTabs from '@/components/stats/StatsTabs'
 
@@ -20,9 +25,10 @@ function formatPrice(n: number) {
 export default async function EstadisticasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>
+  searchParams: Promise<{ mes?: string; anio?: string }>
 }) {
-  const { mes } = await searchParams
+  const { mes, anio } = await searchParams
+  const isYear = anio !== undefined
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -31,14 +37,26 @@ export default async function EstadisticasPage({
   const tenantId = _userRows?.[0]?.tenant_id
   if (!tenantId) return <div className="p-8 text-zinc-500">Tenant no encontrado.</div>
 
-  const range = getMonthRange(mes)
+  const range = isYear ? getYearRange(anio) : getMonthRange(mes)
 
   const [orders, items] = await Promise.all([
     fetchOrdersForRange(supabase, tenantId, range),
     fetchSalesItemsForRange(supabase, tenantId, range),
   ])
 
-  const revenueByDay = aggregateRevenueByDay(orders, range)
+  const chartBars: ChartBar[] = isYear
+    ? aggregateRevenueByMonth(orders).map(m => ({
+        key: m.month,
+        total: m.total,
+        axisLabel: MESES_CORTOS[m.month - 1],
+        tooltipLabel: `${MESES[m.month - 1]} ${range.label}`,
+      }))
+    : aggregateRevenueByDay(orders, range as ReturnType<typeof getMonthRange>).map(d => ({
+        key: d.day,
+        total: d.total,
+        axisLabel: d.day === 1 || d.day % 5 === 0 ? String(d.day) : '',
+        tooltipLabel: `Día ${d.day}`,
+      }))
   const categories = aggregateByCategory(items)
   const products = aggregateByProduct(items)
 
@@ -57,13 +75,30 @@ export default async function EstadisticasPage({
           <h1 className="text-xl font-semibold text-zinc-900">Estadísticas</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Resumen de ventas del período</p>
         </div>
-        <MonthSelector
-          basePath="/dashboard/estadisticas"
-          label={range.label}
-          prevParam={range.prevParam}
-          nextParam={range.nextParam}
-          isCurrentMonth={range.isCurrentMonth}
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-zinc-100 rounded-lg p-0.5 text-sm font-medium">
+            <Link
+              href="/dashboard/estadisticas"
+              className={`px-3 py-1.5 rounded-md transition-colors ${!isYear ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+            >
+              Mensual
+            </Link>
+            <Link
+              href={`/dashboard/estadisticas?anio=${isYear ? range.param : new Date().getFullYear()}`}
+              className={`px-3 py-1.5 rounded-md transition-colors ${isYear ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+            >
+              Anual
+            </Link>
+          </div>
+          <MonthSelector
+            basePath="/dashboard/estadisticas"
+            label={range.label}
+            prevParam={range.prevParam}
+            nextParam={range.nextParam}
+            isCurrentMonth={'isCurrentYear' in range ? range.isCurrentYear : range.isCurrentMonth}
+            paramName={isYear ? 'anio' : 'mes'}
+          />
+        </div>
       </div>
 
       <div className="px-8 pt-4 bg-white">
@@ -104,7 +139,13 @@ export default async function EstadisticasPage({
         </div>
 
         {/* Chart */}
-        <RevenueChart data={revenueByDay} monthLabel={range.label} />
+        <RevenueChart
+          data={chartBars}
+          periodLabel={range.label}
+          title={isYear ? 'Ingresos por mes' : 'Ingresos por día'}
+          totalLabel={isYear ? 'Total del año' : 'Total del mes'}
+          barGap={isYear ? 8 : 3}
+        />
 
         {/* Top category / top product */}
         <div className="grid grid-cols-2 gap-4">
