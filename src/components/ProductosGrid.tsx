@@ -7,7 +7,7 @@ import Badge from '@/components/Badge'
 import { createClient } from '@/lib/supabase/client'
 import {
   Plus, ImageOff, Search, X, SlidersHorizontal, LayoutGrid, List, Trash2, CheckSquare, Square,
-  ArrowUpDown, GripVertical, MoveVertical, ArrowUpToLine, ArrowDownToLine, Loader2, Check,
+  ArrowUpDown, GripVertical, MoveVertical, ArrowUpToLine, ArrowDownToLine, Loader2, Check, Eye, EyeOff,
 } from 'lucide-react'
 import Select from '@/components/Select'
 
@@ -70,6 +70,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
   const [catFilter, setCatFilter] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'sin_stock' | 'bajo' | 'ok'>('all')
   const [discountOnly, setDiscountOnly] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [orden, setOrden] = useState<'reciente' | 'precio-asc' | 'precio-desc' | 'nombre' | 'stock-asc'>('reciente')
   const [showFilters, setShowFilters] = useState(false)
   const [view, setView] = useState<'grid' | 'list'>('grid')
@@ -77,6 +78,10 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
   const [deleting, setDeleting] = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  // Habilitar / inhabilitar en lote: null = modal cerrado, true/false = acción a confirmar.
+  const [confirmBulkActive, setConfirmBulkActive] = useState<boolean | null>(null)
+  const [togglingActive, setTogglingActive] = useState(false)
+  const [bulkError, setBulkError] = useState('')
 
   // ── Editar orden (drag & drop, estilo springboard de iOS) ──────────────────
   // Modo aparte: mientras está activo se ignoran búsqueda/filtros/orden y se
@@ -156,6 +161,8 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
       )
     }
     if (catFilter) list = list.filter(p => p.category === catFilter)
+    if (statusFilter === 'active') list = list.filter(p => p.active)
+    else if (statusFilter === 'inactive') list = list.filter(p => !p.active)
     if (stockFilter === 'sin_stock') list = list.filter(p => p.totalStock === 0)
     else if (stockFilter === 'bajo') list = list.filter(p => p.totalStock > 0 && p.totalStock <= 3)
     else if (stockFilter === 'ok') list = list.filter(p => p.totalStock > 3)
@@ -167,16 +174,17 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
       case 'stock-asc': list.sort((a, b) => a.totalStock - b.totalStock); break
     }
     return list
-  }, [products, q, catFilter, stockFilter, discountOnly, orden])
+  }, [products, q, catFilter, statusFilter, stockFilter, discountOnly, orden])
 
   const activeFilterCount = [
     catFilter,
+    statusFilter !== 'all' ? statusFilter : '',
     stockFilter !== 'all' ? stockFilter : '',
     discountOnly ? 'discount' : '',
   ].filter(Boolean).length
 
   function clearFilters() {
-    setCatFilter(''); setStockFilter('all'); setDiscountOnly(false); setOrden('reciente'); setQ('')
+    setCatFilter(''); setStatusFilter('all'); setStockFilter('all'); setDiscountOnly(false); setOrden('reciente'); setQ('')
   }
 
   function toggleSelect(id: string) {
@@ -224,6 +232,36 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
     } catch { }
     setDeleting(false)
   }
+
+  // Habilita o inhabilita todos los productos seleccionados de una sola vez.
+  // Un solo UPDATE ... IN (ids) filtrado por tenant (la RLS ya lo garantiza,
+  // el eq('tenant_id') es cinturón y tirantes). Solo toca `active` del producto,
+  // no sus variantes, así al re-habilitar vuelve todo como estaba.
+  async function handleBulkSetActive(active: boolean) {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+    setTogglingActive(true)
+    setBulkError('')
+    try {
+      const { error } = await supabase.from('products').update({ active }).in('id', ids)
+      if (error) throw error
+      setSelected(new Set())
+      setConfirmBulkActive(null)
+      router.refresh()
+    } catch (e: any) {
+      setBulkError(e?.message ?? 'No se pudo actualizar. Probá de nuevo.')
+    }
+    setTogglingActive(false)
+  }
+
+  // Atajo: selecciona todos los productos que hoy se ven filtrados (p. ej. toda
+  // la categoría "Verano") para después habilitarlos/inhabilitarlos con un click.
+  const selectedActiveCount = useMemo(
+    () => products.filter(p => selected.has(p.id) && p.active).length,
+    [products, selected]
+  )
+  const selectedInactiveCount = selected.size - selectedActiveCount
+  const catFilterName = categories.find(c => c.slug === catFilter)?.name
 
   const EmptyState = () => (
     products.length === 0 ? (
@@ -315,6 +353,28 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
 
           {/* Bulk action bar */}
           {selected.size > 0 && (
+            <>
+              {selectedInactiveCount > 0 && (
+                <button
+                  onClick={() => setConfirmBulkActive(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors"
+                >
+                  <Eye size={14} />
+                  Habilitar {selectedInactiveCount}
+                </button>
+              )}
+              {selectedActiveCount > 0 && (
+                <button
+                  onClick={() => setConfirmBulkActive(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors"
+                >
+                  <EyeOff size={14} />
+                  Inhabilitar {selectedActiveCount}
+                </button>
+              )}
+            </>
+          )}
+          {selected.size > 0 && (
             <button
               onClick={() => setConfirmBulkDelete(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
@@ -338,6 +398,18 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                 </div>
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Estado</span>
+              <div className="flex gap-1">
+                {([
+                  { value: 'all', label: 'Todos' },
+                  { value: 'active', label: 'Activos' },
+                  { value: 'inactive', label: 'Inactivos' },
+                ] as const).map(opt => (
+                  <button key={opt.value} onClick={() => setStatusFilter(opt.value)} className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${statusFilter === opt.value ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}>{opt.label}</button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Stock</span>
               <div className="flex gap-1">
@@ -373,6 +445,31 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                 {deleting ? 'Eliminando...' : 'Sí, eliminar todo'}
               </button>
               <button onClick={() => setConfirmBulkDelete(false)} className="flex-1 btn-secondary justify-center">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Habilitar / inhabilitar en lote */}
+      {confirmBulkActive !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border border-zinc-200 p-6 max-w-sm w-full mx-4 shadow-xl">
+            <h2 className="text-base font-semibold text-zinc-900 mb-2">
+              {confirmBulkActive
+                ? `¿Habilitar ${selectedInactiveCount} producto${selectedInactiveCount === 1 ? '' : 's'}?`
+                : `¿Inhabilitar ${selectedActiveCount} producto${selectedActiveCount === 1 ? '' : 's'}?`}
+            </h2>
+            <p className="text-sm text-zinc-500 mb-5">
+              {confirmBulkActive
+                ? 'Van a volver a mostrarse en la tienda.'
+                : 'Dejan de mostrarse en la tienda, pero se conservan con todas sus variantes y precios. Los podés volver a habilitar cuando quieras.'}
+            </p>
+            {bulkError && <p className="text-sm text-red-500 mb-3">{bulkError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => handleBulkSetActive(confirmBulkActive)} disabled={togglingActive} className="flex-1 py-2 px-4 bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium rounded-lg disabled:opacity-60 transition-colors">
+                {togglingActive ? 'Guardando...' : confirmBulkActive ? 'Sí, habilitar' : 'Sí, inhabilitar'}
+              </button>
+              <button onClick={() => { setConfirmBulkActive(null); setBulkError('') }} className="flex-1 btn-secondary justify-center">Cancelar</button>
             </div>
           </div>
         </div>
@@ -487,7 +584,9 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
                     ? <CheckSquare size={14} className="text-zinc-700" />
                     : <Square size={14} />
                   }
-                  {selected.size === filtered.length && filtered.length > 0 ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                  {selected.size === filtered.length && filtered.length > 0
+                    ? 'Deseleccionar todo'
+                    : catFilterName ? `Seleccionar toda la categoría «${catFilterName}» (${filtered.length})` : 'Seleccionar todo'}
                 </button>
               </div>
             )}
