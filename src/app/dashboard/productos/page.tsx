@@ -20,13 +20,13 @@ export default async function ProductosPage() {
   const [{ data: rawProducts }, { data: categories }, { data: storeConfig }] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, sku, active, is_demo, category_id, sort_order, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty))')
+      .select('id, name, sku, active, is_demo, category_id, sort_order, product_images(*), variants(stock, color, price_rules(type, price, compare_at_price, active, min_qty)), product_categories(category_id)')
       .eq('tenant_id', tenantId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false }),
     supabase
       .from('categories')
-      .select('id, name, slug')
+      .select('id, name, slug, parent_id')
       .eq('tenant_id', tenantId)
       .eq('active', true)
       .order('sort_order'),
@@ -69,6 +69,8 @@ export default async function ProductosPage() {
       totalStock,
       colors,
       category: catMap[product.category_id] ?? undefined,
+      // Set completo de categorías (tabla puente) + la principal, para filtrar por categoría con subcategorías.
+      categoryIds: [...new Set([...(product.product_categories ?? []).map((r: any) => r.category_id), product.category_id].filter(Boolean))] as string[],
       sortOrder: product.sort_order ?? 0,
       weightBytes,
       weightKnown,

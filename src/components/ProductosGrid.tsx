@@ -23,6 +23,8 @@ interface ProductItem {
   totalStock: number
   colors: string[]
   category?: string
+  // Todas las categorías del producto (principal + tabla puente product_categories).
+  categoryIds: string[]
   // Orden manual del tenant — menor aparece primero. Ver "Editar orden" abajo.
   sortOrder: number
   // Peso total de las fotos del producto (bytes). weightKnown=false si alguna
@@ -35,7 +37,7 @@ interface ProductItem {
 
 interface ProductosGridProps {
   products: ProductItem[]
-  categories: { id: string; name: string; slug: string }[]
+  categories: { id: string; name: string; slug: string; parent_id: string | null }[]
   ignoreStock?: boolean
 }
 
@@ -67,7 +69,10 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
   const supabase = createClient()
 
   const [q, setQ] = useState('')
+  // Filtro por categoría: se elige una categoría "raíz" (id) y entran ella + todas sus
+  // subcategorías (a cualquier nivel). catExcluded permite destildar las que no se quieren.
   const [catFilter, setCatFilter] = useState('')
+  const [catExcluded, setCatExcluded] = useState<Set<string>>(new Set())
   const [stockFilter, setStockFilter] = useState<'all' | 'sin_stock' | 'bajo' | 'ok'>('all')
   const [discountOnly, setDiscountOnly] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
@@ -151,6 +156,39 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
     setMoveMenuFor(null)
   }
 
+  // Árbol de la categoría elegida: [{cat, depth}] en orden (padre, hijos, nietos...).
+  const catTree = useMemo(() => {
+    if (!catFilter) return [] as { cat: (typeof categories)[number]; depth: number }[]
+    const out: { cat: (typeof categories)[number]; depth: number }[] = []
+    const walk = (id: string, depth: number) => {
+      const cat = categories.find(c => c.id === id)
+      if (!cat) return
+      out.push({ cat, depth })
+      categories.filter(c => c.parent_id === id).forEach(c => walk(c.id, depth + 1))
+    }
+    walk(catFilter, 0)
+    return out
+  }, [categories, catFilter])
+
+  // Categorías efectivamente incluidas en el filtro (árbol menos las destildadas).
+  const activeCatIds = useMemo(
+    () => new Set(catTree.filter(t => !catExcluded.has(t.cat.id)).map(t => t.cat.id)),
+    [catTree, catExcluded]
+  )
+
+  function chooseCategory(id: string) {
+    setCatFilter(id)
+    setCatExcluded(new Set())
+  }
+
+  function toggleCatExcluded(id: string) {
+    setCatExcluded(prev => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+
   const filtered = useMemo(() => {
     let list = [...products]
     if (q.trim()) {
@@ -160,7 +198,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
         (p.sku != null && p.sku.toLowerCase().includes(term))
       )
     }
-    if (catFilter) list = list.filter(p => p.category === catFilter)
+    if (catFilter) list = list.filter(p => p.categoryIds.some(id => activeCatIds.has(id)))
     if (statusFilter === 'active') list = list.filter(p => p.active)
     else if (statusFilter === 'inactive') list = list.filter(p => !p.active)
     if (stockFilter === 'sin_stock') list = list.filter(p => p.totalStock === 0)
@@ -174,7 +212,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
       case 'stock-asc': list.sort((a, b) => a.totalStock - b.totalStock); break
     }
     return list
-  }, [products, q, catFilter, statusFilter, stockFilter, discountOnly, orden])
+  }, [products, q, catFilter, activeCatIds, statusFilter, stockFilter, discountOnly, orden])
 
   const activeFilterCount = [
     catFilter,
@@ -184,7 +222,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
   ].filter(Boolean).length
 
   function clearFilters() {
-    setCatFilter(''); setStatusFilter('all'); setStockFilter('all'); setDiscountOnly(false); setOrden('reciente'); setQ('')
+    setCatFilter(''); setCatExcluded(new Set()); setStatusFilter('all'); setStockFilter('all'); setDiscountOnly(false); setOrden('reciente'); setQ('')
   }
 
   function toggleSelect(id: string) {
@@ -261,7 +299,7 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
     [products, selected]
   )
   const selectedInactiveCount = selected.size - selectedActiveCount
-  const catFilterName = categories.find(c => c.slug === catFilter)?.name
+  const catFilterName = categories.find(c => c.id === catFilter)?.name
 
   const EmptyState = () => (
     products.length === 0 ? (
@@ -390,12 +428,26 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
             {categories.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Categoria</span>
-                <div className="flex gap-1">
-                  <button onClick={() => setCatFilter('')} className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${!catFilter ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}>Todas</button>
-                  {categories.map(c => (
-                    <button key={c.id} onClick={() => setCatFilter(catFilter === c.slug ? '' : c.slug)} className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${catFilter === c.slug ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}>{c.name}</button>
-                  ))}
-                </div>
+                <Select
+                  value={catFilter} onChange={e => chooseCategory(e.target.value)}
+                  className="text-sm border border-zinc-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 transition-colors text-zinc-600 bg-white"
+                >
+                  <option value="">Todas</option>
+                  {(() => {
+                    const rows: { id: string; label: string }[] = []
+                    const walk = (parentId: string | null, depth: number) => {
+                      categories.filter(c => (c.parent_id ?? null) === parentId).forEach(c => {
+                        rows.push({ id: c.id, label: `${'\u00A0\u00A0\u00A0'.repeat(depth)}${depth > 0 ? '↳ ' : ''}${c.name}` })
+                        walk(c.id, depth + 1)
+                      })
+                    }
+                    walk(null, 0)
+                    // Subcategorías cuyo padre está inactivo no cuelgan de ningún root: se agregan al final.
+                    const seen = new Set(rows.map(r => r.id))
+                    categories.filter(c => !seen.has(c.id)).forEach(c => rows.push({ id: c.id, label: c.name }))
+                    return rows.map(r => <option key={r.id} value={r.id}>{r.label}</option>)
+                  })()}
+                </Select>
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -430,6 +482,24 @@ export default function ProductosGrid({ products, categories, ignoreStock = fals
             {activeFilterCount > 0 && (
               <button onClick={clearFilters} className="text-xs text-zinc-400 hover:text-zinc-700 underline transition-colors ml-auto">Limpiar filtros</button>
             )}
+          </div>
+        )}
+
+        {catFilter && catTree.length > 1 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+            <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Incluye</span>
+            {catTree.map(({ cat, depth }) => {
+              const checked = !catExcluded.has(cat.id)
+              const count = products.filter(p => p.categoryIds.includes(cat.id)).length
+              return (
+                <label key={cat.id} className="flex items-center gap-1.5 cursor-pointer" style={{ marginLeft: depth > 1 ? (depth - 1) * 12 : 0 }}>
+                  <input type="checkbox" checked={checked} onChange={() => toggleCatExcluded(cat.id)} className="w-4 h-4 accent-zinc-900 rounded" />
+                  <span className={`text-xs ${checked ? 'text-zinc-700' : 'text-zinc-400 line-through'}`}>
+                    {depth === 0 ? `${cat.name} (directo)` : cat.name} <span className="text-zinc-400">{count}</span>
+                  </span>
+                </label>
+              )
+            })}
           </div>
         )}
       </div>
