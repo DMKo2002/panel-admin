@@ -21,16 +21,31 @@ esté vivo y respondiendo contenido** en un momento dado.
 
 ## La regla
 
-Para cada tenant, en todo momento debe existir **una sola dirección** que:
-1. Resuelva a la app (no dé error de DNS ni de certificado), y
-2. Devuelva contenido real (no un redirect).
+Para cada tenant, en todo momento debe existir **una sola dirección** que
+devuelva contenido real (no un redirect, y no el catálogo demo del template
+por error de resolución).
 
-Todas las demás direcciones asociadas a esa tienda (el fallback
-`{slug}.gounuri.com`, cualquier subdominio que el tenant haya conectado antes
-de tener dominio propio, dominios de prueba) deben:
-- Estar dadas de alta en Vercel como **"Redirect to Another Domain"** (308) →
-  hacia la dirección primaria, **no** como "Connect to an Environment", o
-- Estar eliminadas del proyecto en Vercel si ya no tienen ningún uso.
+Importante — el fallback `{slug}.gounuri.com` es un caso especial que YA
+está resuelto por código, no por configuración manual: `src/middleware.ts`
+(en tienda-core) redirige automáticamente `{slug}.gounuri.com` →
+`tenants.domain` en cuanto `tenants.domain_status = 'verified'` para ese
+tenant. Mientras `domain_status` sea `pending` o `none`, el subdominio sigue
+sirviendo contenido normalmente (correcto: es la única dirección que le
+funciona al tenant todavía). **No hace falta tocar nada en Vercel para
+este caso** — alcanza con que el dominio quede `verified` en la tabla
+`tenants`.
+
+El middleware SOLO redirige el patrón `*.gounuri.com`. Cualquier OTRO
+subdominio o dominio que el tenant haya conectado por su cuenta (ej.
+`shop.mimarca.com`, un dominio de prueba, un dominio viejo) no entra en esa
+lógica: si sigue registrado en el proyecto de Vercel pero ya no coincide
+con `tenants.domain`, el middleware no encuentra tenant y cae al fallback
+del template — es decir, **sirve el catálogo DEMO** con ese dominio ajeno
+(esto fue exactamente el bug de `shop.mykonoslove.com` mostrando "Demo
+Atelier", ver 2026-09-09). Para estos casos SÍ hay que actuar a mano:
+- Eliminarlos del proyecto en Vercel si ya no tienen ningún uso, o
+- Dejarlos como **"Redirect to Another Domain"** (308) → la dirección
+  primaria, si se quiere conservar el tráfico que llegue ahí.
 
 ## Procedimiento al conectar un dominio propio nuevo
 
@@ -38,26 +53,27 @@ de tener dominio propio, dominios de prueba) deben:
    Admin → se agrega en Vercel con "Connect to an Environment" (Production).
 2. Confirmar que `mimarca.com` resuelve bien y tiene SSL válido (esperar
    propagación de DNS si hace falta — ver runbook de DNS de septiembre 2026).
-3. Ir al proyecto en Vercel → Domains → localizar la dirección anterior que
-   el tenant usaba (`{slug}.gounuri.com`, o cualquier `shop.*`/subdominio
-   propio que haya configurado antes).
-4. Cambiar esa dirección anterior a **"Redirect to Another Domain"**, destino
-   `mimarca.com`, tipo **308 (permanente)**. No dejarla como "Connect to an
-   Environment" sirviendo el mismo contenido en paralelo.
-   - Excepción: el fallback `{slug}.gounuri.com` puede mantenerse SIN
-     redirect (sirviendo contenido) solo si el tenant todavía no tiene un
-     dominio propio — es la dirección que usa mientras tanto. En cuanto haya
-     dominio propio, pasa a redirect.
-5. Verificar en el navegador que la dirección anterior ahora redirige (no
-   que tira 404 ni que sigue mostrando contenido propio).
-6. Si la dirección anterior ya estaba indexada en Google con contenido
+3. Confirmar en la tabla `tenants` que `domain_status` pasó a `verified`
+   para ese tenant — a partir de ahí el propio middleware redirige
+   `{slug}.gounuri.com` solo, sin que haya que tocar Vercel.
+4. Revisar el proyecto en Vercel → Domains por si el tenant tiene, ADEMÁS
+   del `{slug}.gounuri.com`, algún otro subdominio/dominio propio que haya
+   conectado antes (ej. `shop.*`) — ese SÍ hay que eliminarlo o pasarlo a
+   redirect a mano (no lo cubre el middleware).
+5. Si esa dirección extra ya estaba indexada en Google con contenido
    viejo/incorrecto (se puede chequear buscando `site:direccion-anterior`),
-   usar Search Console → Eliminar URLs, para acelerar que desaparezca de los
-   resultados mientras Google re-rastrea el redirect.
+   usar Search Console → Eliminar URLs, para acelerar que desaparezca de
+   los resultados.
 
 ## Checklist rápido (para dejar tildado en cada alta de dominio propio)
 
 - [ ] Dominio propio conectado y resolviendo con SSL válido
-- [ ] Dirección anterior puesta en "Redirect to Another Domain" (308) → dominio propio
-- [ ] Verificado en navegador que la dirección anterior redirige
-- [ ] Si estaba indexada con contenido viejo: URL removida en Search Console
+- [ ] `tenants.domain_status = 'verified'` para ese tenant (el redirect de `{slug}.gounuri.com` es automático desde acá)
+- [ ] Revisado si el tenant tiene algún OTRO subdominio propio (no `.gounuri.com`) — eliminado o puesto en redirect a mano
+- [ ] Si había contenido viejo indexado en esa dirección extra: URL removida en Search Console
+
+## Chequeo aparte: tenant recién creado sin dominio propio todavía
+
+Confirmar que `{slug}.gounuri.com` esté agregado en el proyecto de Vercel
+del template correspondiente — si falta (pasó con Iruda, ver 2026-09-09),
+el tenant no tiene ninguna dirección funcionando hasta que se agregue.
