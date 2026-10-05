@@ -528,6 +528,13 @@ export default function EditarProductoPage() {
       }
 
       // Subir nuevas imágenes
+      // sort_order arranca después del máximo real que quedó en `images` (no
+      // de images.length): si se borró una imagen del medio, las posiciones
+      // que sobreviven pueden tener huecos (ej: quedan 0 y 3, no 0 y 1) —
+      // usar length pisaba la posición 3 que seguía ocupada. Bug real: ver
+      // duplicados de sort_order en 26 productos (Caloria, Mykonos Love,
+      // Conor's Sports, My Queen Trend) — 2026-09-09.
+      const nextSortOrderBase = images.length > 0 ? Math.max(...images.map(img => img.sort_order)) + 1 : 0
       for (let i = 0; i < newImageFiles.length; i++) {
         const file = newImageFiles[i]
         const path = `${tenantId}/${id}/${Date.now()}-${i}.jpg`
@@ -535,7 +542,7 @@ export default function EditarProductoPage() {
         if (up) {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
           const { error: imgErr } = await supabase.from('product_images').insert({
-            product_id: id, url: publicUrl, sort_order: images.length + i, is_cover: images.length === 0 && i === 0,
+            product_id: id, url: publicUrl, sort_order: nextSortOrderBase + i, is_cover: images.length === 0 && i === 0,
             size_bytes: file.size,
           })
           if (imgErr) throw imgErr
