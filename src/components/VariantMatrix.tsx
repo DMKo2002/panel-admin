@@ -236,6 +236,11 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
   // Color picker
   const [pickerForCol, setPickerForCol] = useState<string | null>(null)
   const [pickerHex, setPickerHex] = useState('#1C1C1C')
+  // Paleta del picker: 'editar' muestra la X de borrar en cada color de la
+  // marca (sirve también en touch, donde no hay hover). Los básicos genéricos
+  // quedan plegados cuando la marca ya tiene su propia paleta.
+  const [paletteEdit, setPaletteEdit] = useState(false)
+  const [showBasics, setShowBasics] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
   // Panel de atributos de una celda puntual ({rowId, colId}) o de todas ('all')
@@ -443,6 +448,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     const col = cols.find(c => c.id === colId)
     const existing = col?.hex || (col && colorToHex(col.name) !== '#CCCCCC' ? colorToHex(col.name) : '#1C1C1C')
     setPickerHex(existing || '#1C1C1C')
+    setPaletteEdit(false)
     setPickerForCol(colId)
   }
 
@@ -451,12 +457,22 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
     setPickerForCol(null)
   }
 
+  // El cuentagotas ya no cierra el modal: carga el color en el selector,
+  // sugiere nombre si la columna no tiene uno propio, y lo suma a la paleta
+  // de la marca (store_config.preferred_colors) para que quede disponible en
+  // cualquier producto. El tenant revisa y toca "Aplicar".
   async function launchEyeDropper(colId: string) {
     try {
       // @ts-ignore
       const result = await new window.EyeDropper().open()
-      setColumnHex(colId, result.sRGBHex)
-      setPickerForCol(null)
+      const hex = String(result.sRGBHex).toLowerCase()
+      setPickerHex(hex)
+      const col = cols.find(c => c.id === colId)
+      const suggested = nearestColorName(hex) || 'Color'
+      const name = col && col.name.trim() && !isPlaceholderName(col.name) ? col.name.trim() : suggested
+      if (col && (!col.name.trim() || isPlaceholderName(col.name))) renameColumn(colId, suggested)
+      const already = favoriteColors.some(f => f.hex.toLowerCase() === hex)
+      if (!already && onToggleFavorite) onToggleFavorite({ name, hex })
     } catch { }
   }
 
@@ -854,10 +870,11 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
         const col = cols.find(c => c.id === colId)
         if (!col) return null
         const isFav = favoriteColors.some(f => f.hex.toLowerCase() === pickerHex.toLowerCase())
+        const basicsOpen = showBasics || favoriteColors.length === 0
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div ref={pickerRef}
-              className="bg-white border border-zinc-200 rounded-xl shadow-xl p-4 w-72 max-h-[85vh] overflow-y-auto">
+              className="bg-white border border-zinc-200 rounded-xl shadow-xl p-4 w-full max-w-sm max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-medium text-zinc-700">Elegir color</p>
                 <button type="button" onClick={() => setPickerForCol(null)} className="text-zinc-400 hover:text-zinc-600">
@@ -898,43 +915,73 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                 </button>
               )}
 
-              {favoriteColors.length > 0 && (
-                <>
-                  <p className="text-[10px] font-semibold text-primary-400 uppercase tracking-wide mb-1.5">Tus favoritos</p>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {favoriteColors.map(fav => (
-                      <div key={fav.hex} className="relative group">
-                        <button type="button" title={fav.name}
-                          onClick={() => { setPickerHex(fav.hex); renameColumn(colId, fav.name) }}
+              {/* ── Paleta de la marca (store_config.preferred_colors) ── */}
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-semibold text-primary-400 uppercase tracking-wide">
+                  Paleta de tu marca{favoriteColors.length > 0 ? ` · ${favoriteColors.length}` : ''}
+                </p>
+                {onToggleFavorite && favoriteColors.length > 0 && (
+                  <button type="button" onClick={() => setPaletteEdit(v => !v)}
+                    className={`text-[10px] font-medium ${paletteEdit ? 'text-red-500' : 'text-zinc-400 hover:text-zinc-600'}`}>
+                    {paletteEdit ? 'Listo' : 'Editar'}
+                  </button>
+                )}
+              </div>
+              {favoriteColors.length === 0 ? (
+                <p className="text-[11px] text-zinc-400 mb-3">
+                  Todavía no hay colores. Los que tomes con el cuentagotas o marques con ★ se guardan acá y aparecen en todos tus productos.
+                </p>
+              ) : (
+                <div className="grid grid-cols-8 gap-2 mb-3">
+                  {favoriteColors.map(fav => {
+                    const selected = pickerHex.toLowerCase() === fav.hex.toLowerCase()
+                    return (
+                      <div key={fav.hex} className="relative group flex flex-col items-center">
+                        <button type="button" title={`${fav.name} · ${fav.hex}`}
+                          onClick={() => {
+                            if (paletteEdit) return
+                            setPickerHex(fav.hex)
+                            renameColumn(colId, fav.name)
+                          }}
                           style={{ backgroundColor: fav.hex }}
-                          className={`w-6 h-6 rounded-full border transition-all hover:scale-110 ${pickerHex.toLowerCase() === fav.hex.toLowerCase() ? 'border-primary-500 scale-110' : 'border-zinc-300'}`} />
+                          className={`w-8 h-8 rounded-full border-2 transition-all ${paletteEdit ? 'opacity-70 cursor-default' : 'hover:scale-110'} ${selected ? 'border-primary-500 ring-2 ring-primary-200' : 'border-zinc-200'}`} />
                         {onToggleFavorite && (
-                          <button type="button" onClick={() => onToggleFavorite(fav)} title="Sacar de favoritos"
-                            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex">
-                            <X size={8} />
+                          <button type="button" onClick={() => onToggleFavorite(fav)} title="Quitar de la paleta"
+                            className={`absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full items-center justify-center ${paletteEdit ? 'flex' : 'hidden group-hover:flex'}`}>
+                            <X size={10} />
                           </button>
                         )}
+                        <span className="mt-0.5 w-full text-center text-[9px] leading-tight text-zinc-500 truncate">{fav.name}</span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="h-px bg-zinc-100 mb-3" />
-                </>
+                    )
+                  })}
+                </div>
               )}
 
-              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Paleta rápida</p>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {Object.entries(COLOR_MAP).map(([name, hex]) => (
-                  <button key={name} type="button" title={name}
-                    onClick={() => {
-                      setPickerHex(hex)
-                      // Mismo criterio que favoritos: autocompletar el nombre al
-                      // tocar el swatch, salvo que el tenant ya haya tipeado uno propio.
-                      if (!col.name.trim() || isPlaceholderName(col.name)) renameColumn(colId, name)
-                    }}
-                    style={{ backgroundColor: hex }}
-                    className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-primary-500 scale-110' : 'border-zinc-200'}`} />
-                ))}
-              </div>
+              <div className="h-px bg-zinc-100 mb-3" />
+
+              {/* ── Colores básicos genéricos — plegados si la marca ya tiene paleta ── */}
+              <button type="button" onClick={() => setShowBasics(v => !v)}
+                disabled={favoriteColors.length === 0}
+                className="w-full flex items-center justify-between text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5 disabled:cursor-default">
+                <span>Colores básicos</span>
+                {favoriteColors.length > 0 && <span className="normal-case font-medium">{basicsOpen ? 'Ocultar' : 'Mostrar'}</span>}
+              </button>
+              {basicsOpen && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {Object.entries(COLOR_MAP).map(([name, hex]) => (
+                    <button key={name} type="button" title={name}
+                      onClick={() => {
+                        setPickerHex(hex)
+                        // Autocompletar el nombre al tocar el swatch, salvo que
+                        // el tenant ya haya tipeado uno propio.
+                        if (!col.name.trim() || isPlaceholderName(col.name)) renameColumn(colId, name)
+                      }}
+                      style={{ backgroundColor: hex }}
+                      className={`w-5 h-5 rounded-full border transition-all hover:scale-110 ${pickerHex === hex ? 'border-primary-500 scale-110' : 'border-zinc-200'}`} />
+                  ))}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <button type="button" onClick={() => applyPickerColor(colId)}
@@ -944,7 +991,7 @@ const VariantMatrix = forwardRef<VariantMatrixHandle, Props>(({
                 {onToggleFavorite && (
                   <button type="button"
                     onClick={() => onToggleFavorite({ name: col.name.trim() || nearestColorName(pickerHex) || 'Color', hex: pickerHex })}
-                    title={isFav ? 'Sacar de favoritos' : 'Guardar como favorito'}
+                    title={isFav ? 'Quitar de la paleta de la marca' : 'Guardar en la paleta de la marca'}
                     className={`px-3 rounded-lg border flex items-center justify-center transition-colors flex-shrink-0 ${isFav ? 'border-amber-300 bg-amber-50 text-amber-500' : 'border-zinc-200 text-zinc-400 hover:text-amber-500 hover:border-amber-300'}`}>
                     <Star size={14} fill={isFav ? 'currentColor' : 'none'} />
                   </button>
