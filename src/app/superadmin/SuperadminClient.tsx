@@ -1295,7 +1295,7 @@ export default function SuperadminClient({
             <p className="text-zinc-300 text-sm mb-2">
               Se van a eliminar permanentemente todos los datos de{' '}
               <span className="font-semibold text-white">{deleteTarget.name}</span>:
-              productos, pedidos, clientes, imágenes y configuración.
+              productos, pedidos, clientes, imágenes (con sus archivos), usuarios de login, dominio y configuración. También se cancela el débito en Mercado Pago.
             </p>
 
             <p className="text-zinc-400 text-xs mb-4">
