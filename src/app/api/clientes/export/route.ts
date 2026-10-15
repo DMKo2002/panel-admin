@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { toCsv } from '@/lib/csv'
+import { fetchAll } from '@/lib/fetch-all'
 
 const HEADERS = [
   'cliente_id', 'nombre', 'apellido', 'telefono',
@@ -19,11 +20,19 @@ export async function GET() {
   const tenantId = userRows?.[0]?.tenant_id
   if (!tenantId) return NextResponse.json({ error: 'Usuario sin tienda asignada' }, { status: 400 })
 
-  const { data: customers } = await service
-    .from('customers')
-    .select('id, full_name, last_name, phone, address_street, address_city, address_province, address_zip, cuit, company_name, email, type, active')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
+  // Paginado: Supabase corta a 1000 filas por consulta
+  let customers: any[]
+  try {
+    customers = await fetchAll((from, to) => service
+      .from('customers')
+      .select('id, full_name, last_name, phone, address_street, address_city, address_province, address_zip, cuit, company_name, email, type, active')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to))
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message ?? 'Error exportando clientes' }, { status: 500 })
+  }
 
   const rows: (string | number)[][] = [HEADERS]
   for (const c of customers ?? []) {

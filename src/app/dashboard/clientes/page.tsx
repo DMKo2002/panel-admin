@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
+import { fetchAll } from '@/lib/fetch-all'
 import CsvImportExportButtons from '@/components/CsvImportExportButtons'
 import ClientesTable, { type ClienteRow } from '@/components/ClientesTable'
 
@@ -29,19 +30,23 @@ export default async function ClientesPage() {
     if (!tenantId) throw new Error('El usuario ' + user.email + ' no tiene tenant_id asignado')
 
     // Traer clientes del tenant
-    const { data: customersData } = await service
+    // Paginado: Supabase corta a 1000 filas por consulta
+    customers = await fetchAll((from, to) => service
       .from('customers')
       .select('id, full_name, last_name, email, phone, type, company_name, created_at, active, woo_orders_count, woo_total_spent')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
-    customers = customersData ?? []
+      .order('id')
+      .range(from, to))
 
     // Traer pedidos del tenant para agregar stats por cliente
-    const { data: ordersData } = await service
+    orders = await fetchAll((from, to) => service
       .from('orders')
       .select('id, customer_id, total, payment_status, status, created_at')
       .eq('tenant_id', tenantId)
-    orders = ordersData ?? []
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to))
   } catch (e: any) {
     pageError = e.message ?? 'Error cargando clientes'
   }

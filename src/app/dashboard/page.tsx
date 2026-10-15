@@ -37,15 +37,20 @@ export default async function DashboardPage() {
 
   const [
     { data: ordersToday },
-    { data: ordersPending },
-    { data: products },
-    { data: customers },
+    { count: ordersPendingCount },
+    { count: productsCount },
+    { count: activeProductsCount },
+    { count: customersCount },
+    { count: wholesaleCount },
     { data: recentOrders },
   ] = await Promise.all([
     supabase.from('orders').select('total').eq('tenant_id', tenantId).gte('created_at', today.toISOString()),
-    supabase.from('orders').select('id').eq('tenant_id', tenantId).eq('status', 'pending'),
-    supabase.from('products').select('id, active').eq('tenant_id', tenantId),
-    supabase.from('customers').select('id, type').eq('tenant_id', tenantId),
+    // Conteos exactos en la DB (traer filas se corta a 1000)
+    supabase.from('orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'pending'),
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('active', true),
+    supabase.from('customers').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+    supabase.from('customers').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('type', 'wholesale'),
     supabase.from('orders')
       .select('id, status, payment_method, payment_status, total, created_at, customers(full_name, type)')
       .eq('tenant_id', tenantId)
@@ -54,8 +59,8 @@ export default async function DashboardPage() {
   ])
 
   const salesTotal = ordersToday?.reduce((acc, o) => acc + (o.total ?? 0), 0) ?? 0
-  const activeProducts = products?.filter(p => p.active).length ?? 0
-  const wholesaleCustomers = customers?.filter(c => c.type === 'wholesale').length ?? 0
+  const activeProducts = activeProductsCount ?? 0
+  const wholesaleCustomers = wholesaleCount ?? 0
 
   return (
     <div>
@@ -89,7 +94,7 @@ export default async function DashboardPage() {
             icon={<ShoppingCart size={18} className="text-amber-600" />}
             iconBg="bg-amber-50"
             label="Pedidos pendientes"
-            value={String(ordersPending?.length ?? 0)}
+            value={String(ordersPendingCount ?? 0)}
             sub="Requieren atención"
           />
           <StatCard
@@ -97,13 +102,13 @@ export default async function DashboardPage() {
             iconBg="bg-blue-50"
             label="Productos activos"
             value={String(activeProducts)}
-            sub={`${products?.length ?? 0} en total`}
+            sub={`${productsCount ?? 0} en total`}
           />
           <StatCard
             icon={<Users size={18} className="text-emerald-600" />}
             iconBg="bg-emerald-50"
             label="Clientes"
-            value={String(customers?.length ?? 0)}
+            value={String(customersCount ?? 0)}
             sub={`${wholesaleCustomers} mayoristas`}
           />
         </div>
