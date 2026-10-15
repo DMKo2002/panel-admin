@@ -8,6 +8,7 @@ import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 import { Trash2 } from 'lucide-react'
 import type { AdInvestment, AdPlatform } from '@/lib/types'
 import Select from '@/components/Select'
+import DatePicker from '@/components/DatePicker'
 
 const PLATFORM_LABELS: Record<AdPlatform, string> = {
   meta: 'Meta (Facebook/Instagram)',
@@ -272,11 +273,11 @@ export default function PublicidadPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Desde</label>
-              <input type="date" className="input text-sm" value={newFrom} onChange={e => setNewFrom(e.target.value)} />
+              <DatePicker className="input text-sm" value={newFrom} onChange={e => setNewFrom(e.target.value)} />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Hasta</label>
-              <input type="date" className="input text-sm" value={newTo} onChange={e => setNewTo(e.target.value)} />
+              <DatePicker className="input text-sm" value={newTo} onChange={e => setNewTo(e.target.value)} />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Monto invertido</label>
@@ -335,11 +336,11 @@ export default function PublicidadPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Desde</label>
-              <input type="date" className="input text-sm" value={resultFrom} onChange={e => setResultFrom(e.target.value)} />
+              <DatePicker className="input text-sm" value={resultFrom} onChange={e => setResultFrom(e.target.value)} />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1">Hasta</label>
-              <input type="date" className="input text-sm" value={resultTo} onChange={e => setResultTo(e.target.value)} />
+              <DatePicker className="input text-sm" value={resultTo} onChange={e => setResultTo(e.target.value)} />
             </div>
           </div>
 
