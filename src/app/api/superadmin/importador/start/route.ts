@@ -48,13 +48,16 @@ export async function POST(req: NextRequest) {
     }, { status: 400 })
   }
 
-  const { padres, orderedIds } = groupRows(rows)
+  const { padres, orderedIds, descartadas, duplicados } = groupRows(rows)
   if (orderedIds.length === 0) {
     return NextResponse.json({ error: 'No se encontró ningún producto "simple" o "variable" en el CSV' }, { status: 400 })
   }
 
   const pendingLogs: { level: 'info' | 'warn' | 'error'; message: string }[] = []
   const log = (message: string, level: 'info' | 'warn' | 'error' = 'info') => pendingLogs.push({ level, message })
+
+  if (descartadas > 0) log(`${descartadas} fila/s de variación sin producto padre válido: se ignoran`, 'warn')
+  if (duplicados > 0) log(`${duplicados} producto/s con nombre repetido: se importan todos, con slug distinto`)
 
   await buildCategoryTree(service, tenantId, padres, log)
 

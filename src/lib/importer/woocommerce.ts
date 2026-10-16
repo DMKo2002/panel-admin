@@ -16,8 +16,96 @@ export type PriceType = 'retail' | 'wholesale'
 
 export type WooRow = Record<string, string>
 
+// El export de WooCommerce sale en el idioma del admin (inglés/español). El
+// resto del importador trabaja con los nombres en español, así que los
+// encabezados en inglés se traducen acá, una sola vez, al leer el CSV.
+const HEADER_ALIASES: Record<string, string> = {
+  'type': 'Tipo', 'name': 'Nombre', 'published': 'Publicado',
+  'short description': 'Descripción corta', 'description': 'Descripción',
+  'categories': 'Categorías', 'images': 'Imágenes',
+  'regular price': 'Precio normal', 'sale price': 'Precio de oferta',
+  'parent': 'Superior', 'in stock?': '¿En inventario?', 'stock': 'Inventario',
+}
+
+function canonicalHeader(h: string): string {
+  const clean = h.replace(/^\uFEFF/, '').trim()
+  const low = clean.toLowerCase()
+  const m = low.match(/^attribute (\d+) (name|value\(s\))$/)
+  if (m) return m[2] === 'name' ? `Nombre del atributo ${m[1]}` : `Valor(es) del atributo ${m[1]}`
+  return HEADER_ALIASES[low] ?? clean
+}
+
 export function parseWooCsv(csvText: string): WooRow[] {
-  return csvRowsToObjects(parseCsv(csvText))
+  return csvRowsToObjects(parseCsv(csvText)).map(row => {
+    const out: WooRow = {}
+    const aliased: [string, string][] = []
+    for (const [k, v] of Object.entries(row)) {
+      const c = canonicalHeader(k)
+      if (c === k) out[k] = v
+      else aliased.push([c, v])
+    }
+    // Un alias nunca pisa una columna que ya venía con el nombre canónico.
+    for (const [c, v] of aliased) if (!(c in out)) out[c] = v
+    return out
+  })
+}
+
+/** Separa una lista de WooCommerce ("a, b, c") respetando la coma escapada:
+ * "Fucsia\, Verde y Blanco" es UN solo valor, no dos. */
+export function splitWooList(raw: string | undefined | null): string[] {
+  const s = raw || ''
+  const out: string[] = []
+  let cur = ''
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (ch === '\\' && s[i + 1] === ',') { cur += ','; i++; continue }
+    if (ch === ',') { out.push(cur); cur = ''; continue }
+    cur += ch
+  }
+  out.push(cur)
+  return out.map(x => x.trim()).filter(Boolean)
+}
+
+// ── Colores: nombre canónico para que "Naranja Y Blanco", "naranja y blanco"
+// y "Fuscia"/"Fucsia" no terminen como colores distintos ────────────────
+const COLOR_TYPOS: Record<string, string> = { fuscia: 'fucsia', fusia: 'fucsia', fuccia: 'fucsia' }
+const COLOR_LOWER_WORDS = new Set(['y', 'e', 'o', 'de', 'del', 'con'])
+
+export function normalizeColorName(raw: string): string {
+  const s = (raw || '')
+    .replace(/\\/g, '')
+    .replace(/\s*,\s*/g, '/')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!s) return ''
+  return s.split(/([\s/]+)/).map((tok, i) => {
+    if (!tok || /^[\s/]+$/.test(tok)) return tok
+    const low = tok.toLowerCase()
+    const fixed = COLOR_TYPOS[low.normalize('NFD').replace(/[\u0300-\u036f]/g, '')] ?? low
+    if (i > 0 && COLOR_LOWER_WORDS.has(fixed)) return fixed
+    return fixed.charAt(0).toUpperCase() + fixed.slice(1)
+  }).join('')
+}
+
+/** Clave de comparación: sin mayúsculas ni tildes. */
+export function colorKey(name: string): string {
+  return normalizeColorName(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function dedupeColors(list: string[]): { colors: string[]; merged: number } {
+  const seen = new Set<string>()
+  const colors: string[] = []
+  let merged = 0
+  for (const raw of list) {
+    const c = normalizeColorName(raw)
+    if (!c) continue
+    const k = colorKey(c)
+    if (seen.has(k)) { merged++; continue }
+    seen.add(k)
+    colors.push(c)
+  }
+  return { colors, merged }
 }
 
 // ── Agrupamiento: "padres" (variable/simple, se convierten en products) y
@@ -35,9 +123,10 @@ export function groupRows(rows: WooRow[]) {
   const variaciones = rows.filter(r => r['Tipo'] === 'variation')
 
   const varsByParent = new Map<string, WooRow[]>()
+  let descartadas = 0
   for (const v of variaciones) {
     const sup = (v['Superior'] || '').trim()
-    if (!sup) continue // filas de variación vacías/basura del export — se descartan en silencio
+    if (!sup) { descartadas++; continue } // filas de variación vacías/basura del export
     let pid: string | null = null
     if (sup.startsWith('id:')) {
       const candidate = sup.replace('id:', '')
@@ -46,7 +135,7 @@ export function groupRows(rows: WooRow[]) {
       const parent = padresBySku.get(sup)
       if (parent) pid = parent['ID']
     }
-    if (!pid) continue
+    if (!pid) { descartadas++; continue }
     if (!varsByParent.has(pid)) varsByParent.set(pid, [])
     varsByParent.get(pid)!.push(v)
   }
@@ -54,7 +143,20 @@ export function groupRows(rows: WooRow[]) {
   // Orden estable = orden de aparición en el CSV, para que el "cursor" de
   // avance del job (processed_products) sea determinístico entre llamadas.
   const orderedIds = Array.from(padres.keys())
-  return { padres, varsByParent, orderedIds }
+
+  // Productos con el mismo nombre (y sin SKU que los distinga): se marca cuál
+  // es el 1°, 2°... para que "ya importado" no confunda al segundo con el primero.
+  const nameCount = new Map<string, number>()
+  let duplicados = 0
+  for (const id of orderedIds) {
+    const p = padres.get(id)!
+    const key = slugify((p['Nombre'] || '').trim())
+    const n = nameCount.get(key) ?? 0
+    p['__dup'] = String(n)
+    nameCount.set(key, n + 1)
+    if (n > 0) duplicados++
+  }
+  return { padres, varsByParent, orderedIds, descartadas, duplicados }
 }
 
 // ── Categorías: árbol completo (no aplanado), reutilizando las que ya
@@ -70,7 +172,12 @@ function slugify(text: string) {
     .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
-const JUNK_CATEGORIES = new Set(['sin categorizar', 'new arrivals', 'oferta'])
+// "Todos los productos" es una categoría que WooCommerce suele usar como
+// contenedor de todo el catálogo: en Gounuri el catálogo completo ya existe.
+const JUNK_CATEGORIES = new Set([
+  'sin categorizar', 'uncategorized', 'new arrivals', 'oferta',
+  'todos los productos', 'todos', 'all products', 'all',
+])
 
 export async function buildCategoryTree(
   service: any,
@@ -80,7 +187,7 @@ export async function buildCategoryTree(
 ): Promise<Map<string, string>> {
   const allPaths = new Set<string>()
   for (const r of padres.values()) {
-    for (const c of (r['Categorías'] || '').split(',')) {
+    for (const c of splitWooList(r['Categorías'])) {
       const raw = c.trim()
       if (!raw) continue
       const path = parseCategoryPath(raw)
@@ -129,7 +236,7 @@ export async function loadCategoriesBySlug(service: any, tenantId: string): Prom
 
 function pickCategoriesForProduct(prod: WooRow, bySlug: Map<string, string>): string[] {
   const candidates: string[][] = []
-  for (const c of (prod['Categorías'] || '').split(',')) {
+  for (const c of splitWooList(prod['Categorías'])) {
     const raw = c.trim()
     if (!raw) continue
     const path = parseCategoryPath(raw)
@@ -257,7 +364,10 @@ export async function importOneProduct(ctx: ImportContext, pid: string, prod: Wo
     const { data } = await service.from('products').select('id, slug').eq('tenant_id', tenantId).eq('sku', skuVal).limit(1)
     existing = data?.[0] ?? null
   } else {
-    const { data } = await service.from('products').select('id, slug').eq('tenant_id', tenantId).eq('name', name).limit(1)
+    const dup = parseInt(prod['__dup'] || '0', 10) || 0
+    let q = service.from('products').select('id, slug').eq('tenant_id', tenantId).eq('name', name)
+    if (dup > 0) q = q.eq('slug', `${slugify(name)}-${dup}`)
+    const { data } = await q.limit(1)
     existing = data?.[0] ?? null
   }
 
@@ -318,7 +428,7 @@ export async function importOneProduct(ctx: ImportContext, pid: string, prod: Wo
     // rota (mejor sin foto que con un link muerto al hosting viejo).
     const seen = new Set<string>()
     const urls: string[] = []
-    for (const u of (prod['Imágenes'] || '').split(',')) {
+    for (const u of splitWooList(prod['Imágenes'])) {
       const t = u.trim()
       if (t && !seen.has(t)) { seen.add(t); urls.push(t) }
     }
@@ -350,15 +460,25 @@ export async function importOneProduct(ctx: ImportContext, pid: string, prod: Wo
   let conPrecio = linked.filter(v => (v['Precio normal'] || '').trim())
   if (conPrecio.length === 0 && (prod['Precio normal'] || '').trim()) conPrecio = [prod]
   const reales = conPrecio.filter(v => v !== prod && colorValue(v))
-  const hexByColor = hexMapFromSwatches(prod)
+  const hexByColor = new Map<string, string | null>()
+  for (const [k, v] of Object.entries(hexMapFromSwatches(prod))) hexByColor.set(colorKey(k), v)
+
+  // Un mismo aviso (stock sin confirmar, talle raro, precio 0) se informa una
+  // sola vez por producto, no una vez por cada variante.
+  const avisados = new Set<string>()
+  const logUnaVez = (m: string, l: 'info' | 'warn' | 'error' = 'info') => {
+    if (avisados.has(m)) return
+    avisados.add(m); log(m, l)
+  }
 
   let variantsCreated = 0
   async function crearVariante(size: string, color: string | null, sku: string | undefined, precio: number, compare: number | null, stockRow: WooRow) {
-    const { stock, active } = resolveStock(stockRow, ctx.stockMode, name, log)
-    const talleNorm = normalizeTalle(size, log)
+    if (!precio) logUnaVez(`Precio 0 o ausente en "${name}" — revisar`, 'warn')
+    const { stock, active } = resolveStock(stockRow, ctx.stockMode, name, logUnaVez)
+    const talleNorm = normalizeTalle(size, logUnaVez)
     const { data: vres, error: vErr } = await service.from('variants').insert({
       product_id: productId, size: talleNorm, color: color || null,
-      color_hex: color ? hexByColor[color] ?? null : null,
+      color_hex: color ? (hexByColor.get(colorKey(color)) ?? null) : null,
       sku: sku || null, stock, active,
     }).select('id').single()
     if (vErr || !vres) { log(`Variante de "${name}": ${vErr?.message}`, 'error'); return }
@@ -371,24 +491,31 @@ export async function importOneProduct(ctx: ImportContext, pid: string, prod: Wo
   if (reales.length > 0) {
     const vistos = new Set<string>()
     for (const v of reales) {
-      const color = colorValue(v)
+      const color = normalizeColorName(colorValue(v))
       const size = talleValue(v) || 'Unico'
-      const key = `${color}::${size}`
+      const key = `${colorKey(color)}::${size}`
       if (vistos.has(key)) continue
       vistos.add(key)
       const { precio, compare } = priceAndCompare(v)
       await crearVariante(size, color, v['SKU'], precio, compare, v)
     }
   } else {
-    const [a1n, a2n] = attrNames(prod)
+    // Atributos del padre: el de color se detecta por nombre; el de talle por
+    // nombre también, o (si hay color) es el "otro" atributo con valores.
+    const attrs = [1, 2].map(i => ({
+      name: (prod[`Nombre del atributo ${i}`] || '').trim().toLowerCase(),
+      values: splitWooList(prod[`Valor(es) del atributo ${i}`]),
+    }))
+    const colorAttr = attrs.find(a => a.name.includes('color'))
+    const talleAttr = attrs.find(a => a !== colorAttr && (a.name.includes('talle') || a.name.includes('size')))
+      ?? (colorAttr ? attrs.find(a => a !== colorAttr && a.values.length > 0) : undefined)
     let colors: string[] = [], talles: string[] = []
-    if (a1n.includes('color')) {
-      colors = (prod['Valor(es) del atributo 1'] || '').split(',').map(c => c.trim()).filter(Boolean)
-      talles = (prod['Valor(es) del atributo 2'] || '').split(',').map(t => t.trim()).filter(Boolean)
-    } else if (a2n.includes('color')) {
-      colors = (prod['Valor(es) del atributo 2'] || '').split(',').map(c => c.trim()).filter(Boolean)
-      talles = (prod['Valor(es) del atributo 1'] || '').split(',').map(t => t.trim()).filter(Boolean)
+    if (colorAttr) {
+      const d = dedupeColors(colorAttr.values)
+      colors = d.colors
+      if (d.merged > 0) log(`"${name}": ${d.merged} color/es repetido/s por mayúsculas u ortografía, unificado/s`)
     }
+    if (talleAttr) talles = talleAttr.values
     if (colors.length === 0) colors = ['']
     if (talles.length === 0) talles = ['Unico']
 
