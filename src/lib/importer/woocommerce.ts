@@ -1,5 +1,6 @@
 import { parseCsv, csvRowsToObjects } from '@/lib/csv'
 import { processImageForUpload, type ImageQuality } from './image'
+import { resolveColorHex } from './colorHex'
 
 // Importador de catálogo estilo WooCommerce (export en español, mismas
 // columnas que ya vinimos migrando a mano con importar-caloria.py /
@@ -478,7 +479,7 @@ export async function importOneProduct(ctx: ImportContext, pid: string, prod: Wo
     const talleNorm = normalizeTalle(size, logUnaVez)
     const { data: vres, error: vErr } = await service.from('variants').insert({
       product_id: productId, size: talleNorm, color: color || null,
-      color_hex: color ? (hexByColor.get(colorKey(color)) ?? null) : null,
+      color_hex: color ? (hexByColor.get(colorKey(color)) ?? resolveColorHex(color)) : null,
       sku: sku || null, stock, active,
     }).select('id').single()
     if (vErr || !vres) { log(`Variante de "${name}": ${vErr?.message}`, 'error'); return }
