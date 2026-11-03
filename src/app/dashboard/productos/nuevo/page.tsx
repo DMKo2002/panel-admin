@@ -13,6 +13,7 @@ import { buildProductoSteps, hint } from '@/components/tutorial/productoSteps'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 import Select from '@/components/Select'
+import { ensureBrowserImage, isImageFile } from '@/lib/heic'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -206,7 +207,8 @@ export default function NuevoProductoPage() {
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     const resizeFn = currentResizeFn()
-    const resized = await Promise.all(files.map(resizeFn))
+    const resized = await Promise.all(files.map(async f => resizeFn(await ensureBrowserImage(f)))).catch(() => null)
+    if (!resized) { setError('No se pudo convertir una de las fotos (HEIC). Probá exportarla como JPG.'); e.target.value = ''; return }
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
     e.target.value = ''
@@ -215,10 +217,11 @@ export default function NuevoProductoPage() {
   async function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
     e.preventDefault()
     setIsDragging(false)
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    const files = Array.from(e.dataTransfer.files).filter(isImageFile)
     if (!files.length) return
     const resizeFn = currentResizeFn()
-    const resized = await Promise.all(files.map(resizeFn))
+    const resized = await Promise.all(files.map(async f => resizeFn(await ensureBrowserImage(f)))).catch(() => null)
+    if (!resized) { setError('No se pudo convertir una de las fotos (HEIC). Probá exportarla como JPG.'); return }
     setImageFiles(prev => [...prev, ...resized])
     setImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
   }
@@ -582,7 +585,7 @@ export default function NuevoProductoPage() {
             <Upload size={20} className="text-zinc-400 mb-1" />
             <span className="text-sm text-zinc-500">{isDragging ? 'Soltá las imágenes acá' : 'Arrastrá o hacé click para subir fotos'}</span>
             <span className="text-xs text-zinc-400 mt-0.5">Se redimensionan automáticamente a {imageQuality === 'high' ? (imageRatio === '1:1' ? '3000×3000' : '2000×3000') : imageQuality === 'low' ? (imageRatio === '1:1' ? '1200×1200' : '800×1200') : (imageRatio === '1:1' ? '2048×2048' : '1365×2048')}</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
+            <input type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleImageChange} />
           </label>
           {imagePreviews.length > 0 && (
             <div>

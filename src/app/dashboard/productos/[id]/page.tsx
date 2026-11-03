@@ -14,6 +14,7 @@ import { buildProductoSteps, hint } from '@/components/tutorial/productoSteps'
 import TutorialHint from '@/components/tutorial/TutorialHint'
 import PageTutorialButton from '@/components/tutorial/PageTutorialButton'
 import Select from '@/components/Select'
+import { ensureBrowserImage, isImageFile } from '@/lib/heic'
 
 // ── Attr config ───────────────────────────────────────────────────────────────
 interface AttrConfig { key: string; label: string; type: 'text' | 'select' | 'color'; options?: string[] }
@@ -389,7 +390,8 @@ export default function EditarProductoPage() {
     }
     const files = Array.from(e.target.files ?? [])
     const resizeFn = currentResizeFn()
-    const resized = await Promise.all(files.map(resizeFn))
+    const resized = await Promise.all(files.map(async f => resizeFn(await ensureBrowserImage(f)))).catch(() => null)
+    if (!resized) { setError('No se pudo convertir una de las fotos (HEIC). Probá exportarla como JPG.'); e.target.value = ''; return }
     setNewImageFiles(prev => [...prev, ...resized])
     setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
     e.target.value = ''
@@ -403,10 +405,11 @@ export default function EditarProductoPage() {
       setError('Superaste el almacenamiento de tu plan — no se pueden subir más imágenes. Subí de plan o liberá espacio desde Plan y uso.')
       return
     }
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    const files = Array.from(e.dataTransfer.files).filter(isImageFile)
     if (files.length === 0) return
     const resizeFn = currentResizeFn()
-    const resized = await Promise.all(files.map(resizeFn))
+    const resized = await Promise.all(files.map(async f => resizeFn(await ensureBrowserImage(f)))).catch(() => null)
+    if (!resized) { setError('No se pudo convertir una de las fotos (HEIC). Probá exportarla como JPG.'); return }
     setNewImageFiles(prev => [...prev, ...resized])
     setNewImagePreviews(prev => [...prev, ...resized.map(f => URL.createObjectURL(f))])
   }
@@ -1046,7 +1049,7 @@ export default function EditarProductoPage() {
             <Upload size={20} className={`mb-1 ${dragOver ? 'text-primary-400' : 'text-zinc-400'}`} />
             <span className="text-sm text-zinc-500">{dragOver ? 'Soltar imágenes aquí' : 'Agregar más imágenes'}</span>
             <span className="text-xs text-zinc-400 mt-0.5">Click o arrastrá · Se redimensionan a {imageQuality === 'high' ? (imageRatio === '1:1' ? '3000×3000' : '2000×3000') : imageQuality === 'low' ? (imageRatio === '1:1' ? '1200×1200' : '800×1200') : (imageRatio === '1:1' ? '2048×2048' : '1365×2048')}</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
+            <input type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleImageChange} />
           </label>
         </div>
 

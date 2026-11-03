@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/compress-image'
+import { ensureBrowserImage, isImageFile } from '@/lib/heic'
 import { ImageIcon, Upload, X, Loader2, Check } from 'lucide-react'
 import Toggle from '@/components/Toggle'
 import { useTutorial, type TutorialStep } from '@/components/tutorial/TutorialProvider'
@@ -131,7 +132,7 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const isValidFile = (file: File) =>
-    file.type.startsWith('image/') || (!!slotDef.allowVideo && file.type.startsWith('video/'))
+    isImageFile(file) || (!!slotDef.allowVideo && file.type.startsWith('video/'))
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -196,7 +197,7 @@ function AssetSlot({ slotDef, state, onUpload, onRemove }: {
       <input
         ref={inputRef}
         type="file"
-        accept={slotDef.allowVideo ? 'image/*,video/*' : 'image/*'}
+        accept={slotDef.allowVideo ? 'image/*,.heic,.heif,video/*' : 'image/*,.heic,.heif'}
         className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f && isValidFile(f)) onUpload(f) }}
       />
@@ -438,9 +439,13 @@ export default function AparienciaPage() {
     setSlots(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }))
   }
 
-  async function handleUpload(slotKey: string, rawFile: File) {
+  async function handleUpload(slotKey: string, pickedFile: File) {
     if (!tenantId) return
     setSlotState(slotKey, { uploading: true, error: null })
+    // Fotos de iPhone (HEIC) -> JPEG antes de comprimir/subir
+    let rawFile: File
+    try { rawFile = await ensureBrowserImage(pickedFile) }
+    catch { setSlotState(slotKey, { uploading: false, error: 'No se pudo convertir la foto (HEIC). Probá exportarla como JPG.' }); return }
     // Comprimir antes de subir — los heros crudos del celular (3-4 MB) fueron
     // los que reventaron el egress de Supabase. Logos mantienen transparencia.
     const esLogo = slotKey.startsWith('logo')
