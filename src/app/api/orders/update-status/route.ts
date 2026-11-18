@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   const storeName     = tenant?.name ?? 'Tienda'
 
   if (customerEmail && status === 'cancelled') {
-    const subject = `Tu pedido fue cancelado — ${storeName}`
+    const subject = `Actualización de tu pedido — ${storeName}`
     const html = emailPedidoCancelado({
       storeName, orderId, customerName, wasPaid,
       whatsapp: cfg?.whatsapp_number ?? null,
